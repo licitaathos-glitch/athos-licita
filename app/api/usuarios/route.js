@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { lerAba, adicionarLinha } from '@/lib/google'
 import { getUsuarioFromReq, ehAdmin } from '@/lib/auth'
 import { novoId } from '@/lib/uuid'
+import { chamarGAS } from '@/lib/gas'
 
 export async function GET(req) {
   const usuario = await getUsuarioFromReq(req)
@@ -48,7 +49,19 @@ export async function POST(req) {
       empresas_permitidas: perfil === 'analista' ? (empresas_permitidas || '') : '',
     })
     if (!r.ok) return NextResponse.json({ sucesso: false, erro: r.erro })
-    return NextResponse.json({ sucesso: true, id, pin })
+
+    // E-mail de boas-vindas com o PIN inicial (enviado pelo Apps Script via Gmail)
+    let avisoEmail = null
+    try {
+      const env = await chamarGAS({ action: 'enviarBoasVindas', email, nome, pin, perfil })
+      if (!env || env.sucesso === false) {
+        avisoEmail = (env && (env.erro || env.mensagem)) || 'Não foi possível enviar o e-mail.'
+      }
+    } catch (e) {
+      avisoEmail = 'Usuário criado, mas o e-mail não pôde ser enviado: ' + e.message
+    }
+
+    return NextResponse.json({ sucesso: true, id, pin, avisoEmail })
   } catch (e) {
     return NextResponse.json({ sucesso: false, erro: 'Erro no servidor: ' + e.message }, { status: 500 })
   }

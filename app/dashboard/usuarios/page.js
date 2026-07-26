@@ -44,7 +44,9 @@ export default function UsuariosPage() {
         }),
       }).then(x => x.json())
       if (r.sucesso) {
-        setMsg('Usuário criado com sucesso. PIN de acesso: ' + r.pin + ' (compartilhe com segurança)')
+        setMsg(r.avisoEmail
+          ? 'Usuário criado. ⚠️ O e-mail não foi enviado (' + r.avisoEmail + '). PIN de acesso: ' + r.pin
+          : 'Usuário criado! Um e-mail com o PIN de acesso foi enviado para ' + email + '.')
         setNome(''); setEmail(''); setPerfil('empresa'); setEmpresaId(''); setPermitidas([])
         carregar()
       } else setErro(r.erro || 'Erro ao criar usuário.')

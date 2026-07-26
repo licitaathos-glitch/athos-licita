@@ -53,10 +53,13 @@ export default function Sidebar() {
       </nav>
 
       {usuario && (
-        <div className="sidebar-perfil">
-          {ROTULO_PERFIL[perfil] || perfil}
+        <Link href="/dashboard/perfil" className="sidebar-perfil">
+          <span>
+            {ROTULO_PERFIL[perfil] || perfil}
+            <span className="sidebar-perfil-edit">✏️ meu perfil e PIN</span>
+          </span>
           {perfil === 'empresa' && <span className="sidebar-perfil-tag">consulta</span>}
-        </div>
+        </Link>
       )}
     </aside>
   )
