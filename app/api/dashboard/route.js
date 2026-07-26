@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { lerAba } from '@/lib/google'
 import { lerToken } from '@/lib/session'
+import { empresasVisiveis } from '@/lib/auth'
 
 // Slugs de documentos que possuem validade (mesma regra do sistema atual)
 const SLUGS_COM_VALIDADE = new Set([
@@ -27,9 +28,10 @@ export async function GET(req) {
     const usuario = token ? await lerToken(token) : null
     if (!usuario) return NextResponse.json({ sucesso: false, erro: 'Não autenticado.' }, { status: 401 })
 
-    const [empresas, documentos] = await Promise.all([lerAba('Empresas'), lerAba('Documentos')])
+    const [todasEmpresas, documentos] = await Promise.all([lerAba('Empresas'), lerAba('Documentos')])
+    const empresas = empresasVisiveis(usuario, todasEmpresas.filter(e => e.id))
 
-    const resumo = empresas.filter(e => e.id).map(e => {
+    const resumo = empresas.map(e => {
       const docs = documentos.filter(d =>
         String(d.empresa_id || '').trim() === String(e.id).trim() &&
         SLUGS_COM_VALIDADE.has(String(d.tipo_slug || '').trim())

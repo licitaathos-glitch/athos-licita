@@ -26,7 +26,11 @@ export async function POST(req) {
     )
     if (!u) return NextResponse.json({ sucesso: false, erro: 'E-mail ou PIN incorretos.' })
 
-    const usuario = { id: u.id, nome: u.nome, email: u.email, perfil: u.perfil }
+    const usuario = {
+      id: u.id, nome: u.nome, email: u.email, perfil: u.perfil,
+      empresa_id: u.empresa_id || '',
+      empresas_permitidas: u.empresas_permitidas || '',
+    }
     const token = await criarToken(usuario)
     const res = NextResponse.json({ sucesso: true, usuario })
     res.cookies.set('athos_sessao', token, {
