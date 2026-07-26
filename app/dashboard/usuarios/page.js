@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useApp } from '@/lib/AppContext'
 
-const ROTULOS = { adm: 'Administrador', analista: 'Analista', empresa: 'Empresa' }
+const ROTULOS = { adm: 'Administrador', admin: 'Administrador', analista: 'Analista', empresa: 'Empresa' }
 
 export default function UsuariosPage() {
   const { usuario, empresas } = useApp()
@@ -69,7 +69,7 @@ export default function UsuariosPage() {
           <input placeholder="Nome completo" value={nome} onChange={e => setNome(e.target.value)} />
           <input placeholder="E-mail" type="email" value={email} onChange={e => setEmail(e.target.value)} />
           <select value={perfil} onChange={e => setPerfil(e.target.value)}>
-            <option value="adm">Administrador</option>
+            <option value="admin">Administrador</option>
             <option value="analista">Analista</option>
             <option value="empresa">Empresa</option>
           </select>

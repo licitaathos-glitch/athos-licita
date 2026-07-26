@@ -10,6 +10,8 @@ export default function EmpresasPage() {
   const [nome, setNome] = useState('')
   const [cnpj, setCnpj] = useState('')
   const [responsavel, setResponsavel] = useState('')
+  const [emailEmp, setEmailEmp] = useState('')
+  const [telefone, setTelefone] = useState('')
   const [msg, setMsg] = useState('')
   const [erro, setErro] = useState('')
   const [salvando, setSalvando] = useState(false)
@@ -28,11 +30,11 @@ export default function EmpresasPage() {
       const r = await fetch('/api/empresas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome, cnpj, responsavel }),
+        body: JSON.stringify({ nome, cnpj, responsavel, email: emailEmp, telefone }),
       }).then(x => x.json())
       if (r.sucesso) {
         setMsg('Empresa cadastrada com sucesso.')
-        setNome(''); setCnpj(''); setResponsavel('')
+        setNome(''); setCnpj(''); setResponsavel(''); setEmailEmp(''); setTelefone('')
         carregar(); recarregarEmpresas()
       } else setErro(r.erro || 'Erro ao cadastrar empresa.')
     } catch {
@@ -56,6 +58,8 @@ export default function EmpresasPage() {
           <input placeholder="Nome da empresa" value={nome} onChange={e => setNome(e.target.value)} />
           <input placeholder="CNPJ" value={cnpj} onChange={e => setCnpj(e.target.value)} />
           <input placeholder="Responsável" value={responsavel} onChange={e => setResponsavel(e.target.value)} />
+          <input placeholder="E-mail" value={emailEmp} onChange={e => setEmailEmp(e.target.value)} />
+          <input placeholder="Telefone" value={telefone} onChange={e => setTelefone(e.target.value)} />
         </div>
         {msg && <div className="l-ok" style={{ marginTop: 10 }}>{msg}</div>}
         {erro && <div className="l-err" style={{ marginTop: 10 }}>{erro}</div>}

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { lerAba, adicionarLinha } from '@/lib/google'
 import { getUsuarioFromReq, ehAdmin } from '@/lib/auth'
+import { novoId } from '@/lib/uuid'
 
 export async function GET(req) {
   const usuario = await getUsuarioFromReq(req)
@@ -26,27 +27,28 @@ export async function POST(req) {
     if (!nome || !email || !perfil) {
       return NextResponse.json({ sucesso: false, erro: 'Preencha nome, e-mail e perfil.' })
     }
-    const perfisValidos = ['adm', 'analista', 'empresa']
-    if (!perfisValidos.includes(String(perfil).toLowerCase())) {
+    if (!['admin', 'analista', 'empresa'].includes(String(perfil).toLowerCase())) {
       return NextResponse.json({ sucesso: false, erro: 'Perfil inválido.' })
     }
 
     const usuarios = await lerAba('Usuarios')
     const emailBusca = String(email).trim().toLowerCase()
-    const jaExiste = usuarios.some(u => String(u.email || '').trim().toLowerCase() === emailBusca)
-    if (jaExiste) return NextResponse.json({ sucesso: false, erro: 'Já existe um usuário com esse e-mail.' })
+    if (usuarios.some(u => String(u.email || '').trim().toLowerCase() === emailBusca)) {
+      return NextResponse.json({ sucesso: false, erro: 'Já existe um usuário com esse e-mail.' })
+    }
 
-    const proximoId = String(usuarios.reduce((max, u) => Math.max(max, parseInt(u.id) || 0), 0) + 1)
     const pin = String(Math.floor(100000 + Math.random() * 900000))
+    const id = novoId()
 
     const r = await adicionarLinha('Usuarios', {
-      id: proximoId, nome, email, pin, perfil,
+      id, nome, email, pin, perfil,
+      ativo: 'TRUE',
+      criadoEm: new Date().toISOString(),
       empresa_id: perfil === 'empresa' ? (empresa_id || '') : '',
       empresas_permitidas: perfil === 'analista' ? (empresas_permitidas || '') : '',
-      ativo: 'true',
     })
     if (!r.ok) return NextResponse.json({ sucesso: false, erro: r.erro })
-    return NextResponse.json({ sucesso: true, id: proximoId, pin })
+    return NextResponse.json({ sucesso: true, id, pin })
   } catch (e) {
     return NextResponse.json({ sucesso: false, erro: 'Erro no servidor: ' + e.message }, { status: 500 })
   }

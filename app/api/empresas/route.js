@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { lerAba, adicionarLinha } from '@/lib/google'
 import { getUsuarioFromReq, ehAdmin, empresasVisiveis } from '@/lib/auth'
+import { novoId } from '@/lib/uuid'
 
 export async function GET(req) {
   const usuario = await getUsuarioFromReq(req)
@@ -17,17 +18,16 @@ export async function POST(req) {
   if (!ehAdmin(usuario)) return NextResponse.json({ sucesso: false, erro: 'Apenas administradores podem incluir empresas.' }, { status: 403 })
 
   try {
-    const { nome, cnpj, responsavel } = await req.json()
+    const { nome, cnpj, responsavel, email, telefone } = await req.json()
     if (!nome) return NextResponse.json({ sucesso: false, erro: 'Informe o nome da empresa.' })
 
-    const todas = await lerAba('Empresas')
-    const proximoId = String(todas.reduce((max, e) => Math.max(max, parseInt(e.id) || 0), 0) + 1)
-
+    const id = novoId()
     const r = await adicionarLinha('Empresas', {
-      id: proximoId, nome, cnpj: cnpj || '', responsavel: responsavel || '',
+      id, nome, cnpj: cnpj || '', responsavel: responsavel || '',
+      email: email || '', telefone: telefone || '',
     })
     if (!r.ok) return NextResponse.json({ sucesso: false, erro: r.erro })
-    return NextResponse.json({ sucesso: true, id: proximoId })
+    return NextResponse.json({ sucesso: true, id })
   } catch (e) {
     return NextResponse.json({ sucesso: false, erro: 'Erro no servidor: ' + e.message }, { status: 500 })
   }
