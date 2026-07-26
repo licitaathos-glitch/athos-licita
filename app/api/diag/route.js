@@ -7,7 +7,7 @@ import { getUsuarioFromReq, ehAdmin } from '@/lib/auth'
 export async function GET(req) {
   const usuario = await getUsuarioFromReq(req)
   if (!usuario) return NextResponse.json({ sucesso: false, erro: 'Não autenticado.' }, { status: 401 })
-  if (!ehAdmin(usuario)) return NextResponse.json({ sucesso: false, erro: 'Somente administradores.' }, { status: 403 })
+  if (!ehAdmin(usuario)) return NextResponse.json({ sucesso: false, erro: 'Somente administradores.', perfilDetectado: usuario.perfil }, { status: 403 })
 
   try {
     const sheets = getSheets()
