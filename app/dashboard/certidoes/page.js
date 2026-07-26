@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useApp } from '@/lib/AppContext'
 import { CATEGORIAS } from '@/lib/tiposCertidao'
+import { enviarAoGAS, lerBase64 } from '@/lib/gasClient'
 
 const CORES = { ok: '#16A34A', warn: '#D97706', bad: '#DC2626', nd: '#CBD5E1' }
 
@@ -105,7 +106,7 @@ export default function CertidoesPage() {
               </div>
               {!somenteConsulta && empresaSel && (
                 <div className="doc-acts">
-                  <button className="iBtn iBtn-up" onClick={() => setModal({ tipo, cat, doc, empresa_id: empresaSel })}>
+                  <button className="iBtn iBtn-up" onClick={() => setModal({ tipo, cat, doc, empresa_id: empresaSel, empresaNome })}>
                     ⬆ {doc ? 'Atualizar' : 'Enviar'}
                   </button>
                   {doc && (
@@ -138,7 +139,7 @@ export default function CertidoesPage() {
   )
 }
 
-function ModalUpload({ tipo, cat, doc, empresa_id, onFechar, onSalvo }) {
+function ModalUpload({ tipo, cat, doc, empresa_id, empresaNome, onFechar, onSalvo }) {
   const [validade, setValidade] = useState(doc?.validade_iso || '')
   const [observacao, setObservacao] = useState(doc?.observacao || '')
   const [driveId, setDriveId] = useState(doc?.drive_file_id || '')
@@ -152,37 +153,35 @@ function ModalUpload({ tipo, cat, doc, empresa_id, onFechar, onSalvo }) {
   async function onFile(e) {
     const f = e.target.files?.[0]
     if (!f) return
-    if (f.size > 4 * 1024 * 1024) {
-      setErro('Arquivo muito grande (máx. 4 MB neste envio). Comprima o PDF ou envie só as páginas necessárias.')
+    if (f.size > 25 * 1024 * 1024) {
+      setErro('Arquivo muito grande (máx. 25 MB).')
       return
     }
     setErro(''); setEnviando(true); setExtraido(null)
     try {
-      const base64 = await new Promise((res, rej) => {
-        const r = new FileReader()
-        r.onload = () => res(String(r.result).split(',')[1])
-        r.onerror = rej
-        r.readAsDataURL(f)
+      const base64 = await lerBase64(f)
+      // Envio direto do navegador ao Apps Script — sem o limite de tamanho da Vercel
+      const r = await enviarAoGAS({
+        action: 'uploadCertidao',
+        base64, mimeType: f.type || 'application/pdf', nomeArquivo: f.name,
+        empresaId: empresa_id, nomeEmpresa: empresaNome, tipoSlug: tipo.slug,
       })
-      const r = await fetch('/api/certidoes/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ base64, mimeType: f.type || 'application/pdf', nomeArquivo: f.name, empresa_id, tipo_slug: tipo.slug }),
-      }).then(x => x.json())
 
-      if (!r.sucesso) { setErro(r.erro || 'Falha no envio.'); setEnviando(false); return }
       setArquivo(f.name)
-      setDriveId(r.driveFileId || '')
-      setDriveUrl(r.driveFileUrl || '')
-      if (r.dados) {
+      if (r.driveFileId) setDriveId(r.driveFileId)
+      if (r.driveFileUrl) setDriveUrl(r.driveFileUrl)
+
+      if (r.ok && r.dados) {
         setExtraido(r.dados)
         if (cat.temValidade && r.dados.data_validade) setValidade(r.dados.data_validade)
         if (r.dados.numero) setObservacao(o => o || r.dados.numero)
-      } else if (r.avisoGemini) {
-        setErro('Arquivo salvo no Drive, mas a leitura automática falhou: ' + r.avisoGemini + ' Preencha manualmente.')
+      } else if (r.driveFileId) {
+        setErro('Arquivo salvo no Drive, mas a leitura automática falhou: ' + (r.erro || 'sem detalhe') + ' — preencha manualmente.')
+      } else {
+        setErro(r.erro || 'Falha no envio.')
       }
-    } catch {
-      setErro('Erro ao enviar o arquivo.')
+    } catch (ex) {
+      setErro(ex.message || 'Erro ao enviar o arquivo.')
     }
     setEnviando(false)
   }
@@ -228,7 +227,7 @@ function ModalUpload({ tipo, cat, doc, empresa_id, onFechar, onSalvo }) {
               ? <div>🤖 Enviando ao Drive e lendo com o Gemini... (pode levar até 40s)</div>
               : arquivo
                 ? <div>✅ {arquivo}<div style={{ fontSize: 12, color: '#6B7280', marginTop: 4 }}>clique para trocar</div></div>
-                : <div>📄 Clique para enviar o PDF ou imagem<div style={{ fontSize: 12, color: '#94A3B8', marginTop: 4 }}>máx. 4 MB</div></div>}
+                : <div>📄 Clique para enviar o PDF ou imagem<div style={{ fontSize: 12, color: '#94A3B8', marginTop: 4 }}>PDF ou imagem — até 25 MB</div></div>}
           </label>
 
           {extraido && (

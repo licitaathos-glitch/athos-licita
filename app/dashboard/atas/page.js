@@ -1,6 +1,7 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
 import { useApp } from '@/lib/AppContext'
+import { enviarAoGAS, lerBase64 } from '@/lib/gasClient'
 
 const CORES = { ok: '#16A34A', warn: '#D97706', bad: '#DC2626', nd: '#CBD5E1' }
 const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
@@ -195,8 +196,52 @@ function ModalAta({ ata, empresaId, onFechar, onSalvo }) {
   const [itens, setItens] = useState(ata.itens || [])
   const [erro, setErro] = useState('')
   const [salvando, setSalvando] = useState(false)
+  const [lendoPdf, setLendoPdf] = useState(false)
+  const [pdfNome, setPdfNome] = useState('')
 
   const set = (k, v) => setF(o => ({ ...o, [k]: v }))
+
+  async function onPdf(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 25 * 1024 * 1024) { setErro('Arquivo muito grande (máx. 25 MB).'); return }
+    setErro(''); setLendoPdf(true)
+    try {
+      const base64 = await lerBase64(file)
+      const r = await enviarAoGAS({
+        action: 'extrairDadosAta',
+        base64, mimeType: file.type || 'application/pdf',
+      })
+      if (!r.sucesso) {
+        setErro(r.erro || 'Não foi possível ler a ata. Preencha manualmente.')
+      } else {
+        const d = r.dados || {}
+        setPdfNome(file.name)
+        setF(o => ({
+          ...o,
+          numeroAta: d.numeroAta || o.numeroAta,
+          orgao: d.orgao || o.orgao,
+          cnpjOrgao: d.cnpjOrgao || o.cnpjOrgao,
+          uf: d.uf || o.uf,
+          licitacao: d.licitacao || o.licitacao,
+          processo: d.processo || o.processo,
+          objeto: d.objeto || o.objeto,
+          representante: d.representante || o.representante,
+          dataAssinatura: brParaISO(d.dataAssinatura) || o.dataAssinatura,
+          vigencia: d.vigencia || o.vigencia,
+          vencimento: brParaISO(d.vencimento) || o.vencimento,
+          adesao: d.adesao || o.adesao,
+          condPagamento: d.condPagamento || o.condPagamento,
+          contato: d.contato || o.contato,
+          observacoes: d.observacoes || o.observacoes,
+        }))
+        if (Array.isArray(d.itens) && d.itens.length) setItens(d.itens)
+      }
+    } catch (ex) {
+      setErro(ex.message || 'Erro ao enviar o PDF.')
+    }
+    setLendoPdf(false)
+  }
   const setItem = (i, k, v) => setItens(a => a.map((it, j) => j === i ? { ...it, [k]: v } : it))
   const total = itens.reduce((s, it) => s + (Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0), 0)
 
@@ -231,6 +276,15 @@ function ModalAta({ ata, empresaId, onFechar, onSalvo }) {
           <button className="modal-x" onClick={onFechar}>×</button>
         </div>
         <div className="modal-body">
+          <label className={'uz' + (lendoPdf ? ' uploading' : pdfNome ? ' success' : '')}>
+            <input type="file" accept=".pdf" onChange={onPdf} disabled={lendoPdf} style={{ display: 'none' }} />
+            {lendoPdf
+              ? <div>🤖 Gemini lendo a ata completa... (pode levar até 60s)</div>
+              : pdfNome
+                ? <div>✅ {pdfNome}<div style={{ fontSize: 12, marginTop: 4 }}>dados preenchidos — confira antes de salvar</div></div>
+                : <div>🤖 Preenchimento automático — envie o PDF da ata<div style={{ fontSize: 12, color: '#94A3B8', marginTop: 4 }}>o Gemini extrai todos os campos e itens · até 25 MB</div></div>}
+          </label>
+
           <div className="form-grid">
             <div><label className="mini-lbl">Nº DA ATA *</label><input value={f.numeroAta} onChange={e => set('numeroAta', e.target.value)} placeholder="17/2026" /></div>
             <div><label className="mini-lbl">UF</label>
