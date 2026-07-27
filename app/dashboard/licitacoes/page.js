@@ -6,6 +6,8 @@ import { enviarAoGAS, lerBase64 } from '@/lib/gasClient'
 import ModalChecklist from '@/components/ModalChecklist'
 import ModalResultado from '@/components/ModalResultado'
 import { nomeResultado, corResultado } from '@/lib/resultado'
+import QuadroLicitacoes from '@/components/QuadroLicitacoes'
+import { FASES, faseDe } from '@/lib/fases'
 
 const MODAL_NOMES = ['Pregão Eletrônico', 'Pregão Presencial', 'Concorrência Eletrônica',
   'Concorrência Presencial', 'Dispensa', 'Inexigibilidade']
@@ -35,6 +37,7 @@ export default function LicitacoesPage() {
   const [editando, setEditando] = useState(null)
   const [checklist, setChecklist] = useState(null)
   const [resultado, setResultado] = useState(null)
+  const [vista, setVista] = useState('quadro')
 
   const carregar = useCallback(() => {
     fetch('/api/licitacoes').then(r => r.json())
@@ -60,6 +63,24 @@ export default function LicitacoesPage() {
 
   const abertas = base.filter(l => l.status === 'Aberta').length
   const vaiParticipar = base.filter(l => l.participar === 'Sim').length
+
+  async function moverFase(lic, novaFase) {
+    // Atualização otimista: move na tela e grava em seguida
+    setLics(atual => atual.map(l => l.id === lic.id ? { ...l, fase: novaFase } : l))
+    const extras = {}
+    if (novaFase === 'Descartado' && (!lic.resultado || lic.resultado === 'Aguardando')) {
+      extras.participar = 'Não'
+    }
+    if (novaFase === 'Finalizada') extras.status = 'Encerrada'
+    const r = await fetch('/api/licitacoes', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: lic.id, empresa_id: lic.empresa_id, objeto: lic.objeto, fase: novaFase, ...extras }),
+    }).then(x => x.json())
+    if (!r.sucesso) { alert(r.erro || 'Erro ao mover.'); carregar() }
+    else if (novaFase === 'Finalizada' && (!lic.resultado || lic.resultado === 'Aguardando')) {
+      setResultado({ ...lic, fase: novaFase })
+    }
+  }
 
   async function decidir(lic, valor) {
     const r = await fetch('/api/licitacoes', {
@@ -93,14 +114,56 @@ export default function LicitacoesPage() {
 
       <div className="filtro-bar">
         <input className="busca-input" placeholder="Buscar por objeto, órgão, edital, portal..." value={busca} onChange={e => setBusca(e.target.value)} />
-        {[['', 'Todas'], ['Aberta', 'Abertas'], ['Encerrada', 'Encerradas']].map(([k, l]) => (
+        {vista === 'lista' && [['', 'Todas'], ['Aberta', 'Abertas'], ['Encerrada', 'Encerradas']].map(([k, l]) => (
           <button key={k} className={'filtro-btn' + (status === k ? ' active' : '')} onClick={() => setStatus(k)}>{l}</button>
         ))}
+        <div className="vista-toggle">
+          <button className={vista === 'quadro' ? 'on' : ''} onClick={() => setVista('quadro')}>▦ Quadro</button>
+          <button className={vista === 'lista' ? 'on' : ''} onClick={() => setVista('lista')}>☰ Lista</button>
+        </div>
       </div>
+
+      {vista === 'quadro' && (
+        <>
+          <QuadroLicitacoes
+            licitacoes={lista}
+            somenteConsulta={somenteConsulta}
+            onMover={moverFase}
+            onAbrir={l => setAberta(aberta === l.id ? null : l.id)}
+          />
+          {aberta && (() => {
+            const l = lista.find(x => x.id === aberta)
+            if (!l) return null
+            return (
+              <div className="detalhe-quadro">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                  <div>
+                    <div style={{ fontWeight: 800, color: '#1B2E4B' }}>{l.numeroEdital || 'Sem nº'} — {l.orgao}</div>
+                    <div style={{ fontSize: 11.5, color: '#94A3B8' }}>
+                      {faseDe(l.fase).nome}{l.modalidade ? ' · ' + l.modalidade : ''}{l.portal ? ' · ' + l.portal : ''}
+                    </div>
+                  </div>
+                  <button className="iBtn" onClick={() => setAberta(null)}>fechar</button>
+                </div>
+                {l.objeto && <p style={{ marginTop: 8, fontSize: 12.5, color: '#475569' }}>{l.objeto}</p>}
+                <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+                  {l.link && <a href={l.link} target="_blank" rel="noreferrer" className="iBtn">↗ Edital</a>}
+                  {l.anexoDriveUrl && <a href={l.anexoDriveUrl} target="_blank" rel="noreferrer" className="iBtn">📎 Anexo</a>}
+                  {!somenteConsulta && <>
+                    <button className="iBtn" onClick={() => setChecklist(l)}>📋 Checklist</button>
+                    <button className="iBtn" onClick={() => setResultado(l)}>🏁 Resultado</button>
+                    <button className="iBtn" onClick={() => setEditando(l)}>✏️ Editar</button>
+                  </>}
+                </div>
+              </div>
+            )
+          })()}
+        </>
+      )}
 
       {lista.length === 0 && <div style={{ color: '#94A3B8', fontSize: 13 }}>Nenhuma licitação. Use Oportunidades para trazer do PNCP ou inclua manualmente.</div>}
 
-      {lista.map(l => (
+      {vista === 'lista' && lista.map(l => (
         <div key={l.id}>
           <div className="emp-card" style={{ cursor: 'pointer' }} onClick={() => setAberta(aberta === l.id ? null : l.id)}>
             <span className="emp-dot" style={{ background: l.status === 'Aberta' ? '#16A34A' : '#CBD5E1' }} />

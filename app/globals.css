@@ -301,6 +301,40 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .op-acoes{display:flex;gap:6px;align-items:center;flex-shrink:0;flex-wrap:wrap}
 .modal-sm{max-width:440px}
 
+
+/* ══ QUADRO KANBAN DE LICITAÇÕES ══ */
+.vista-toggle{display:flex;gap:2px;background:#F1F5F9;border-radius:20px;padding:3px;margin-left:auto}
+.vista-toggle button{border:none;background:transparent;padding:5px 13px;border-radius:18px;font-size:12px;font-weight:700;color:#64748B;cursor:pointer;font-family:inherit}
+.vista-toggle button.on{background:#1B2E4B;color:#C9A84C}
+.quadro{display:flex;gap:11px;overflow-x:auto;padding-bottom:12px;align-items:flex-start}
+.coluna{flex:0 0 250px;background:#F1F5F9;border-radius:12px;padding:9px;min-height:180px;transition:background .15s}
+.coluna.alvo{background:#DBEAFE;outline:2px dashed #1B2E4B}
+.col-hdr{background:#fff;border-radius:9px;padding:9px 11px;border-top:3px solid;margin-bottom:9px}
+.col-nome{font-size:12.5px;font-weight:800;color:#1B2E4B;display:flex;align-items:center;justify-content:space-between;gap:6px}
+.col-qtd{color:#fff;font-size:10.5px;font-weight:700;padding:1px 8px;border-radius:10px;min-width:20px;text-align:center}
+.col-desc{font-size:10.5px;color:#94A3B8;margin-top:2px}
+.col-valor{font-size:11px;color:#1B2E4B;font-weight:700;margin-top:4px}
+.col-cards{display:flex;flex-direction:column;gap:7px}
+.col-vazia{text-align:center;color:#CBD5E1;font-size:18px;padding:14px 0}
+.card-lic{background:#fff;border-radius:9px;padding:10px 11px;box-shadow:0 1px 3px rgba(0,0,0,.09);cursor:pointer;border-left:3px solid transparent;position:relative}
+.card-lic:hover{box-shadow:0 4px 12px rgba(0,0,0,.13)}
+.card-lic.urgente{border-left-color:#DC2626}
+.card-lic:active{cursor:grabbing}
+.card-edital{font-size:11px;font-weight:800;color:#1B2E4B}
+.card-obj{font-size:11.5px;color:#475569;line-height:1.4;margin-top:3px}
+.card-orgao{font-size:10.5px;color:#94A3B8;margin-top:4px}
+.card-rodape{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:7px;flex-wrap:wrap}
+.card-valor{font-size:11.5px;font-weight:800;color:#1B2E4B}
+.card-prazo{font-size:10px;font-weight:700;background:#F1F5F9;color:#475569;padding:1px 8px;border-radius:10px}
+.card-prazo.urg{background:#FEE2E2;color:#991B1B}
+.card-resultado{font-size:10.5px;font-weight:800;margin-top:5px}
+.card-setas{display:flex;gap:3px;justify-content:flex-end;margin-top:6px}
+.card-setas button{width:24px;height:22px;border:1px solid #E2E8F0;background:#F8FAFC;border-radius:5px;cursor:pointer;font-size:13px;line-height:1;color:#64748B;font-family:inherit}
+.card-setas button:hover:not(:disabled){background:#1B2E4B;color:#C9A84C;border-color:#1B2E4B}
+.card-setas button:disabled{opacity:.3;cursor:not-allowed}
+.detalhe-quadro{background:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 1px 6px rgba(0,0,0,.09);margin-top:14px;border-left:3px solid #C9A84C}
+@media(max-width:820px){.coluna{flex:0 0 215px}}
+
 /* ══ ESQUECI MEU PIN ══ */
 .l-link{display:block;text-align:center;margin-top:16px;color:#1B2E4B;font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline;background:none;border:none;width:100%;font-family:inherit}
 .l-ok{background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:9px 13px;font-size:13px;color:#166534;margin-bottom:12px}

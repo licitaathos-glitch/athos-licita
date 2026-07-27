@@ -1,17 +1,18 @@
 import { NextResponse } from 'next/server'
 import { lerAba, adicionarLinha, atualizarLinha, excluirLinha, garantirAba } from '@/lib/google'
 import { COLS_RESULTADO } from '@/lib/resultado'
+import { faseInferida } from '@/lib/fases'
 import { getUsuarioFromReq, podeEditar, empresasVisiveis } from '@/lib/auth'
 import { novoId } from '@/lib/uuid'
 
 const CAMPOS = ['numeroPNCP','numeroEdital','objeto','orgao','uf','valor','dataAbertura',
   'dataLimite','modalidade','status','link','portal','srp','anexoDriveId','anexoDriveUrl',
-  'itensJson','checklistJson','participar', ...COLS_RESULTADO]
+  'itensJson','checklistJson','participar', 'fase', ...COLS_RESULTADO]
 
 const COLS_LIC = ['id','empresaId','empresaNome','numeroPNCP','numeroEdital','objeto','orgao','uf',
   'valor','dataPublicacao','dataAbertura','modalidade','status','link','origem','salvoEm',
   'dataLimite','portal','srp','anexoDriveId','anexoDriveUrl','itensJson','checklistJson',
-  'participar', ...COLS_RESULTADO]
+  'participar', 'fase', ...COLS_RESULTADO]
 
 function parseItens(json) {
   try { const a = JSON.parse(json || '[]'); return Array.isArray(a) ? a : [] } catch { return [] }
@@ -44,6 +45,7 @@ export async function GET(req) {
         anexoDriveUrl: l.anexoDriveUrl || '', anexoDriveId: l.anexoDriveId || '',
         itens: parseItens(l.itensJson), checklistJson: l.checklistJson || '',
         participar: l.participar || 'Pendente',
+        fase: faseInferida({ fase: l.fase, resultado: l.resultado, participar: l.participar, status: l.status }),
         resultado: l.resultado || 'Aguardando',
         motivo: l.motivo || '',
         nossoLance: l.nossoLance || '',
