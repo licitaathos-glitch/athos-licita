@@ -17,17 +17,17 @@ export async function POST(req) {
       termo: termo || '',
     })
 
-    // Sem resultados E com erros registrados = provável bloqueio da API
-    if (!r.resultados.length && r.diagnostico.some(d => /HTTP|Erro|fetch/i.test(d))) {
+    if (!r.resultados.length && r.houve429) {
       return NextResponse.json({
         sucesso: false,
-        erro: 'A API do PNCP recusou a consulta.',
+        limitado: true,
+        erro: 'O PNCP recusou a consulta feita pelo servidor (limite por IP compartilhado).',
         diagnostico: r.diagnostico.slice(0, 6),
       })
     }
 
     return NextResponse.json({
-      sucesso: true,
+      sucesso: true, via: 'servidor',
       total: r.resultados.length,
       oportunidades: r.resultados.slice(0, 300),
       diagnostico: r.diagnostico.slice(0, 6),

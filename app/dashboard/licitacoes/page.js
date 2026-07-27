@@ -1,7 +1,7 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
 import { useApp } from '@/lib/AppContext'
-import { UFS } from '@/lib/pncpConstantes'
+import { UFS } from '@/lib/pncpComum'
 import { enviarAoGAS, lerBase64 } from '@/lib/gasClient'
 
 const MODAL_NOMES = ['Pregão Eletrônico', 'Pregão Presencial', 'Concorrência Eletrônica',

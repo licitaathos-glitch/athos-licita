@@ -1,7 +1,8 @@
 'use client'
 import { useState } from 'react'
 import { useApp } from '@/lib/AppContext'
-import { MODALIDADES, UFS } from '@/lib/pncpConstantes'
+import { MODALIDADES, UFS } from '@/lib/pncpComum'
+import { buscarNoNavegador } from '@/lib/pncpBrowser'
 
 export default function OportunidadesPage() {
   const { usuario, empresaAtual, empresas } = useApp()
@@ -16,6 +17,8 @@ export default function OportunidadesPage() {
   const [res, setRes] = useState(null)
   const [erro, setErro] = useState('')
   const [diag, setDiag] = useState([])
+  const [etapa, setEtapa] = useState('')
+  const [via, setVia] = useState('')
   const [salvos, setSalvos] = useState({})
 
   const empresaSel = empresaAtual !== 'todas' ? String(empresaAtual) : null
@@ -24,19 +27,40 @@ export default function OportunidadesPage() {
   const alternar = (arr, set, v) => set(arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v])
 
   async function buscar() {
-    setErro(''); setDiag([]); setBuscando(true); setRes(null); setSalvos({})
+    setErro(''); setDiag([]); setBuscando(true); setRes(null); setSalvos({}); setVia('')
     try {
+      setEtapa('Consultando o PNCP pelo servidor...')
       const r = await fetch('/api/oportunidades', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dias, ufs, modalidades: mods, termo }),
       }).then(x => x.json())
-      if (r.sucesso) { setRes(r.oportunidades); setDiag(r.diagnostico || []) }
-      else { setErro(r.erro || 'Erro na busca.'); setDiag(r.diagnostico || []) }
-    } catch {
-      setErro('Erro de conexão.')
+
+      if (r.sucesso) {
+        setRes(r.oportunidades); setDiag(r.diagnostico || []); setVia('servidor')
+        setBuscando(false); setEtapa(''); return
+      }
+
+      // O servidor foi barrado por limite de IP — refaz a consulta pelo navegador,
+      // que usa o IP da conexão do próprio usuário.
+      if (r.limitado) {
+        setEtapa('Servidor bloqueado pelo PNCP. Refazendo a busca pela sua conexão...')
+        const b = await buscarNoNavegador({ dias, ufs, modalidades: mods, termo })
+        if (b.resultados.length) {
+          setRes(b.resultados); setDiag(b.diagnostico || []); setVia('navegador')
+        } else if (b.bloqueioCORS) {
+          setErro('O PNCP recusou a consulta tanto pelo servidor quanto pelo navegador (bloqueio de origem).')
+          setDiag([...(r.diagnostico || []), ...(b.diagnostico || [])])
+        } else {
+          setRes([]); setDiag(b.diagnostico || []); setVia('navegador')
+        }
+      } else {
+        setErro(r.erro || 'Erro na busca.'); setDiag(r.diagnostico || [])
+      }
+    } catch (ex) {
+      setErro('Erro de conexão: ' + (ex.message || ''))
     }
-    setBuscando(false)
+    setBuscando(false); setEtapa('')
   }
 
   async function salvar(op) {
@@ -108,8 +132,9 @@ export default function OportunidadesPage() {
         </div>
 
         <button className="btn-primary" onClick={buscar} disabled={buscando || !ufs.length || !mods.length}>
-          {buscando ? 'Consultando o PNCP...' : '🔎 Buscar oportunidades'}
+          {buscando ? 'Consultando...' : '🔎 Buscar oportunidades'}
         </button>
+        {buscando && etapa && <div style={{ marginTop: 10, fontSize: 12.5, color: '#1E40AF' }}>{etapa}</div>}
       </div>
 
       {erro && (
@@ -127,6 +152,7 @@ export default function OportunidadesPage() {
         <>
           <div style={{ margin: '18px 0 12px', fontSize: 14, fontWeight: 700, color: '#1B2E4B' }}>
             {res.length} oportunidade{res.length !== 1 ? 's' : ''} encontrada{res.length !== 1 ? 's' : ''}
+            {via === 'navegador' && <span style={{ fontWeight: 400, color: '#94A3B8', fontSize: 12 }}> · via sua conexão</span>}
             {!empresaSel && <span style={{ fontWeight: 400, color: '#94A3B8', fontSize: 12 }}> · selecione uma empresa para salvar</span>}
           </div>
 
