@@ -10,6 +10,7 @@ const ITENS_BASE = [
   { key: 'certidoes', label: 'Certidões', href: '/dashboard/certidoes', icon: '📜' },
   { key: 'atas', label: 'Gestão de Atas', href: '/dashboard/atas', icon: '🗂️' },
   { key: 'calendario', label: 'Calendário e Alertas', href: '/dashboard/calendario', icon: '📅' },
+  { key: 'financeiro', label: 'Financeiro', href: '/dashboard/financeiro', icon: '💰' },
 ]
 
 const ITENS_ADM = [

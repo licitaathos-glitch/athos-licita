@@ -194,6 +194,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .item-row-lic input{padding:6px 8px !important;font-size:12px !important}
 @media(max-width:900px){.item-row-lic{grid-template-columns:1fr 1fr;gap:4px}}
 
+
+/* ══ FINANCEIRO / EMPENHOS ══ */
+.resumo-fin{background:#F8FAFC;border-radius:12px;padding:12px 14px;margin:14px 0;display:flex;flex-direction:column;gap:6px}
+.resumo-fin>div{display:flex;justify-content:space-between;font-size:12.5px;color:#64748B}
+.resumo-fin strong{color:#1B2E4B}
+.resumo-fin .destaque{border-top:1px solid #E2E8F0;padding-top:7px;margin-top:2px;font-size:14px}
+.resumo-fin .destaque strong{color:#16A34A;font-size:15px}
+.saldo-info{margin-top:6px;font-size:11.5px;color:#64748B;background:#F1F5F9;padding:6px 10px;border-radius:8px}
+.modelo-opt{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1.5px solid #E2E8F0;border-radius:10px;margin-bottom:7px;cursor:pointer;background:#fff}
+.modelo-opt.on{border-color:#1B2E4B;background:#F0F6FF}
+.modelo-opt input{width:auto !important;margin-top:3px}
+.grafico{display:flex;align-items:flex-end;gap:14px;height:150px;padding:8px 4px 0}
+.graf-col{flex:1;display:flex;flex-direction:column;align-items:center;height:100%}
+.graf-barras{flex:1;display:flex;align-items:flex-end;gap:3px;width:100%;justify-content:center}
+.graf-b{width:22px;border-radius:4px 4px 0 0;min-height:2px;transition:height .3s}
+.graf-fat{background:#1B2E4B}
+.graf-rec{background:#16A34A}
+.graf-rot{font-size:11px;color:#64748B;margin-top:6px;font-weight:600}
+.graf-legenda{display:flex;gap:16px;justify-content:center;margin-top:10px;font-size:11.5px;color:#64748B}
+.graf-legenda i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+
 /* ══ ESQUECI MEU PIN ══ */
 .l-link{display:block;text-align:center;margin-top:16px;color:#1B2E4B;font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline;background:none;border:none;width:100%;font-family:inherit}
 .l-ok{background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:9px 13px;font-size:13px;color:#166534;margin-bottom:12px}

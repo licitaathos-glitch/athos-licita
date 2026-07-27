@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useApp } from '@/lib/AppContext'
 import { enviarAoGAS, lerBase64 } from '@/lib/gasClient'
+import { saldoDoItem, fmtBRL as fmtB } from '@/lib/comercial'
+import ModalEmpenho from '@/components/ModalEmpenho'
 
 const CORES = { ok: '#16A34A', warn: '#D97706', bad: '#DC2626', nd: '#CBD5E1' }
 const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
@@ -23,6 +25,9 @@ export default function AtasPage() {
   const somenteConsulta = perfil === 'empresa'
 
   const [atas, setAtas] = useState(null)
+  const [empenhos, setEmpenhos] = useState([])
+  const [configs, setConfigs] = useState({})
+  const [novoEmpenho, setNovoEmpenho] = useState(null)
   const [erro, setErro] = useState('')
   const [busca, setBusca] = useState('')
   const [filtro, setFiltro] = useState('')
@@ -30,9 +35,15 @@ export default function AtasPage() {
   const [editando, setEditando] = useState(null)
 
   const carregar = useCallback(() => {
-    fetch('/api/atas').then(r => r.json())
-      .then(r => { r.sucesso ? setAtas(r.atas) : setErro(r.erro || 'Erro ao carregar.') })
-      .catch(() => setErro('Erro de conexão.'))
+    Promise.all([
+      fetch('/api/atas').then(r => r.json()),
+      fetch('/api/empenhos').then(r => r.json()),
+      fetch('/api/config-empresa').then(r => r.json()),
+    ]).then(([a, e, c]) => {
+      if (a.sucesso) setAtas(a.atas); else setErro(a.erro || 'Erro ao carregar.')
+      if (e.sucesso) setEmpenhos(e.empenhos)
+      if (c.sucesso) setConfigs(c.configs)
+    }).catch(() => setErro('Erro de conexão.'))
   }, [])
 
   useEffect(() => { carregar() }, [carregar])
@@ -121,40 +132,74 @@ export default function AtasPage() {
                 {a.objeto && <p style={{ marginTop: 10 }}><strong>Objeto:</strong> {a.objeto}</p>}
                 {a.observacoes && <div className="obs-box">{a.observacoes}</div>}
 
-                {a.itens.length > 0 && (
-                  <div style={{ overflowX: 'auto', marginTop: 12 }}>
-                    <table className="itens-tbl">
-                      <thead><tr>
-                        <th>Item</th><th>Descrição</th><th>Marca</th><th>Un</th>
-                        <th style={{ textAlign: 'right' }}>Qtd</th><th style={{ textAlign: 'right' }}>Vl. Unit.</th>
-                        <th style={{ textAlign: 'right' }}>Total</th><th style={{ textAlign: 'right' }}>Empenhada</th>
-                        <th style={{ textAlign: 'right' }}>Saldo</th>
-                      </tr></thead>
-                      <tbody>
-                        {a.itens.map((it, i) => {
-                          const q = Number(it.quantidade) || 0, vu = Number(it.valorUnitario) || 0, emp = Number(it.qtdEmpenhada) || 0
-                          return (
-                            <tr key={i}>
-                              <td>{it.item || '—'}</td>
-                              <td style={{ maxWidth: 240 }}>{it.descricao || '—'}</td>
-                              <td>{it.marca || '—'}</td><td>{it.unidade || '—'}</td>
-                              <td style={{ textAlign: 'right' }}>{q.toLocaleString('pt-BR')}</td>
-                              <td style={{ textAlign: 'right' }}>{fmtMoeda(vu)}</td>
-                              <td style={{ textAlign: 'right', fontWeight: 700 }}>{fmtMoeda(q * vu)}</td>
-                              <td style={{ textAlign: 'right' }}>{emp.toLocaleString('pt-BR')}</td>
-                              <td style={{ textAlign: 'right', fontWeight: 700, color: q - emp > 0 ? '#16A34A' : '#DC2626' }}>
-                                {(q - emp).toLocaleString('pt-BR')}
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                {a.itens.length > 0 && (() => {
+                  const empDaAta = empenhos.filter(e => e.ataId === a.id)
+                  return (
+                    <div style={{ overflowX: 'auto', marginTop: 12 }}>
+                      <table className="itens-tbl">
+                        <thead><tr>
+                          <th>Item</th><th>Descrição</th><th>Marca</th><th>Un</th>
+                          <th style={{ textAlign: 'right' }}>Registrado</th><th style={{ textAlign: 'right' }}>Vl. Unit.</th>
+                          <th style={{ textAlign: 'right' }}>Total</th><th style={{ textAlign: 'right' }}>Empenhado</th>
+                          <th style={{ textAlign: 'right' }}>Saldo</th>
+                        </tr></thead>
+                        <tbody>
+                          {a.itens.map((it, i) => {
+                            const sd = saldoDoItem(it, empDaAta)
+                            const vu = Number(it.valorUnitario) || 0
+                            return (
+                              <tr key={i}>
+                                <td>{it.item || '—'}</td>
+                                <td style={{ maxWidth: 240 }}>{it.descricao || '—'}</td>
+                                <td>{it.marca || '—'}</td><td>{it.unidade || '—'}</td>
+                                <td style={{ textAlign: 'right' }}>{sd.registrado.toLocaleString('pt-BR')}</td>
+                                <td style={{ textAlign: 'right' }}>{fmtMoeda(vu)}</td>
+                                <td style={{ textAlign: 'right', fontWeight: 700 }}>{fmtMoeda(sd.registrado * vu)}</td>
+                                <td style={{ textAlign: 'right' }}>{sd.empenhado.toLocaleString('pt-BR')}</td>
+                                <td style={{ textAlign: 'right', fontWeight: 700, color: sd.saldo > 0 ? '#16A34A' : '#DC2626' }}>
+                                  {sd.saldo.toLocaleString('pt-BR')}
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+
+                      {empDaAta.length > 0 && (
+                        <div style={{ marginTop: 14 }}>
+                          <div style={{ fontSize: 12.5, fontWeight: 700, color: '#1B2E4B', marginBottom: 6 }}>
+                            📄 Empenhos desta ata ({empDaAta.length})
+                          </div>
+                          <table className="itens-tbl">
+                            <thead><tr>
+                              <th>Nº Empenho</th><th>Data</th><th>Item</th>
+                              <th style={{ textAlign: 'right' }}>Qtd</th>
+                              <th style={{ textAlign: 'right' }}>Faturamento</th>
+                              <th style={{ textAlign: 'right' }}>Receita</th><th>Situação</th>
+                            </tr></thead>
+                            <tbody>
+                              {empDaAta.map(e => (
+                                <tr key={e.id}>
+                                  <td style={{ fontWeight: 700 }}>{e.numeroEmpenho}</td>
+                                  <td>{e.dataEmpenho || '—'}</td>
+                                  <td>{e.itemNumero || '—'}</td>
+                                  <td style={{ textAlign: 'right' }}>{e.quantidade}</td>
+                                  <td style={{ textAlign: 'right' }}>{fmtB(e.faturamento)}</td>
+                                  <td style={{ textAlign: 'right', color: '#16A34A', fontWeight: 700 }}>{fmtB(e.receita)}</td>
+                                  <td>{e.status}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
 
                 {!somenteConsulta && (
-                  <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+                    <button className="iBtn iBtn-up" onClick={() => setNovoEmpenho(a)}>+ Empenho</button>
                     <button className="iBtn" onClick={() => setEditando(a)}>✏️ Editar</button>
                     <button className="iBtn iBtn-del" onClick={async () => {
                       if (!confirm('Excluir a ata ' + a.numeroAta + '?')) return
@@ -171,6 +216,21 @@ export default function AtasPage() {
           </div>
         )
       })}
+
+      {novoEmpenho && (
+        <ModalEmpenho
+          ata={novoEmpenho}
+          empresaId={novoEmpenho.empresa_id}
+          modelo={(configs[novoEmpenho.empresa_id] || {}).modelo || 'revenda'}
+          percentual={(configs[novoEmpenho.empresa_id] || {}).percentualComissao}
+          itensDisponiveis={novoEmpenho.itens.map(it => ({
+            ...it,
+            ...saldoDoItem(it, empenhos.filter(e => e.ataId === novoEmpenho.id)),
+          }))}
+          onFechar={() => setNovoEmpenho(null)}
+          onSalvo={() => { setNovoEmpenho(null); carregar() }}
+        />
+      )}
 
       {editando && (
         <ModalAta

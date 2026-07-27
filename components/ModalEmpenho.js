@@ -1,0 +1,169 @@
+'use client'
+import { useState } from 'react'
+import { STATUS_EMPENHO, fmtBRL } from '@/lib/comercial'
+
+const isoParaBR = v => { const p = String(v || '').split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : '' }
+const brParaISO = v => { const m = String(v || '').match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? `${m[3]}-${m[2]}-${m[1]}` : '' }
+const n = v => Number(String(v || '').replace(',', '.')) || 0
+
+export default function ModalEmpenho({ empenho = {}, ata, empresaId, modelo, percentual, itensDisponiveis = [], onFechar, onSalvo }) {
+  const ed = !!empenho.id
+  const [f, setF] = useState({
+    numeroEmpenho: empenho.numeroEmpenho || '',
+    dataEmpenho: brParaISO(empenho.dataEmpenho),
+    itemNumero: empenho.itemNumero || '',
+    itemDescricao: empenho.itemDescricao || '',
+    quantidade: empenho.quantidade || '',
+    valorUnitario: empenho.valorUnitario || '',
+    custoUnitario: empenho.custoUnitario || '',
+    status: empenho.status || 'Empenhado',
+    notaFiscal: empenho.notaFiscal || '',
+    dataFaturamento: brParaISO(empenho.dataFaturamento),
+    dataPagamento: brParaISO(empenho.dataPagamento),
+    observacao: empenho.observacao || '',
+  })
+  const [erro, setErro] = useState('')
+  const [salvando, setSalvando] = useState(false)
+
+  const set = (k, v) => setF(o => ({ ...o, [k]: v }))
+
+  // Ao escolher o item da ata, puxa descrição e preço registrado
+  function escolherItem(numero) {
+    const it = itensDisponiveis.find(x => String(x.item) === String(numero))
+    setF(o => ({
+      ...o,
+      itemNumero: numero,
+      itemDescricao: it?.descricao || o.itemDescricao,
+      valorUnitario: it?.valorUnitario ?? o.valorUnitario,
+    }))
+  }
+
+  const itemSel = itensDisponiveis.find(x => String(x.item) === String(f.itemNumero))
+  const faturamento = n(f.quantidade) * n(f.valorUnitario)
+  const custo = n(f.quantidade) * n(f.custoUnitario)
+  const receita = modelo === 'comissao' ? faturamento * (n(percentual) / 100) : faturamento - custo
+  const excedeSaldo = itemSel && n(f.quantidade) > itemSel.saldo + n(empenho.quantidade || 0)
+
+  async function salvar() {
+    if (!f.numeroEmpenho.trim()) { setErro('Informe o número da nota de empenho.'); return }
+    if (!n(f.quantidade)) { setErro('Informe a quantidade empenhada.'); return }
+    setErro(''); setSalvando(true)
+    try {
+      const r = await fetch('/api/empenhos', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: empenho.id || null,
+          empresa_id: empresaId,
+          ataId: ata?.id || empenho.ataId || '',
+          numeroAta: ata?.numeroAta || empenho.numeroAta || '',
+          orgao: ata?.orgao || empenho.orgao || '',
+          ...f,
+          dataEmpenho: isoParaBR(f.dataEmpenho),
+          dataFaturamento: isoParaBR(f.dataFaturamento),
+          dataPagamento: isoParaBR(f.dataPagamento),
+        }),
+      }).then(x => x.json())
+      if (r.sucesso) onSalvo(); else setErro(r.erro || 'Erro ao salvar.')
+    } catch { setErro('Erro de conexão.') }
+    setSalvando(false)
+  }
+
+  return (
+    <div className="overlay" onClick={e => { if (e.target === e.currentTarget) onFechar() }}>
+      <div className="modal">
+        <div className="modal-hdr">
+          <div>
+            <div className="modal-hdr-sub">PEDIDO / NOTA DE EMPENHO</div>
+            <div className="modal-hdr-title">{ed ? 'Editar empenho' : 'Novo empenho'}</div>
+            {ata?.numeroAta && <div style={{ color: 'rgba(255,255,255,.55)', fontSize: 12, marginTop: 2 }}>Ata {ata.numeroAta} · {ata.orgao}</div>}
+          </div>
+          <button className="modal-x" onClick={onFechar}>×</button>
+        </div>
+
+        <div className="modal-body">
+          <div className="form-grid">
+            <div><label className="mini-lbl">Nº DA NOTA DE EMPENHO *</label>
+              <input value={f.numeroEmpenho} onChange={e => set('numeroEmpenho', e.target.value)} placeholder="2026NE000123" /></div>
+            <div><label className="mini-lbl">DATA DO EMPENHO</label>
+              <input type="date" value={f.dataEmpenho} onChange={e => set('dataEmpenho', e.target.value)} /></div>
+          </div>
+
+          {itensDisponiveis.length > 0 && (
+            <div className="form-sub">
+              <label>ITEM DA ATA</label>
+              <select value={f.itemNumero} onChange={e => escolherItem(e.target.value)}>
+                <option value="">Selecione o item</option>
+                {itensDisponiveis.map(it => (
+                  <option key={it.item} value={it.item}>
+                    Item {it.item} — {String(it.descricao).slice(0, 60)} (saldo {it.saldo})
+                  </option>
+                ))}
+              </select>
+              {itemSel && (
+                <div className="saldo-info">
+                  Registrado <strong>{itemSel.registrado}</strong> · Empenhado <strong>{itemSel.empenhado}</strong> · Saldo <strong style={{ color: itemSel.saldo > 0 ? '#16A34A' : '#DC2626' }}>{itemSel.saldo}</strong>
+                </div>
+              )}
+            </div>
+          )}
+
+          {!itensDisponiveis.length && (
+            <div className="form-sub"><label>DESCRIÇÃO DO ITEM</label>
+              <input value={f.itemDescricao} onChange={e => set('itemDescricao', e.target.value)} /></div>
+          )}
+
+          <div className="form-grid">
+            <div><label className="mini-lbl">QUANTIDADE *</label>
+              <input type="number" value={f.quantidade} onChange={e => set('quantidade', e.target.value)} /></div>
+            <div><label className="mini-lbl">VALOR UNITÁRIO (venda)</label>
+              <input type="number" step="0.01" value={f.valorUnitario} onChange={e => set('valorUnitario', e.target.value)} /></div>
+            {modelo !== 'comissao' && (
+              <div><label className="mini-lbl">CUSTO UNITÁRIO (compra)</label>
+                <input type="number" step="0.01" value={f.custoUnitario} onChange={e => set('custoUnitario', e.target.value)} /></div>
+            )}
+          </div>
+
+          {excedeSaldo && (
+            <div className="aviso-box" style={{ background: '#FFFBEB', borderColor: '#FCD34D', color: '#92400E' }}>
+              ⚠️ A quantidade informada ultrapassa o saldo disponível deste item na ata.
+            </div>
+          )}
+
+          <div className="resumo-fin">
+            <div><span>Faturamento</span><strong>{fmtBRL(faturamento)}</strong></div>
+            {modelo !== 'comissao' && <div><span>Custo</span><strong>{fmtBRL(custo)}</strong></div>}
+            <div className="destaque">
+              <span>{modelo === 'comissao' ? `Comissão (${percentual || 0}%)` : 'Margem'}</span>
+              <strong>{fmtBRL(receita)}</strong>
+            </div>
+          </div>
+
+          <div className="form-grid">
+            <div><label className="mini-lbl">SITUAÇÃO</label>
+              <select value={f.status} onChange={e => set('status', e.target.value)}>
+                {STATUS_EMPENHO.map(s => <option key={s}>{s}</option>)}
+              </select></div>
+            <div><label className="mini-lbl">NOTA FISCAL</label>
+              <input value={f.notaFiscal} onChange={e => set('notaFiscal', e.target.value)} /></div>
+            <div><label className="mini-lbl">DATA DO FATURAMENTO</label>
+              <input type="date" value={f.dataFaturamento} onChange={e => set('dataFaturamento', e.target.value)} /></div>
+            <div><label className="mini-lbl">DATA DO PAGAMENTO</label>
+              <input type="date" value={f.dataPagamento} onChange={e => set('dataPagamento', e.target.value)} /></div>
+          </div>
+
+          <div className="form-sub"><label>OBSERVAÇÃO</label>
+            <input value={f.observacao} onChange={e => set('observacao', e.target.value)} /></div>
+
+          {erro && <div className="l-err" style={{ marginTop: 12 }}>{erro}</div>}
+        </div>
+
+        <div className="modal-foot">
+          <button className="btn-ghost" onClick={onFechar}>Cancelar</button>
+          <button className="btn-primary" style={{ marginTop: 0 }} onClick={salvar} disabled={salvando}>
+            {salvando ? 'Salvando...' : 'Salvar empenho'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
