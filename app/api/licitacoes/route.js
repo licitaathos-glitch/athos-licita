@@ -6,12 +6,12 @@ import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu, empre
 import { novoId } from '@/lib/uuid'
 
 const CAMPOS = ['numeroPNCP','numeroEdital','objeto','orgao','uf','valor','dataAbertura',
-  'dataLimite','modalidade','status','link','portal','srp','anexoDriveId','anexoDriveUrl',
+  'dataLimite','modalidade','status','link','portal','srp','anexoDriveId','anexoDriveUrl','anexosJson',
   'itensJson','checklistJson','participar', 'fase', ...COLS_RESULTADO]
 
 const COLS_LIC = ['id','empresaId','empresaNome','numeroPNCP','numeroEdital','objeto','orgao','uf',
   'valor','dataPublicacao','dataAbertura','modalidade','status','link','origem','salvoEm',
-  'dataLimite','portal','srp','anexoDriveId','anexoDriveUrl','itensJson','checklistJson',
+  'dataLimite','portal','srp','anexoDriveId','anexoDriveUrl','anexosJson','itensJson','checklistJson',
   'participar', 'fase', ...COLS_RESULTADO]
 
 function parseItens(json) {
@@ -44,6 +44,7 @@ export async function GET(req) {
         modalidade: l.modalidade || '', portal: l.portal || '',
         status: l.status || 'Aberta', srp: l.srp || 'Não', link: l.link || '',
         anexoDriveUrl: l.anexoDriveUrl || '', anexoDriveId: l.anexoDriveId || '',
+        anexos: parseItens(l.anexosJson),
         itens: parseItens(l.itensJson), checklistJson: l.checklistJson || '',
         participar: l.participar || 'Pendente',
         fase: faseInferida({ fase: l.fase, resultado: l.resultado, participar: l.participar, status: l.status }),

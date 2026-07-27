@@ -228,7 +228,10 @@ export default function LicitacoesPage() {
 
               <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
                 {l.link && <a href={l.link} target="_blank" rel="noreferrer" className="iBtn">↗ Abrir edital</a>}
-                {l.anexoDriveUrl && <a href={l.anexoDriveUrl} target="_blank" rel="noreferrer" className="iBtn">📎 Anexo</a>}
+                {(l.anexos?.length ? l.anexos : (l.anexoDriveUrl ? [{ nome: 'Anexo', url: l.anexoDriveUrl }] : []))
+                  .map((a, i) => (
+                    <a key={i} href={a.url} target="_blank" rel="noreferrer" className="iBtn">📎 {a.nome}</a>
+                  ))}
                 {!somenteConsulta && <>
                   <span style={{ fontSize: 11.5, color: '#64748B', marginLeft: 4 }}>Participar?</span>
                   {['Sim', 'Não', 'Pendente'].map(v => (
@@ -282,13 +285,42 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
     anexoDriveId: lic.anexoDriveId || '', anexoDriveUrl: lic.anexoDriveUrl || '',
   })
   const [itens, setItens] = useState(lic.itens || [])
-  const [anexoNome, setAnexoNome] = useState(lic.anexoDriveUrl ? 'edital anexado' : '')
+  const [portais, setPortais] = useState([])
+  const [novoPortal, setNovoPortal] = useState('')
+  const [buscandoItens, setBuscandoItens] = useState(false)
+  const [anexos, setAnexos] = useState(() => {
+    if (Array.isArray(lic.anexos) && lic.anexos.length) return lic.anexos
+    return lic.anexoDriveUrl ? [{ nome: 'Edital', url: lic.anexoDriveUrl, id: lic.anexoDriveId || '' }] : []
+  })
   const [enviandoAnexo, setEnviandoAnexo] = useState(false)
   const [erro, setErro] = useState('')
   const [ok, setOk] = useState('')
   const [salvando, setSalvando] = useState(false)
 
   const set = (k, v) => setF(o => ({ ...o, [k]: v }))
+
+  useEffect(() => {
+    fetch('/api/portais').then(r => r.json())
+      .then(r => { if (r.sucesso) setPortais(r.portais) })
+      .catch(() => {})
+  }, [])
+
+  // Busca os itens no PNCP a partir do link já preenchido
+  async function importarItens() {
+    const alvo = (linkPncp || f.link || '').trim()
+    if (!alvo) { setErro('Informe o link do PNCP para importar os itens.'); return }
+    setErro(''); setBuscandoItens(true)
+    try {
+      const r = await fetch('/api/licitacoes/extrair', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ link: alvo }),
+      }).then(x => x.json())
+      if (!r.sucesso) setErro(r.erro || 'Não foi possível importar os itens.')
+      else if (r.dados?.itens?.length) { setItens(r.dados.itens); setOk(r.dados.itens.length + ' itens importados do PNCP.') }
+      else setErro('O PNCP não retornou itens para esta licitação. Inclua manualmente.')
+    } catch { setErro('Erro de conexão.') }
+    setBuscandoItens(false)
+  }
 
   async function extrair() {
     if (!linkPncp.trim()) { setErro('Cole o link do PNCP.'); return }
@@ -318,22 +350,37 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
   }
 
   async function onAnexo(e) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (file.size > 25 * 1024 * 1024) { setErro('Arquivo muito grande (máx. 25 MB).'); return }
+    const arquivos = Array.from(e.target.files || [])
+    if (!arquivos.length) return
+    const grandes = arquivos.filter(a => a.size > 25 * 1024 * 1024)
+    if (grandes.length) { setErro('Arquivo acima de 25 MB: ' + grandes.map(a => a.nome || a.name).join(', ')); return }
+
     setErro(''); setEnviandoAnexo(true)
-    try {
-      const base64 = await lerBase64(file)
-      const r = await enviarAoGAS({
-        action: 'uploadAnexoEdital',
-        base64, mimeType: file.type || 'application/pdf', nomeArquivo: file.name, empresaNome,
+    const enviados = []
+    for (const file of arquivos) {
+      try {
+        const base64 = await lerBase64(file)
+        const r = await enviarAoGAS({
+          action: 'uploadAnexoEdital',
+          base64, mimeType: file.type || 'application/pdf', nomeArquivo: file.name, empresaNome,
+        })
+        if (r.ok) enviados.push({ nome: file.name, url: r.driveFileUrl, id: r.driveFileId })
+        else setErro('Falha em ' + file.name + ': ' + (r.erro || 'erro desconhecido'))
+      } catch (ex) {
+        setErro('Falha em ' + file.name + ': ' + ex.message)
+      }
+    }
+    if (enviados.length) {
+      setAnexos(l => {
+        const todos = [...l, ...enviados]
+        // mantém o primeiro arquivo também nos campos antigos, por compatibilidade
+        set('anexoDriveId', todos[0].id || '')
+        set('anexoDriveUrl', todos[0].url || '')
+        return todos
       })
-      if (r.ok) {
-        set('anexoDriveId', r.driveFileId); set('anexoDriveUrl', r.driveFileUrl)
-        setAnexoNome(file.name)
-      } else setErro(r.erro || 'Falha ao anexar.')
-    } catch (ex) { setErro(ex.message) }
+    }
     setEnviandoAnexo(false)
+    e.target.value = ''
   }
 
   async function salvar() {
@@ -346,6 +393,8 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
           id: lic.id || null, empresa_id: empresaId, ...f,
           dataAbertura: inputParaBr(f.dataAbertura), dataLimite: inputParaBr(f.dataLimite),
           itensJson: JSON.stringify(itens.filter(it => String(it.descricao || '').trim())),
+          anexosJson: JSON.stringify(anexos),
+          portal: f.portal === '__outro' ? (novoPortal.trim() || '') : f.portal,
           origem: linkPncp ? 'pncp' : 'manual',
         }),
       }).then(x => x.json())
@@ -387,7 +436,27 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
                 <option value="">Selecione</option>{MODAL_NOMES.map(m => <option key={m}>{m}</option>)}
               </select>
             </div>
-            <div><label className="mini-lbl">PORTAL DA DISPUTA</label><input value={f.portal} onChange={e => set('portal', e.target.value)} placeholder="ComprasNet, BLL..." /></div>
+            <div><label className="mini-lbl">PLATAFORMA DA DISPUTA</label>
+              <select value={portais.some(p => p.nome === f.portal) || !f.portal ? f.portal : '__outro'}
+                onChange={e => { if (e.target.value === '__outro') { setNovoPortal(f.portal || ''); set('portal', '__outro') } else set('portal', e.target.value) }}>
+                <option value="">Selecione...</option>
+                {portais.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
+                <option value="__outro">+ Outra plataforma...</option>
+              </select>
+              {(f.portal === '__outro' || (f.portal && !portais.some(p => p.nome === f.portal))) && (
+                <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                  <input value={novoPortal} onChange={e => setNovoPortal(e.target.value)} placeholder="Nome da plataforma" />
+                  <button className="iBtn" style={{ flexShrink: 0 }} onClick={async () => {
+                    const nome = novoPortal.trim()
+                    if (!nome) return
+                    await fetch('/api/portais', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome }) })
+                    const r = await fetch('/api/portais').then(x => x.json())
+                    if (r.sucesso) setPortais(r.portais)
+                    set('portal', nome); setNovoPortal('')
+                  }}>Salvar</button>
+                </div>
+              )}
+            </div>
             <div><label className="mini-lbl">UF</label>
               <select value={f.uf} onChange={e => set('uf', e.target.value)}>
                 <option value="">Selecione</option>{UFS.map(u => <option key={u}>{u}</option>)}
@@ -408,17 +477,32 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
           <div className="form-sub"><label>LINK DO EDITAL</label><input value={f.link} onChange={e => set('link', e.target.value)} /></div>
 
           <div className="form-sub">
-            <label>📎 ANEXO DO EDITAL (PDF)</label>
-            <label className={'uz' + (enviandoAnexo ? ' uploading' : anexoNome ? ' success' : '')} style={{ padding: 16 }}>
-              <input type="file" accept=".pdf" onChange={onAnexo} disabled={enviandoAnexo} style={{ display: 'none' }} />
-              {enviandoAnexo ? 'Enviando ao Drive...' : anexoNome ? '✅ ' + anexoNome + ' · clique para trocar' : '📄 Clique para anexar o PDF do edital (opcional, até 25 MB)'}
+            <label>📎 ARQUIVOS (edital, termo de referência, anexos...)</label>
+            {anexos.map((a, i) => (
+              <div className="anexo-item" key={i}>
+                <a href={a.url} target="_blank" rel="noreferrer">📄 {a.nome}</a>
+                <button className="iBtn iBtn-del" onClick={() => setAnexos(l => l.filter((_, j) => j !== i))}>×</button>
+              </div>
+            ))}
+            <label className={'uz' + (enviandoAnexo ? ' uploading' : anexos.length ? ' success' : '')} style={{ padding: 16 }}>
+              <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,image/*" multiple onChange={onAnexo} disabled={enviandoAnexo} style={{ display: 'none' }} />
+              {enviandoAnexo
+                ? 'Enviando ao Drive...'
+                : anexos.length
+                  ? '➕ Adicionar mais arquivos'
+                  : '📄 Clique para anexar (pode selecionar vários, até 25 MB cada)'}
             </label>
           </div>
 
           <div className="form-sub">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <label style={{ margin: 0 }}>ITENS DA LICITAÇÃO</label>
-              <button className="iBtn" onClick={() => setItens(a => [...a, { descricao: '', quantidade: '', unidade: 'UN', valorUnitarioRef: '' }])}>+ Item</button>
+              <label style={{ margin: 0 }}>ITENS DA LICITAÇÃO {itens.length > 0 && <span style={{ fontWeight: 400, color: '#94A3B8' }}>({itens.length})</span>}</label>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button className="iBtn" onClick={importarItens} disabled={buscandoItens}>
+                  {buscandoItens ? 'Importando...' : '⬇ Importar do PNCP'}
+                </button>
+                <button className="iBtn" onClick={() => setItens(a => [...a, { descricao: '', quantidade: '', unidade: 'UN', valorUnitarioRef: '' }])}>+ Item</button>
+              </div>
             </div>
             {itens.length === 0 && <div style={{ fontSize: 12, color: '#94A3B8', padding: 8, textAlign: 'center', background: '#F8FAFC', borderRadius: 8 }}>Nenhum item.</div>}
             {itens.map((it, i) => (
