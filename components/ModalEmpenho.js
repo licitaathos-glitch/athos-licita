@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { STATUS_EMPENHO, fmtBRL } from '@/lib/comercial'
+import { enviarAoGAS, lerBase64 } from '@/lib/gasClient'
 
 const isoParaBR = v => { const p = String(v || '').split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : '' }
 const brParaISO = v => { const m = String(v || '').match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? `${m[3]}-${m[2]}-${m[1]}` : '' }
@@ -8,6 +9,12 @@ const n = v => Number(String(v || '').replace(',', '.')) || 0
 
 export default function ModalEmpenho({ empenho = {}, ata, empresaId, modelo, percentual, itensDisponiveis = [], onFechar, onSalvo }) {
   const ed = !!empenho.id
+  const [anexo, setAnexo] = useState({
+    id: empenho?.anexoDriveId || '', url: empenho?.anexoDriveUrl || '', nome: empenho?.anexoNome || '',
+  })
+  const [enviando, setEnviando] = useState(false)
+  const [avisoIA, setAvisoIA] = useState('')
+
   const [f, setF] = useState({
     numeroEmpenho: empenho.numeroEmpenho || '',
     dataEmpenho: brParaISO(empenho.dataEmpenho),
@@ -44,6 +51,49 @@ export default function ModalEmpenho({ empenho = {}, ata, empresaId, modelo, per
   const receita = modelo === 'comissao' ? faturamento * (n(percentual) / 100) : faturamento - custo
   const excedeSaldo = itemSel && n(f.quantidade) > itemSel.saldo + n(empenho.quantidade || 0)
 
+  // Sobe a nota de empenho para o Drive e tenta ler os dados pelo Gemini
+  async function onArquivo(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 25 * 1024 * 1024) { setErro('Arquivo acima de 25 MB.'); return }
+    setErro(''); setAvisoIA(''); setEnviando(true)
+    try {
+      const base64 = await lerBase64(file)
+      const mimeType = file.type || 'application/pdf'
+
+      const up = await enviarAoGAS({
+        action: 'uploadAnexoEdital',
+        base64, mimeType, nomeArquivo: file.name,
+        empresaNome: ata?.empresa_nome || 'Geral',
+      })
+      if (up.ok) setAnexo({ id: up.driveFileId, url: up.driveFileUrl, nome: file.name })
+      else setErro(up.erro || 'Falha ao salvar no Drive.')
+
+      // Leitura automática — depende da ação estar publicada no Apps Script
+      const ia = await enviarAoGAS({ action: 'extrairDadosEmpenho', base64, mimeType })
+      if (ia && ia.sucesso && ia.dados) {
+        const d = ia.dados
+        setF(o => ({
+          ...o,
+          numeroEmpenho: d.numeroEmpenho || o.numeroEmpenho,
+          dataEmpenho: brParaISO(d.dataEmpenho) || o.dataEmpenho,
+          quantidade: d.quantidade ?? o.quantidade,
+          valorUnitario: d.valorUnitario ?? o.valorUnitario,
+          itemDescricao: d.itemDescricao || o.itemDescricao,
+          itemNumero: d.itemNumero || o.itemNumero,
+          observacao: d.observacao || o.observacao,
+        }))
+        setAvisoIA('Dados lidos da nota de empenho — confira antes de salvar.')
+      } else if (ia && ia.erro) {
+        setAvisoIA('Arquivo salvo. A leitura automática não está disponível (' + ia.erro + ').')
+      }
+    } catch (ex) {
+      setErro(ex.message || 'Erro ao enviar o arquivo.')
+    }
+    setEnviando(false)
+    e.target.value = ''
+  }
+
   async function salvar() {
     if (!f.numeroEmpenho.trim()) { setErro('Informe o número da nota de empenho.'); return }
     if (!n(f.quantidade)) { setErro('Informe a quantidade empenhada.'); return }
@@ -57,6 +107,7 @@ export default function ModalEmpenho({ empenho = {}, ata, empresaId, modelo, per
           ataId: ata?.id || empenho.ataId || '',
           numeroAta: ata?.numeroAta || empenho.numeroAta || '',
           orgao: ata?.orgao || empenho.orgao || '',
+          anexoDriveId: anexo.id, anexoDriveUrl: anexo.url, anexoNome: anexo.nome,
           ...f,
           dataEmpenho: isoParaBR(f.dataEmpenho),
           dataFaturamento: isoParaBR(f.dataFaturamento),
@@ -81,6 +132,23 @@ export default function ModalEmpenho({ empenho = {}, ata, empresaId, modelo, per
         </div>
 
         <div className="modal-body">
+          <div className="form-sub">
+            <label>📎 ARQUIVO DA NOTA DE EMPENHO</label>
+            {anexo.url && (
+              <div className="anexo-item">
+                <a href={anexo.url} target="_blank" rel="noreferrer">📄 {anexo.nome || 'Nota de empenho'}</a>
+                <button className="iBtn iBtn-del" onClick={() => setAnexo({ id: '', url: '', nome: '' })}>×</button>
+              </div>
+            )}
+            <label className={'uz' + (enviando ? ' uploading' : anexo.url ? ' success' : '')} style={{ padding: 16 }}>
+              <input type="file" accept=".pdf,image/*" onChange={onArquivo} disabled={enviando} style={{ display: 'none' }} />
+              {enviando
+                ? '🤖 Salvando no Drive e lendo a nota... (pode levar até 40s)'
+                : anexo.url ? '➕ Trocar arquivo' : '📄 Clique para anexar a nota de empenho (até 25 MB)'}
+            </label>
+            {avisoIA && <p className="dica-menus">{avisoIA}</p>}
+          </div>
+
           <div className="form-grid">
             <div><label className="mini-lbl">Nº DA NOTA DE EMPENHO *</label>
               <input value={f.numeroEmpenho} onChange={e => set('numeroEmpenho', e.target.value)} placeholder="2026NE000123" /></div>

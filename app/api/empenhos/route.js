@@ -4,7 +4,8 @@ import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu, empre
 import { novoId } from '@/lib/uuid'
 import { ABA_EMPENHOS, COLS_EMPENHOS, ABA_CONFIG, COLS_CONFIG, calcularEmpenho } from '@/lib/comercial'
 
-const CAMPOS = ['ataId','numeroAta','orgao','itemNumero','itemDescricao','numeroEmpenho',
+const CAMPOS = ['anexoDriveId','anexoDriveUrl','anexoNome',
+  'ataId','numeroAta','orgao','itemNumero','itemDescricao','numeroEmpenho',
   'dataEmpenho','quantidade','valorUnitario','custoUnitario','status','notaFiscal',
   'dataFaturamento','dataPagamento','observacao']
 
@@ -42,6 +43,8 @@ export async function GET(req) {
           status: e.status || 'Empenhado', notaFiscal: e.notaFiscal || '',
           dataFaturamento: e.dataFaturamento || '', dataPagamento: e.dataPagamento || '',
           observacao: e.observacao || '',
+          anexoDriveId: e.anexoDriveId || '', anexoDriveUrl: e.anexoDriveUrl || '',
+          anexoNome: e.anexoNome || '',
           ...calc,
         }
       })

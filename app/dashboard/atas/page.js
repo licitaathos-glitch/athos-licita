@@ -8,6 +8,10 @@ import ModalEmpenho from '@/components/ModalEmpenho'
 const CORES = { ok: '#16A34A', warn: '#D97706', bad: '#DC2626', nd: '#CBD5E1' }
 const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
 
+// Separa e-mail e telefone de um texto livre como "fulano@x.gov.br / (11) 9999-9999"
+const extrairEmail = t => (String(t || '').match(/[\w.+-]+@[\w-]+\.[\w.]+/) || [''])[0]
+const extrairTelefone = t => (String(t || '').match(/\(?\d{2}\)?[\s-]?\d{4,5}[\s-]?\d{4}/) || [''])[0]
+
 const fmtMoeda = n => 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })
 const brParaISO = v => { const m = String(v || '').match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? m[3] + '-' + m[2] + '-' + m[1] : '' }
 const isoParaBR = v => { const p = String(v || '').split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : '' }
@@ -124,7 +128,7 @@ export default function AtasPage() {
                   {[['Órgão', a.orgao], ['CNPJ do órgão', a.cnpjOrgao], ['Licitação de origem', a.licitacao],
                     ['Processo', a.processo], ['Representante', a.representante], ['Assinatura', a.dataAssinatura],
                     ['Vigência', a.vigencia], ['Vencimento', a.vencimento], ['Adesão', a.adesao],
-                    ['Pagamento', a.condPagamento], ['Contato', a.contato]]
+                    ['Pagamento', a.condPagamento], ['E-mail do órgão', a.emailOrgao], ['Telefone do órgão', a.telefoneOrgao], ['Contato (registro antigo)', a.contato]]
                     .filter(x => x[1]).map(x => (
                       <div key={x[0]}><span className="dt-lbl">{x[0]}</span><span className="dt-val">{x[1]}</span></div>
                     ))}
@@ -252,6 +256,7 @@ function ModalAta({ ata, empresaId, onFechar, onSalvo }) {
     representante: ata.representante || '', dataAssinatura: brParaISO(ata.dataAssinatura),
     vigencia: ata.vigencia || '', vencimento: brParaISO(ata.vencimento), adesao: ata.adesao || '',
     condPagamento: ata.condPagamento || '', contato: ata.contato || '', observacoes: ata.observacoes || '',
+    emailOrgao: ata.emailOrgao || '', telefoneOrgao: ata.telefoneOrgao || '',
   })
   const [itens, setItens] = useState(ata.itens || [])
   const [erro, setErro] = useState('')
@@ -293,6 +298,8 @@ function ModalAta({ ata, empresaId, onFechar, onSalvo }) {
           adesao: d.adesao || o.adesao,
           condPagamento: d.condPagamento || o.condPagamento,
           contato: d.contato || o.contato,
+          emailOrgao: d.emailOrgao || extrairEmail(d.contato) || o.emailOrgao,
+          telefoneOrgao: d.telefoneOrgao || extrairTelefone(d.contato) || o.telefoneOrgao,
           observacoes: d.observacoes || o.observacoes,
         }))
         if (Array.isArray(d.itens) && d.itens.length) setItens(d.itens)
@@ -362,7 +369,12 @@ function ModalAta({ ata, empresaId, onFechar, onSalvo }) {
             <div><label className="mini-lbl">VIGÊNCIA (texto)</label><input value={f.vigencia} onChange={e => set('vigencia', e.target.value)} placeholder="12 meses da assinatura" /></div>
             <div><label className="mini-lbl">VENCIMENTO</label><input type="date" value={f.vencimento} onChange={e => set('vencimento', e.target.value)} /></div>
             <div><label className="mini-lbl">CONDIÇÃO DE PAGAMENTO</label><input value={f.condPagamento} onChange={e => set('condPagamento', e.target.value)} /></div>
-            <div><label className="mini-lbl">CONTATO DO ÓRGÃO</label><input value={f.contato} onChange={e => set('contato', e.target.value)} /></div>
+            <div><label className="mini-lbl">E-MAIL DO ÓRGÃO</label>
+              <input type="email" value={f.emailOrgao} onChange={e => set('emailOrgao', e.target.value)}
+                placeholder="licitacao@orgao.gov.br" /></div>
+            <div><label className="mini-lbl">TELEFONE DO ÓRGÃO</label>
+              <input value={f.telefoneOrgao} onChange={e => set('telefoneOrgao', e.target.value)}
+                placeholder="(00) 0000-0000" /></div>
           </div>
 
           <div className="form-sub"><label>ADESÃO (CARONA)</label><input value={f.adesao} onChange={e => set('adesao', e.target.value)} placeholder="Permitida — 50% por órgão, ou NÃO ADMITIDA" /></div>
