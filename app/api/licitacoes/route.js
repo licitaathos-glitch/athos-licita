@@ -1,17 +1,24 @@
 import { NextResponse } from 'next/server'
-import { lerAba, adicionarLinha, atualizarLinha, excluirLinha } from '@/lib/google'
+import { lerAba, adicionarLinha, atualizarLinha, excluirLinha, garantirAba } from '@/lib/google'
+import { COLS_RESULTADO } from '@/lib/resultado'
 import { getUsuarioFromReq, podeEditar, empresasVisiveis } from '@/lib/auth'
 import { novoId } from '@/lib/uuid'
 
 const CAMPOS = ['numeroPNCP','numeroEdital','objeto','orgao','uf','valor','dataAbertura',
   'dataLimite','modalidade','status','link','portal','srp','anexoDriveId','anexoDriveUrl',
-  'itensJson','checklistJson','participar']
+  'itensJson','checklistJson','participar', ...COLS_RESULTADO]
+
+const COLS_LIC = ['id','empresaId','empresaNome','numeroPNCP','numeroEdital','objeto','orgao','uf',
+  'valor','dataPublicacao','dataAbertura','modalidade','status','link','origem','salvoEm',
+  'dataLimite','portal','srp','anexoDriveId','anexoDriveUrl','itensJson','checklistJson',
+  'participar', ...COLS_RESULTADO]
 
 function parseItens(json) {
   try { const a = JSON.parse(json || '[]'); return Array.isArray(a) ? a : [] } catch { return [] }
 }
 
 async function contexto(usuario) {
+  await garantirAba('Licitacoes', COLS_LIC)
   const todas = await lerAba('Empresas')
   const empresas = empresasVisiveis(usuario, todas.filter(e => e.id))
   return { empresas, ids: new Set(empresas.map(e => String(e.id).trim())) }
@@ -37,6 +44,13 @@ export async function GET(req) {
         anexoDriveUrl: l.anexoDriveUrl || '', anexoDriveId: l.anexoDriveId || '',
         itens: parseItens(l.itensJson), checklistJson: l.checklistJson || '',
         participar: l.participar || 'Pendente',
+        resultado: l.resultado || 'Aguardando',
+        motivo: l.motivo || '',
+        nossoLance: l.nossoLance || '',
+        valorVencedor: l.valorVencedor || '',
+        empresaVencedora: l.empresaVencedora || '',
+        colocacao: l.colocacao || '',
+        observacaoDisputa: l.observacaoDisputa || '',
         salvoEm: l.salvoEm || '',
       }))
       .sort((a, b) => String(b.salvoEm).localeCompare(String(a.salvoEm)))

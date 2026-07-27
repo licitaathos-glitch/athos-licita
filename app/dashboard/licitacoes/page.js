@@ -4,6 +4,8 @@ import { useApp } from '@/lib/AppContext'
 import { UFS } from '@/lib/pncpComum'
 import { enviarAoGAS, lerBase64 } from '@/lib/gasClient'
 import ModalChecklist from '@/components/ModalChecklist'
+import ModalResultado from '@/components/ModalResultado'
+import { nomeResultado, corResultado } from '@/lib/resultado'
 
 const MODAL_NOMES = ['Pregão Eletrônico', 'Pregão Presencial', 'Concorrência Eletrônica',
   'Concorrência Presencial', 'Dispensa', 'Inexigibilidade']
@@ -32,6 +34,7 @@ export default function LicitacoesPage() {
   const [aberta, setAberta] = useState(null)
   const [editando, setEditando] = useState(null)
   const [checklist, setChecklist] = useState(null)
+  const [resultado, setResultado] = useState(null)
 
   const carregar = useCallback(() => {
     fetch('/api/licitacoes').then(r => r.json())
@@ -109,7 +112,9 @@ export default function LicitacoesPage() {
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
               {l.dataLimite && <span className="pill pill-gray">até {l.dataLimite.split(' ')[0]}</span>}
-              <span className={'pill ' + (PART[l.participar] || 'pill-gray')}>{l.participar}</span>
+              {l.resultado && l.resultado !== 'Aguardando'
+                ? <span className="pill" style={{ background: corResultado(l.resultado) + '22', color: corResultado(l.resultado) }}>{nomeResultado(l.resultado)}</span>
+                : <span className={'pill ' + (PART[l.participar] || 'pill-gray')}>{l.participar}</span>}
             </div>
           </div>
 
@@ -124,6 +129,22 @@ export default function LicitacoesPage() {
                   ))}
               </div>
               {l.objeto && <p style={{ marginTop: 10 }}><strong>Objeto:</strong> {l.objeto}</p>}
+
+              {l.resultado && l.resultado !== 'Aguardando' && (
+                <div className="bloco-disputa" style={{ borderColor: corResultado(l.resultado) }}>
+                  <strong style={{ color: corResultado(l.resultado) }}>🏁 {nomeResultado(l.resultado)}</strong>
+                  {l.motivo && <div style={{ marginTop: 3 }}>Motivo: {l.motivo}</div>}
+                  {(l.nossoLance || l.valorVencedor) && (
+                    <div style={{ marginTop: 3 }}>
+                      {l.nossoLance && <>Nosso lance: <strong>R$ {Number(l.nossoLance).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></>}
+                      {l.valorVencedor && <> · Vencedor: <strong>R$ {Number(l.valorVencedor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></>}
+                      {l.empresaVencedora && <> ({l.empresaVencedora})</>}
+                      {l.colocacao && <> · {l.colocacao}º lugar</>}
+                    </div>
+                  )}
+                  {l.observacaoDisputa && <div style={{ marginTop: 5, fontStyle: 'italic' }}>{l.observacaoDisputa}</div>}
+                </div>
+              )}
 
               {l.itens.length > 0 && (
                 <div style={{ overflowX: 'auto', marginTop: 12 }}>
@@ -151,6 +172,7 @@ export default function LicitacoesPage() {
                     <button key={v} className={'iBtn' + (l.participar === v ? ' iBtn-up' : '')} onClick={() => decidir(l, v)}>{v}</button>
                   ))}
                   <button className="iBtn" onClick={() => setChecklist(l)}>📋 Checklist</button>
+                  <button className="iBtn" onClick={() => setResultado(l)}>🏁 Resultado</button>
                   <button className="iBtn" onClick={() => setEditando(l)}>✏️ Editar</button>
                   <button className="iBtn iBtn-del" onClick={async () => {
                     if (!confirm('Excluir esta licitação?')) return
@@ -166,6 +188,11 @@ export default function LicitacoesPage() {
           )}
         </div>
       ))}
+
+      {resultado && (
+        <ModalResultado lic={resultado} onFechar={() => setResultado(null)}
+          onSalvo={() => { setResultado(null); carregar() }} />
+      )}
 
       {checklist && (
         <ModalChecklist lic={checklist} onFechar={() => setChecklist(null)}

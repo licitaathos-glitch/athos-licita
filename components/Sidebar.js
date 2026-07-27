@@ -11,6 +11,7 @@ const ITENS_BASE = [
   { key: 'atas', label: 'Gestão de Atas', href: '/dashboard/atas', icon: '🗂️' },
   { key: 'calendario', label: 'Calendário e Alertas', href: '/dashboard/calendario', icon: '📅' },
   { key: 'financeiro', label: 'Financeiro', href: '/dashboard/financeiro', icon: '💰' },
+  { key: 'relatorio', label: 'Relatório mensal', href: '/dashboard/relatorio', icon: '📄' },
 ]
 
 const ITENS_ADM = [
