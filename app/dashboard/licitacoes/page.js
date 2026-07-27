@@ -4,7 +4,7 @@ import { useApp } from '@/lib/AppContext'
 import { UFS } from '@/lib/pncpComum'
 import { enviarAoGAS, lerBase64 } from '@/lib/gasClient'
 import ModalChecklist from '@/components/ModalChecklist'
-import ModalResultado from '@/components/ModalResultado'
+import ModalStatus from '@/components/ModalStatus'
 import { nomeResultado, corResultado } from '@/lib/resultado'
 import QuadroLicitacoes from '@/components/QuadroLicitacoes'
 import { FASES, faseDe } from '@/lib/fases'
@@ -36,7 +36,7 @@ export default function LicitacoesPage() {
   const [aberta, setAberta] = useState(null)
   const [editando, setEditando] = useState(null)
   const [checklist, setChecklist] = useState(null)
-  const [resultado, setResultado] = useState(null)
+  const [modalStatus, setModalStatus] = useState(null)
   const [vista, setVista] = useState('quadro')
 
   const carregar = useCallback(() => {
@@ -78,7 +78,7 @@ export default function LicitacoesPage() {
     }).then(x => x.json())
     if (!r.sucesso) { alert(r.erro || 'Erro ao mover.'); carregar() }
     else if (novaFase === 'Finalizada' && (!lic.resultado || lic.resultado === 'Aguardando')) {
-      setResultado({ ...lic, fase: novaFase })
+      setModalStatus({ ...lic, fase: novaFase })
     }
   }
 
@@ -151,7 +151,7 @@ export default function LicitacoesPage() {
                   {l.anexoDriveUrl && <a href={l.anexoDriveUrl} target="_blank" rel="noreferrer" className="iBtn">📎 Anexo</a>}
                   {!somenteConsulta && <>
                     <button className="iBtn" onClick={() => setChecklist(l)}>📋 Checklist</button>
-                    <button className="iBtn" onClick={() => setResultado(l)}>🏁 Resultado</button>
+                    <button className="iBtn" onClick={() => setModalStatus(l)}>🏁 Status</button>
                     <button className="iBtn" onClick={() => setEditando(l)}>✏️ Editar</button>
                   </>}
                 </div>
@@ -238,7 +238,7 @@ export default function LicitacoesPage() {
                     <button key={v} className={'iBtn' + (l.participar === v ? ' iBtn-up' : '')} onClick={() => decidir(l, v)}>{v}</button>
                   ))}
                   <button className="iBtn" onClick={() => setChecklist(l)}>📋 Checklist</button>
-                  <button className="iBtn" onClick={() => setResultado(l)}>🏁 Resultado</button>
+                  <button className="iBtn" onClick={() => setModalStatus(l)}>🏁 Status</button>
                   <button className="iBtn" onClick={() => setEditando(l)}>✏️ Editar</button>
                   <button className="iBtn iBtn-del" onClick={async () => {
                     if (!confirm('Excluir esta licitação?')) return
@@ -255,9 +255,9 @@ export default function LicitacoesPage() {
         </div>
       ))}
 
-      {resultado && (
-        <ModalResultado lic={resultado} onFechar={() => setResultado(null)}
-          onSalvo={() => { setResultado(null); carregar() }} />
+      {modalStatus && (
+        <ModalStatus lic={modalStatus} onFechar={() => setModalStatus(null)}
+          onSalvo={() => { setModalStatus(null); carregar() }} />
       )}
 
       {checklist && (

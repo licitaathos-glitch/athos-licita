@@ -23,7 +23,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .topbar .brand{display:flex;align-items:center;gap:10px;font-weight:800}
 .topbar .brand .ico{width:34px;height:34px;background:#C9A84C;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px}
 .topbar button{background:rgba(255,255,255,.12);border:none;color:#fff;padding:8px 16px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px}
-.main{max-width:1000px;margin:0 auto;padding:28px 20px}
+.main{width:100%;max-width:none;margin:0;padding:26px 30px}
+@media(max-width:820px){.main{padding:18px 14px}}
 .sec-title{color:#1B2E4B;font-size:22px;font-weight:800;margin-bottom:4px}
 .sec-sub{color:#64748B;font-size:13px;margin-bottom:22px}
 .kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
@@ -123,7 +124,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 /* ══ MODAIS ══ */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto}
 .modal{background:#fff;border-radius:18px;width:100%;max-width:540px;max-height:92vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.3);margin:auto}
-.modal-lg{max-width:820px}
+.modal-lg{max-width:1150px}
 .modal-hdr{background:#1B2E4B;border-radius:18px 18px 0 0;padding:18px 22px;display:flex;justify-content:space-between;align-items:flex-start;position:sticky;top:0;z-index:2}
 .modal-hdr-sub{color:#C9A84C;font-size:11px;font-weight:700;letter-spacing:.5px}
 .modal-hdr-title{color:#fff;font-size:16px;font-weight:800;margin-top:2px}
@@ -377,6 +378,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .anexo-item{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:6px 10px;margin-bottom:5px;font-size:12.5px}
 .anexo-item a{color:#1B2E4B;text-decoration:none;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .anexo-item a:hover{text-decoration:underline}
+
+.trilha{display:flex;gap:6px;flex-wrap:wrap}
+.trilha-item{flex:1;min-width:120px;text-align:left;padding:9px 11px;border:1.5px solid #E2E8F0;border-radius:10px;background:#fff;cursor:pointer;font-family:inherit;transition:.15s}
+.trilha-item:hover{background:#F8FAFC}
+.trilha-item.on{color:#fff}
+.trilha-nome{display:block;font-size:12.5px;font-weight:700}
+.trilha-desc{display:block;font-size:10.5px;opacity:.75;margin-top:2px}
+.trilha-item.on .trilha-desc{opacity:.9}
+.tbl-proposta{width:100%;border-collapse:collapse;font-size:12.5px}
+.tbl-proposta th{padding:8px 9px;background:#1B2E4B;color:#C9A84C;font-weight:700;text-align:left;white-space:nowrap}
+.tbl-proposta td{padding:6px 9px;border-bottom:1px solid #F1F5F9;vertical-align:middle}
+.tbl-proposta input,.tbl-proposta select{width:100%;padding:6px 8px !important;font-size:12px !important}
+.tbl-proposta input[type=checkbox]{width:auto}
 
 /* ══ ESQUECI MEU PIN ══ */
 .l-link{display:block;text-align:center;margin-top:16px;color:#1B2E4B;font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline;background:none;border:none;width:100%;font-family:inherit}

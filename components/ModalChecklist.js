@@ -47,6 +47,8 @@ export default function ModalChecklist({ lic, onFechar, onSalvo }) {
           id: lic.id, empresa_id: lic.empresa_id, objeto: lic.objeto,
           checklistJson: JSON.stringify({ ...dados, _obs: obs, _veredito: resultado.veredito }),
           participar: decisao,
+          // A decisão no checklist já move o cartão de fase
+          fase: decisao === 'Sim' ? 'Inscricao' : decisao === 'Não' ? 'Descartado' : (lic.fase || 'Em analise'),
         }),
       }).then(x => x.json())
       if (r.sucesso) onSalvo(); else setErro(r.erro || 'Erro ao salvar.')

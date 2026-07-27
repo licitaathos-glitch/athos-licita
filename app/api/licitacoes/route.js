@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
 import { lerAba, adicionarLinha, atualizarLinha, excluirLinha, garantirAba } from '@/lib/google'
 import { COLS_RESULTADO } from '@/lib/resultado'
-import { faseInferida } from '@/lib/fases'
+import { faseAutomatica, faseInferida } from '@/lib/fases'
 import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu, empresasComMenu } from '@/lib/auth'
 import { novoId } from '@/lib/uuid'
 
 const CAMPOS = ['numeroPNCP','numeroEdital','objeto','orgao','uf','valor','dataAbertura',
-  'dataLimite','modalidade','status','link','portal','srp','anexoDriveId','anexoDriveUrl','anexosJson',
+  'dataLimite','dataSessao','modalidade','status','link','portal','srp','anexoDriveId','anexoDriveUrl','anexosJson',
   'itensJson','checklistJson','participar', 'fase', ...COLS_RESULTADO]
 
 const COLS_LIC = ['id','empresaId','empresaNome','numeroPNCP','numeroEdital','objeto','orgao','uf',
@@ -40,14 +40,17 @@ export async function GET(req) {
         empresa_nome: l.empresaNome || '',
         numeroPNCP: l.numeroPNCP || '', numeroEdital: l.numeroEdital || '',
         objeto: l.objeto || '', orgao: l.orgao || '', uf: l.uf || '',
-        valor: l.valor || '', dataAbertura: l.dataAbertura || '', dataLimite: l.dataLimite || '',
+        valor: l.valor || '', dataAbertura: l.dataAbertura || '', dataLimite: l.dataLimite || '', dataSessao: l.dataSessao || '',
         modalidade: l.modalidade || '', portal: l.portal || '',
         status: l.status || 'Aberta', srp: l.srp || 'Não', link: l.link || '',
         anexoDriveUrl: l.anexoDriveUrl || '', anexoDriveId: l.anexoDriveId || '',
         anexos: parseItens(l.anexosJson),
         itens: parseItens(l.itensJson), checklistJson: l.checklistJson || '',
         participar: l.participar || 'Pendente',
-        fase: faseInferida({ fase: l.fase, resultado: l.resultado, participar: l.participar, status: l.status }),
+        fase: faseAutomatica({
+          fase: faseInferida({ fase: l.fase, resultado: l.resultado, participar: l.participar, status: l.status }),
+          dataSessao: l.dataSessao, dataLimite: l.dataLimite, dataAbertura: l.dataAbertura,
+        }),
         resultado: l.resultado || 'Aguardando',
         motivo: l.motivo || '',
         nossoLance: l.nossoLance || '',
