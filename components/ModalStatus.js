@@ -46,6 +46,13 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
         itensJson: JSON.stringify(itens),
       }
       if (destino === 'Descartado') corpo.participar = 'Não'
+      // Reabrir uma licitação encerrada: limpa o desfecho para não voltar sozinha
+      const eraFinal = ['Finalizada', 'Descartado'].includes(lic.fase)
+      if (eraFinal && !['Finalizada', 'Descartado'].includes(destino)) {
+        corpo.resultado = 'Aguardando'
+        corpo.motivo = ''
+        corpo.status = 'Aberta'
+      }
       if (['Inscricao', 'Aguardando', 'Lances', 'Habilitacao'].includes(destino)) corpo.participar = 'Sim'
       if (['Ganhamos', 'Perdemos', 'Desclassificados', 'Deserta', 'Cancelada'].includes(f.resultado)) {
         corpo.status = 'Encerrada'

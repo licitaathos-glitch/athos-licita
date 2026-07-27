@@ -11,7 +11,7 @@ const diasAte = dataBR => {
   return Math.ceil((d - h) / 86400000)
 }
 
-export default function QuadroLicitacoes({ licitacoes, somenteConsulta, onMover, onAbrir }) {
+export default function QuadroLicitacoes({ licitacoes, somenteConsulta, onMover, onAbrir, onExcluir, podeExcluir }) {
   const [arrastando, setArrastando] = useState(null)
   const [alvo, setAlvo] = useState(null)
 
@@ -83,6 +83,22 @@ export default function QuadroLicitacoes({ licitacoes, somenteConsulta, onMover,
                     {l.resultado && l.resultado !== 'Aguardando' && (
                       <div className="card-resultado" style={{ color: corResultado(l.resultado) }}>
                         {nomeResultado(l.resultado)}
+                      </div>
+                    )}
+
+                    {!somenteConsulta && (
+                      <div className="card-mover" onClick={e => e.stopPropagation()}>
+                        <select
+                          value={f.id}
+                          title="Mover para outra fase"
+                          onChange={e => { if (e.target.value !== f.id) onMover(l, e.target.value) }}
+                        >
+                          {FASES.map(x => <option key={x.id} value={x.id}>{x.nome}</option>)}
+                        </select>
+                        {podeExcluir && (
+                          <button className="card-excluir" title="Excluir licitação"
+                            onClick={() => onExcluir(l)}>🗑</button>
+                        )}
                       </div>
                     )}
 

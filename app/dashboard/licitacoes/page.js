@@ -72,6 +72,16 @@ export default function LicitacoesPage() {
       extras.participar = 'Não'
     }
     if (novaFase === 'Finalizada') extras.status = 'Encerrada'
+    // Ao tirar de Finalizada/Descartado, limpa o desfecho — senão a licitação
+    // volta sozinha para lá na próxima leitura e parece travada
+    const eraFinal = ['Finalizada', 'Descartado'].includes(lic.fase)
+    const virouAberta = !['Finalizada', 'Descartado'].includes(novaFase)
+    if (eraFinal && virouAberta) {
+      extras.resultado = 'Aguardando'
+      extras.motivo = ''
+      extras.status = 'Aberta'
+      if (lic.participar === 'Não') extras.participar = 'Pendente'
+    }
     const r = await fetch('/api/licitacoes', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: lic.id, empresa_id: lic.empresa_id, objeto: lic.objeto, fase: novaFase, ...extras }),
@@ -80,6 +90,16 @@ export default function LicitacoesPage() {
     else if (novaFase === 'Finalizada' && (!lic.resultado || lic.resultado === 'Aguardando')) {
       setModalStatus({ ...lic, fase: novaFase })
     }
+  }
+
+  async function excluir(lic) {
+    if (!confirm('Excluir definitivamente a licitação "' + (lic.numeroEdital || lic.objeto || '').slice(0, 60) + '"?\n\nEsta ação não pode ser desfeita.')) return
+    const r = await fetch('/api/licitacoes', {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: lic.id }),
+    }).then(x => x.json())
+    if (r.sucesso) { setAberta(null); setModalStatus(null); carregar() }
+    else alert(r.erro || 'Erro ao excluir.')
   }
 
   async function decidir(lic, valor) {
@@ -130,6 +150,8 @@ export default function LicitacoesPage() {
             somenteConsulta={somenteConsulta}
             onMover={moverFase}
             onAbrir={l => setAberta(aberta === l.id ? null : l.id)}
+            onExcluir={excluir}
+            podeExcluir={!somenteConsulta}
           />
           {aberta && (() => {
             const l = lista.find(x => x.id === aberta)
@@ -152,6 +174,7 @@ export default function LicitacoesPage() {
                   {!somenteConsulta && <>
                     <button className="iBtn" onClick={() => setChecklist(l)}>📋 Checklist</button>
                     <button className="iBtn" onClick={() => setModalStatus(l)}>🏁 Status</button>
+                  <button className="iBtn iBtn-del" onClick={() => excluir(l)}>🗑 Excluir</button>
                     <button className="iBtn" onClick={() => setEditando(l)}>✏️ Editar</button>
                   </>}
                 </div>
