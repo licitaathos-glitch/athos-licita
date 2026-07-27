@@ -215,6 +215,28 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .graf-legenda{display:flex;gap:16px;justify-content:center;margin-top:10px;font-size:11.5px;color:#64748B}
 .graf-legenda i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 
+
+/* ══ CHECKLIST ══ */
+.veredito{display:flex;gap:12px;align-items:flex-start;border:1.5px solid;border-radius:12px;padding:13px 15px;font-size:13.5px}
+.veredito strong{font-size:14.5px}
+.progresso{height:5px;background:rgba(0,0,0,.08);border-radius:3px;margin-top:8px;overflow:hidden;max-width:280px}
+.progresso span{display:block;height:100%;background:currentColor;opacity:.6;transition:width .3s}
+.chk-secao{font-size:13px;font-weight:800;color:#1B2E4B;padding-bottom:6px;border-bottom:2px solid #E2E8F0;margin-bottom:10px}
+.chk-secao span{display:block;font-weight:500;font-size:11.5px;color:#94A3B8;margin-top:2px}
+.chk-item{display:flex;gap:14px;align-items:flex-start;padding:12px 14px;background:#F8FAFC;border-radius:10px;margin-bottom:8px;flex-wrap:wrap;border-left:3px solid transparent}
+.chk-item.reprovado{background:#FEF2F2;border-left-color:#DC2626}
+.chk-titulo{font-size:13px;font-weight:700;color:#1B2E4B;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.tag-elim{background:#FEE2E2;color:#991B1B;font-size:9.5px;font-weight:700;padding:1px 7px;border-radius:10px;letter-spacing:.3px;text-transform:uppercase}
+.chk-pergunta{font-size:12.5px;color:#374151;margin-top:3px}
+.chk-ajuda{font-size:11px;color:#94A3B8;margin-top:3px;line-height:1.45}
+.chk-detalhe-input{margin-top:7px;padding:6px 10px !important;font-size:12px !important;background:#fff}
+.chk-sn{display:flex;gap:5px;flex-shrink:0;align-items:flex-start}
+.chk-btn{padding:6px 13px;border-radius:7px;border:1.5px solid #E2E8F0;background:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;color:#64748B}
+.chk-btn.s{background:#DCFCE7;border-color:#16A34A;color:#166534}
+.chk-btn.n{background:#FEE2E2;border-color:#DC2626;color:#991B1B}
+.dec-btn{padding:9px 18px;border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;border:2px solid #E2E8F0;background:#fff;color:#64748B}
+.dec-btn.on{border-color:#1B2E4B;background:#1B2E4B;color:#C9A84C}
+
 /* ══ ESQUECI MEU PIN ══ */
 .l-link{display:block;text-align:center;margin-top:16px;color:#1B2E4B;font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline;background:none;border:none;width:100%;font-family:inherit}
 .l-ok{background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:9px 13px;font-size:13px;color:#166534;margin-bottom:12px}

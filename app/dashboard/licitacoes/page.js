@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useApp } from '@/lib/AppContext'
 import { UFS } from '@/lib/pncpComum'
 import { enviarAoGAS, lerBase64 } from '@/lib/gasClient'
+import ModalChecklist from '@/components/ModalChecklist'
 
 const MODAL_NOMES = ['Pregão Eletrônico', 'Pregão Presencial', 'Concorrência Eletrônica',
   'Concorrência Presencial', 'Dispensa', 'Inexigibilidade']
@@ -30,6 +31,7 @@ export default function LicitacoesPage() {
   const [status, setStatus] = useState('')
   const [aberta, setAberta] = useState(null)
   const [editando, setEditando] = useState(null)
+  const [checklist, setChecklist] = useState(null)
 
   const carregar = useCallback(() => {
     fetch('/api/licitacoes').then(r => r.json())
@@ -148,6 +150,7 @@ export default function LicitacoesPage() {
                   {['Sim', 'Não', 'Pendente'].map(v => (
                     <button key={v} className={'iBtn' + (l.participar === v ? ' iBtn-up' : '')} onClick={() => decidir(l, v)}>{v}</button>
                   ))}
+                  <button className="iBtn" onClick={() => setChecklist(l)}>📋 Checklist</button>
                   <button className="iBtn" onClick={() => setEditando(l)}>✏️ Editar</button>
                   <button className="iBtn iBtn-del" onClick={async () => {
                     if (!confirm('Excluir esta licitação?')) return
@@ -163,6 +166,11 @@ export default function LicitacoesPage() {
           )}
         </div>
       ))}
+
+      {checklist && (
+        <ModalChecklist lic={checklist} onFechar={() => setChecklist(null)}
+          onSalvo={() => { setChecklist(null); carregar() }} />
+      )}
 
       {editando && (
         <ModalLic lic={editando} empresaId={empresaSel || editando.empresa_id} empresaNome={empresaNome}
