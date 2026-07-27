@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { MENUS_CONCEDIVEIS } from '@/lib/menus'
 import { useApp } from '@/lib/AppContext'
 
 const ROTULOS = { adm: 'Administrador', admin: 'Administrador', analista: 'Analista', empresa: 'Empresa' }
@@ -14,6 +15,7 @@ export default function UsuariosPage() {
   const [perfil, setPerfil] = useState('empresa')
   const [empresaId, setEmpresaId] = useState('')
   const [permitidas, setPermitidas] = useState([])
+  const [menus, setMenus] = useState(MENUS_CONCEDIVEIS.map(m => m.key))
   const [msg, setMsg] = useState('')
   const [erro, setErro] = useState('')
   const [salvando, setSalvando] = useState(false)
@@ -41,6 +43,7 @@ export default function UsuariosPage() {
           nome, email, perfil,
           empresa_id: perfil === 'empresa' ? empresaId : '',
           empresas_permitidas: perfil === 'analista' ? permitidas.join(',') : '',
+          menus: perfil === 'admin' ? '' : menus.join(','),
         }),
       }).then(x => x.json())
       if (r.sucesso) {
@@ -105,6 +108,22 @@ export default function UsuariosPage() {
           </div>
         )}
 
+        {perfil !== 'admin' && (
+          <div className="form-sub">
+            <label>MENUS QUE ESTE USUÁRIO PODE ACESSAR</label>
+            <div className="chip-group">
+              {MENUS_CONCEDIVEIS.map(m => (
+                <label key={m.key} className="chip">
+                  <input type="checkbox" checked={menus.includes(m.key)}
+                    onChange={() => setMenus(a => a.includes(m.key) ? a.filter(x => x !== m.key) : [...a, m.key])} />
+                  {m.icon} {m.label}
+                </label>
+              ))}
+            </div>
+            <p className="dica-menus">O Dashboard e o Meu perfil ficam sempre disponíveis. Administradores acessam tudo.</p>
+          </div>
+        )}
+
         {msg && <div className="l-ok" style={{ marginTop: 10 }}>{msg}</div>}
         {erro && <div className="l-err" style={{ marginTop: 10 }}>{erro}</div>}
         <button className="btn-primary" onClick={salvar} disabled={salvando}>
@@ -130,6 +149,10 @@ function CardUsuario({ u, empresas, eu, onMudou }) {
   const [empresaId, setEmpresaId] = useState(u.empresa_id || '')
   const [permitidas, setPermitidas] = useState(
     String(u.empresas_permitidas || '').split(',').map(x => x.trim()).filter(Boolean))
+  const [menus, setMenus] = useState(() => {
+    const salvos = String(u.menus || '').split(',').map(x => x.trim()).filter(Boolean)
+    return salvos.length ? salvos : MENUS_CONCEDIVEIS.map(m => m.key)
+  })
   const [ativo, setAtivo] = useState(String(u.ativo).toUpperCase() !== 'FALSE')
   const [msg, setMsg] = useState('')
   const [erro, setErro] = useState('')
@@ -210,6 +233,22 @@ function CardUsuario({ u, empresas, eu, onMudou }) {
             </div>
           )}
 
+          {perfil !== 'admin' && (
+            <div className="form-sub">
+              <label>MENUS QUE ESTE USUÁRIO PODE ACESSAR</label>
+              <div className="chip-group">
+                {MENUS_CONCEDIVEIS.map(m => (
+                  <label key={m.key} className="chip">
+                    <input type="checkbox" checked={menus.includes(m.key)}
+                      onChange={() => setMenus(a => a.includes(m.key) ? a.filter(x => x !== m.key) : [...a, m.key])} />
+                    {m.icon} {m.label}
+                  </label>
+                ))}
+              </div>
+              <p className="dica-menus">O Dashboard fica sempre disponível. Administradores acessam tudo.</p>
+            </div>
+          )}
+
           <div className="form-sub">
             <label className="chip" style={{ display: 'inline-flex' }}>
               <input type="checkbox" checked={ativo} disabled={souEu}
@@ -227,6 +266,7 @@ function CardUsuario({ u, empresas, eu, onMudou }) {
                 nome, perfil, ativo,
                 empresa_id: perfil === 'empresa' ? empresaId : '',
                 empresas_permitidas: perfil === 'analista' ? permitidas.join(',') : '',
+                menus: perfil === 'admin' ? '' : menus.join(','),
               })}>
               {salvando ? 'Salvando...' : 'Salvar alterações'}
             </button>

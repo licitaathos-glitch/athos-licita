@@ -1,11 +1,19 @@
 'use client'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { useRouter, usePathname } from 'next/navigation'
 import { AppProvider, useApp } from '@/lib/AppContext'
 import Sidebar from '@/components/Sidebar'
+import { menuDaRota } from '@/lib/menus'
 
 function Shell({ children }) {
   const router = useRouter()
+  const pathname = usePathname()
   const { usuario, erro, carregando } = useApp()
+
+  // Bloqueia o acesso por URL direta a um módulo que o usuário não tem
+  const chave = menuDaRota(pathname)
+  const permitidos = Array.isArray(usuario?.menus) ? usuario.menus : []
+  const semAcesso = !carregando && usuario && chave && !permitidos.includes(chave)
 
   async function sair() {
     await fetch('/api/logout', { method: 'POST' })
@@ -28,6 +36,15 @@ function Shell({ children }) {
             <div style={{ padding: 40, textAlign: 'center', color: '#DC2626' }}>{erro}</div>
           ) : carregando ? (
             <div style={{ padding: 40, textAlign: 'center', color: '#64748B' }}>Carregando...</div>
+          ) : semAcesso ? (
+            <div style={{ padding: 48, textAlign: 'center' }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>🔒</div>
+              <div style={{ fontWeight: 700, color: '#1B2E4B', marginBottom: 6 }}>Sem acesso a este módulo</div>
+              <p style={{ color: '#64748B', fontSize: 13, marginBottom: 16 }}>
+                Fale com o administrador se você precisa deste acesso.
+              </p>
+              <Link href="/dashboard" className="btn-ghost">Voltar ao Dashboard</Link>
+            </div>
           ) : children}
         </div>
       </div>

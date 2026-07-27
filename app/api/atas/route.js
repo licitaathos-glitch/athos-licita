@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { lerAba, adicionarLinha, atualizarLinha, excluirLinha } from '@/lib/google'
-import { getUsuarioFromReq, podeEditar, empresasVisiveis } from '@/lib/auth'
+import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu } from '@/lib/auth'
 import { diasRestantes, statusPorDias } from '@/lib/datas'
 import { novoId } from '@/lib/uuid'
 
@@ -22,6 +22,7 @@ async function contexto(usuario) {
 export async function GET(req) {
   const usuario = await getUsuarioFromReq(req)
   if (!usuario) return NextResponse.json({ sucesso: false, erro: 'Não autenticado.' }, { status: 401 })
+  if (!podeAcessarMenu(usuario, 'atas')) return NextResponse.json({ sucesso: false, erro: 'Seu usuário não tem acesso a este módulo.' }, { status: 403 })
 
   try {
     const [{ ids }, linhas] = await Promise.all([contexto(usuario), lerAba('Atas')])
@@ -62,6 +63,7 @@ export async function GET(req) {
 export async function POST(req) {
   const usuario = await getUsuarioFromReq(req)
   if (!usuario) return NextResponse.json({ sucesso: false, erro: 'Não autenticado.' }, { status: 401 })
+  if (!podeAcessarMenu(usuario, 'atas')) return NextResponse.json({ sucesso: false, erro: 'Seu usuário não tem acesso a este módulo.' }, { status: 403 })
   if (!podeEditar(usuario)) return NextResponse.json({ sucesso: false, erro: 'Seu perfil é somente consulta.' }, { status: 403 })
 
   try {
@@ -102,6 +104,7 @@ export async function POST(req) {
 export async function DELETE(req) {
   const usuario = await getUsuarioFromReq(req)
   if (!usuario) return NextResponse.json({ sucesso: false, erro: 'Não autenticado.' }, { status: 401 })
+  if (!podeAcessarMenu(usuario, 'atas')) return NextResponse.json({ sucesso: false, erro: 'Seu usuário não tem acesso a este módulo.' }, { status: 403 })
   if (!podeEditar(usuario)) return NextResponse.json({ sucesso: false, erro: 'Seu perfil é somente consulta.' }, { status: 403 })
 
   try {

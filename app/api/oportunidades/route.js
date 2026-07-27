@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server'
 import { buscarPNCP } from '@/lib/pncp'
-import { getUsuarioFromReq } from '@/lib/auth'
+import { getUsuarioFromReq, podeAcessarMenu } from '@/lib/auth'
 
 export const maxDuration = 60
 
 export async function POST(req) {
   const usuario = await getUsuarioFromReq(req)
   if (!usuario) return NextResponse.json({ sucesso: false, erro: 'Não autenticado.' }, { status: 401 })
+  if (!podeAcessarMenu(usuario, 'oportunidades')) return NextResponse.json({ sucesso: false, erro: 'Seu usuário não tem acesso a este módulo.' }, { status: 403 })
 
   try {
     const { dias, ufs, modalidades, termo } = await req.json()

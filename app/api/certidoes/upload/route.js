@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { lerAba } from '@/lib/google'
 import { chamarGAS } from '@/lib/gas'
-import { getUsuarioFromReq, podeEditar, empresasVisiveis } from '@/lib/auth'
+import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu } from '@/lib/auth'
 
 // A extração via Gemini pode levar até ~40s
 export const maxDuration = 60
@@ -9,6 +9,7 @@ export const maxDuration = 60
 export async function POST(req) {
   const usuario = await getUsuarioFromReq(req)
   if (!usuario) return NextResponse.json({ sucesso: false, erro: 'Não autenticado.' }, { status: 401 })
+  if (!podeAcessarMenu(usuario, 'certidoes')) return NextResponse.json({ sucesso: false, erro: 'Seu usuário não tem acesso a este módulo.' }, { status: 403 })
   if (!podeEditar(usuario)) return NextResponse.json({ sucesso: false, erro: 'Seu perfil é somente consulta.' }, { status: 403 })
 
   try {

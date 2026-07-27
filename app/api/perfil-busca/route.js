@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { lerAba, adicionarLinha, atualizarLinha, garantirAba } from '@/lib/google'
-import { getUsuarioFromReq, podeEditar, empresasVisiveis } from '@/lib/auth'
+import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu } from '@/lib/auth'
 import { ABA_CRITERIOS, COLS_CRITERIOS } from '@/lib/perfilBusca'
 
 const CAMPOS = ['palavrasChave','palavrasExcluidas','ufs','modalidades',
@@ -9,6 +9,7 @@ const CAMPOS = ['palavrasChave','palavrasExcluidas','ufs','modalidades',
 export async function GET(req) {
   const usuario = await getUsuarioFromReq(req)
   if (!usuario) return NextResponse.json({ sucesso: false, erro: 'Não autenticado.' }, { status: 401 })
+  if (!podeAcessarMenu(usuario, 'oportunidades')) return NextResponse.json({ sucesso: false, erro: 'Seu usuário não tem acesso a este módulo.' }, { status: 403 })
 
   try {
     await garantirAba(ABA_CRITERIOS, COLS_CRITERIOS)
@@ -31,6 +32,7 @@ export async function GET(req) {
 export async function POST(req) {
   const usuario = await getUsuarioFromReq(req)
   if (!usuario) return NextResponse.json({ sucesso: false, erro: 'Não autenticado.' }, { status: 401 })
+  if (!podeAcessarMenu(usuario, 'oportunidades')) return NextResponse.json({ sucesso: false, erro: 'Seu usuário não tem acesso a este módulo.' }, { status: 403 })
   if (!podeEditar(usuario)) return NextResponse.json({ sucesso: false, erro: 'Seu perfil é somente consulta.' }, { status: 403 })
 
   try {

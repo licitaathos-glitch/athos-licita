@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getUsuarioFromReq, normalizarPerfil } from '@/lib/auth'
+import { getUsuarioFromReq, normalizarPerfil, menusPermitidos } from '@/lib/auth'
 
 export async function GET(req) {
   const usuario = await getUsuarioFromReq(req)
@@ -7,6 +7,10 @@ export async function GET(req) {
   // Devolve o perfil já normalizado para o frontend usar o mesmo critério do backend
   return NextResponse.json({
     sucesso: true,
-    usuario: { ...usuario, perfil: normalizarPerfil(usuario) },
+    usuario: {
+      ...usuario,
+      perfil: normalizarPerfil(usuario),
+      menus: menusPermitidos(usuario),
+    },
   })
 }

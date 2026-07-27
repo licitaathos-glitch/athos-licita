@@ -2,22 +2,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useApp } from '@/lib/AppContext'
-
-const ITENS_BASE = [
-  { key: 'dashboard', label: 'Dashboard', href: '/dashboard', icon: '📊' },
-  { key: 'oportunidades', label: 'Oportunidades', href: '/dashboard/oportunidades', icon: '🔎' },
-  { key: 'licitacoes', label: 'Licitações', href: '/dashboard/licitacoes', icon: '📄' },
-  { key: 'certidoes', label: 'Certidões', href: '/dashboard/certidoes', icon: '📜' },
-  { key: 'atas', label: 'Gestão de Atas', href: '/dashboard/atas', icon: '🗂️' },
-  { key: 'calendario', label: 'Calendário e Alertas', href: '/dashboard/calendario', icon: '📅' },
-  { key: 'financeiro', label: 'Financeiro', href: '/dashboard/financeiro', icon: '💰' },
-  { key: 'relatorio', label: 'Relatório mensal', href: '/dashboard/relatorio', icon: '📄' },
-]
-
-const ITENS_ADM = [
-  { key: 'empresas', label: 'Empresas', href: '/dashboard/empresas', icon: '🏢' },
-  { key: 'usuarios', label: 'Usuários', href: '/dashboard/usuarios', icon: '👥' },
-]
+import { MENUS } from '@/lib/menus'
 
 const ROTULO_PERFIL = { adm: 'Administrador', analista: 'Analista', empresa: 'Empresa' }
 
@@ -25,7 +10,10 @@ export default function Sidebar() {
   const pathname = usePathname()
   const { usuario, empresas, empresaAtual, setEmpresaAtual } = useApp()
   const perfil = String(usuario?.perfil || '').toLowerCase()
-  const itens = perfil === 'adm' ? [...ITENS_BASE, ...ITENS_ADM] : ITENS_BASE
+
+  // Só aparecem os menus que o usuário tem permissão de acessar
+  const permitidos = Array.isArray(usuario?.menus) ? usuario.menus : []
+  const itens = MENUS.filter(m => permitidos.includes(m.key))
   const mostrarSeletor = (perfil === 'adm' || perfil === 'analista') && empresas.length > 0
 
   return (
