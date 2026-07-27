@@ -298,7 +298,7 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ link: linkPncp.trim() }),
       }).then(x => x.json())
-      if (!r.sucesso) setErro(r.erro || 'Não foi possível extrair.')
+      if (!r.sucesso) setErro((r.erro || 'Não foi possível extrair.') + (r.detalhe?.length ? ' [' + r.detalhe.join(' · ') + ']' : ''))
       else {
         const d = r.dados
         setF(o => ({
