@@ -179,6 +179,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
   .item-row{grid-template-columns:1fr 1fr;gap:4px}
 }
 
+
+/* ══ OPORTUNIDADES / LICITAÇÕES ══ */
+.filtro-linha{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:4px}
+.filtro-linha select,.filtro-linha input{padding:9px 12px;border:1.5px solid #E2E8F0;border-radius:9px;font-size:13.5px;font-family:inherit;outline:none;width:100%}
+.filtro-linha select:focus,.filtro-linha input:focus{border-color:#1B2E4B}
+.chip-opt{padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid #E2E8F0;background:#fff;color:#64748B;font-family:inherit}
+.chip-opt.on{background:#1B2E4B;color:#C9A84C;border-color:#1B2E4B}
+.chip-uf{padding:4px 9px;font-size:11px}
+.op-card{background:#fff;border-radius:12px;padding:13px 16px;box-shadow:0 1px 4px rgba(0,0,0,.07);display:flex;align-items:center;gap:14px;margin-bottom:9px;flex-wrap:wrap;border:2px solid transparent}
+.op-card:hover{border-color:#C9A84C}
+.pncp-box{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:12px;padding:14px;margin-bottom:16px}
+.item-row-lic{display:grid;grid-template-columns:1fr 74px 62px 96px 30px;gap:5px;margin-bottom:5px}
+.item-row-lic input{padding:6px 8px !important;font-size:12px !important}
+@media(max-width:900px){.item-row-lic{grid-template-columns:1fr 1fr;gap:4px}}
+
 /* ══ ESQUECI MEU PIN ══ */
 .l-link{display:block;text-align:center;margin-top:16px;color:#1B2E4B;font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline;background:none;border:none;width:100%;font-family:inherit}
 .l-ok{background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:9px 13px;font-size:13px;color:#166534;margin-bottom:12px}
