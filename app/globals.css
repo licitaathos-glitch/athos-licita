@@ -277,6 +277,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
   @page{margin:14mm}
 }
 
+
+/* ══ OPORTUNIDADES — CARDS E FILTROS ══ */
+.barra-res{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:18px 0 12px;font-size:13.5px;color:#64748B}
+.barra-res strong{color:#1B2E4B;font-size:15px}
+.ordem-sel{padding:6px 11px;border:1.5px solid #E2E8F0;border-radius:20px;font-size:12.5px;font-family:inherit;background:#fff;color:#1B2E4B;outline:none}
+.op-card{background:#fff;border-radius:12px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,.07);display:flex;align-items:flex-start;gap:16px;margin-bottom:10px;flex-wrap:wrap;border-left:3px solid transparent}
+.op-card:hover{box-shadow:0 4px 14px rgba(0,0,0,.1)}
+.op-card.urgente{border-left-color:#DC2626}
+.op-tags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px}
+.op-tags span{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;letter-spacing:.2px}
+.tag-mod{background:#EFF6FF;color:#1D4ED8}
+.tag-srp{background:#1B2E4B;color:#C9A84C}
+.tag-cat{background:#DCFCE7;color:#166534}
+.tag-kw{background:#FEF3C7;color:#92400E}
+.op-obj{font-size:13.5px;font-weight:600;color:#1B2E4B;line-height:1.45}
+.op-obj mark{background:#FEF08A;color:inherit;padding:0 1px;border-radius:2px}
+.op-meta{font-size:11.5px;color:#94A3B8;margin-top:4px}
+.op-linha{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:6px;font-size:12px}
+.op-valor{font-weight:800;color:#1B2E4B;font-size:13px}
+.op-prazo{background:#F1F5F9;color:#475569;padding:2px 9px;border-radius:10px;font-weight:600}
+.op-prazo.urg{background:#FEE2E2;color:#991B1B}
+.op-acoes{display:flex;gap:6px;align-items:center;flex-shrink:0;flex-wrap:wrap}
+.modal-sm{max-width:440px}
+
 /* ══ ESQUECI MEU PIN ══ */
 .l-link{display:block;text-align:center;margin-top:16px;color:#1B2E4B;font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline;background:none;border:none;width:100%;font-family:inherit}
 .l-ok{background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:9px 13px;font-size:13px;color:#166534;margin-bottom:12px}
