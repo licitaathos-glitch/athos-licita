@@ -335,6 +335,39 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .detalhe-quadro{background:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 1px 6px rgba(0,0,0,.09);margin-top:14px;border-left:3px solid #C9A84C}
 @media(max-width:820px){.coluna{flex:0 0 215px}}
 
+
+/* ══ CALENDÁRIO ══ */
+.legenda-cal{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+.leg-item{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;border:1.5px solid #E2E8F0;background:#fff;color:#94A3B8;font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit}
+.leg-item strong{font-size:11px}
+.cal-wrap{background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden}
+.cal-header{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;background:#1B2E4B;color:#fff}
+.cal-title{font-weight:800;font-size:15px}
+.cal-nav{background:rgba(255,255,255,.15);border:none;color:#fff;padding:5px 12px;border-radius:8px;cursor:pointer;font-size:14px;font-family:inherit;font-weight:700}
+.cal-nav:hover{background:rgba(255,255,255,.28)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr)}
+.cal-dow{padding:8px 4px;text-align:center;font-size:10.5px;font-weight:800;color:#64748B;background:#F8FAFC;border-bottom:1px solid #E2E8F0;letter-spacing:.4px}
+.cal-day{min-height:88px;padding:5px;border-right:1px solid #F1F5F9;border-bottom:1px solid #F1F5F9;cursor:pointer;transition:background .12s}
+.cal-day:nth-child(7n){border-right:none}
+.cal-day:hover{background:#FAFCFF}
+.cal-day.vazio{background:#FCFCFD;cursor:default}
+.cal-day.sel{background:#EFF6FF;outline:2px solid #1B2E4B;outline-offset:-2px}
+.cal-num{font-size:11.5px;font-weight:700;color:#374151;margin-bottom:3px;padding-left:2px}
+.cal-day.hoje .cal-num{background:#1B2E4B;color:#C9A84C;width:21px;height:21px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px}
+.cal-ev{font-size:9.5px;padding:2px 5px;border-radius:4px;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
+.cal-mais{font-size:9px;color:#94A3B8;padding-left:4px;font-weight:600}
+.ev-linha{display:flex;align-items:center;gap:11px;background:#fff;border-radius:10px;padding:11px 13px;margin-bottom:7px;box-shadow:0 1px 3px rgba(0,0,0,.06);border-left:3px solid;flex-wrap:wrap}
+.ev-ico{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.ev-titulo{font-size:13px;font-weight:700;color:#1B2E4B}
+.ev-detalhe{font-size:11.5px;color:#475569;margin-top:1px}
+.ev-meta{font-size:10.5px;color:#94A3B8;margin-top:2px}
+.ev-prazo{font-size:11px;font-weight:700;background:#F1F5F9;color:#475569;padding:3px 10px;border-radius:12px}
+.ev-prazo.urg{background:#FEE2E2;color:#991B1B}
+@media(max-width:820px){
+  .cal-day{min-height:62px}
+  .cal-ev{font-size:8.5px}
+}
+
 /* ══ ESQUECI MEU PIN ══ */
 .l-link{display:block;text-align:center;margin-top:16px;color:#1B2E4B;font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline;background:none;border:none;width:100%;font-family:inherit}
 .l-ok{background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:9px 13px;font-size:13px;color:#166534;margin-bottom:12px}
