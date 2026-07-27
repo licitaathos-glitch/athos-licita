@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { lerAba, adicionarLinha, atualizarLinha, excluirLinha } from '@/lib/google'
-import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu } from '@/lib/auth'
+import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu, empresasComMenu } from '@/lib/auth'
 import { diasRestantes, statusPorDias } from '@/lib/datas'
 import { novoId } from '@/lib/uuid'
 
@@ -15,7 +15,7 @@ function contarItens(json) {
 
 async function contexto(usuario) {
   const todas = await lerAba('Empresas')
-  const empresas = empresasVisiveis(usuario, todas.filter(e => e.id))
+  const empresas = empresasComMenu(usuario, 'atas', todas.filter(e => e.id))
   return { empresas, ids: new Set(empresas.map(e => String(e.id).trim())) }
 }
 

@@ -31,6 +31,7 @@ export async function POST(req) {
       empresa_id: u.empresa_id || '',
       empresas_permitidas: u.empresas_permitidas || '',
       menus: u.menus || '',
+      menus_por_empresa: u.menus_por_empresa || '',
     }
     const token = await criarToken(usuario)
     const res = NextResponse.json({ sucesso: true, usuario })

@@ -8,11 +8,11 @@ const ROTULO_PERFIL = { adm: 'Administrador', analista: 'Analista', empresa: 'Em
 
 export default function Sidebar() {
   const pathname = usePathname()
-  const { usuario, empresas, empresaAtual, setEmpresaAtual } = useApp()
+  const { usuario, empresas, empresaAtual, setEmpresaAtual, menusAtuais } = useApp()
   const perfil = String(usuario?.perfil || '').toLowerCase()
 
   // Só aparecem os menus que o usuário tem permissão de acessar
-  const permitidos = Array.isArray(usuario?.menus) ? usuario.menus : []
+  const permitidos = Array.isArray(menusAtuais) ? menusAtuais : []
   const itens = MENUS.filter(m => permitidos.includes(m.key))
   const mostrarSeletor = (perfil === 'adm' || perfil === 'analista') && empresas.length > 0
 

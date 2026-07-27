@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { lerAba, adicionarLinha, atualizarLinha, excluirLinha, garantirAba } from '@/lib/google'
 import { COLS_RESULTADO } from '@/lib/resultado'
 import { faseInferida } from '@/lib/fases'
-import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu } from '@/lib/auth'
+import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu, empresasComMenu } from '@/lib/auth'
 import { novoId } from '@/lib/uuid'
 
 const CAMPOS = ['numeroPNCP','numeroEdital','objeto','orgao','uf','valor','dataAbertura',
@@ -21,7 +21,7 @@ function parseItens(json) {
 async function contexto(usuario) {
   await garantirAba('Licitacoes', COLS_LIC)
   const todas = await lerAba('Empresas')
-  const empresas = empresasVisiveis(usuario, todas.filter(e => e.id))
+  const empresas = empresasComMenu(usuario, 'licitacoes', todas.filter(e => e.id))
   return { empresas, ids: new Set(empresas.map(e => String(e.id).trim())) }
 }
 

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { lerAba, adicionarLinha, atualizarLinha, excluirLinha, garantirAba } from '@/lib/google'
-import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu } from '@/lib/auth'
+import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu, empresasComMenu } from '@/lib/auth'
 import { novoId } from '@/lib/uuid'
 import { ABA_EMPENHOS, COLS_EMPENHOS, ABA_CONFIG, COLS_CONFIG, calcularEmpenho } from '@/lib/comercial'
 
@@ -14,7 +14,7 @@ async function contexto(usuario) {
     garantirAba(ABA_CONFIG, COLS_CONFIG),
   ])
   const [todas, configs] = await Promise.all([lerAba('Empresas'), lerAba(ABA_CONFIG)])
-  const empresas = empresasVisiveis(usuario, todas.filter(e => e.id))
+  const empresas = empresasComMenu(usuario, 'financeiro', todas.filter(e => e.id))
   const mapaConfig = {}
   configs.forEach(c => { mapaConfig[String(c.empresaId || '').trim()] = c })
   return { empresas, ids: new Set(empresas.map(e => String(e.id).trim())), mapaConfig }

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getUsuarioFromReq, normalizarPerfil, menusPermitidos } from '@/lib/auth'
+import { getUsuarioFromReq, normalizarPerfil, menusPermitidos, menusUnificados, mapaPorEmpresa } from '@/lib/auth'
 
 export async function GET(req) {
   const usuario = await getUsuarioFromReq(req)
@@ -11,6 +11,10 @@ export async function GET(req) {
       ...usuario,
       perfil: normalizarPerfil(usuario),
       menus: menusPermitidos(usuario),
+      menusUnificados: menusUnificados(usuario),
+      menusPorEmpresa: Object.fromEntries(
+        Object.entries(mapaPorEmpresa(usuario)).map(([id]) => [id, menusPermitidos(usuario, id)])
+      ),
     },
   })
 }

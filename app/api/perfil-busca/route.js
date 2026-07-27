@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { lerAba, adicionarLinha, atualizarLinha, garantirAba } from '@/lib/google'
-import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu } from '@/lib/auth'
+import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu, empresasComMenu } from '@/lib/auth'
 import { ABA_CRITERIOS, COLS_CRITERIOS } from '@/lib/perfilBusca'
 
 const CAMPOS = ['palavrasChave','palavrasExcluidas','ufs','modalidades',
@@ -14,7 +14,7 @@ export async function GET(req) {
   try {
     await garantirAba(ABA_CRITERIOS, COLS_CRITERIOS)
     const [todas, criterios] = await Promise.all([lerAba('Empresas'), lerAba(ABA_CRITERIOS)])
-    const empresas = empresasVisiveis(usuario, todas.filter(e => e.id))
+    const empresas = empresasComMenu(usuario, 'oportunidades', todas.filter(e => e.id))
     const ids = new Set(empresas.map(e => String(e.id).trim()))
 
     const perfis = {}
@@ -40,7 +40,7 @@ export async function POST(req) {
     const b = await req.json()
     const { empresas } = await (async () => {
       const todas = await lerAba('Empresas')
-      return { empresas: empresasVisiveis(usuario, todas.filter(e => e.id)) }
+      return { empresas: empresasComMenu(usuario, 'oportunidades', todas.filter(e => e.id)) }
     })()
     const empresa = empresas.find(e => String(e.id).trim() === String(b.empresaId || '').trim())
     if (!empresa) return NextResponse.json({ sucesso: false, erro: 'Sem acesso a esta empresa.' }, { status: 403 })

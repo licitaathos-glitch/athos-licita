@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { MENUS_CONCEDIVEIS } from '@/lib/menus'
+import MenusPorEmpresa from '@/components/MenusPorEmpresa'
 import { useApp } from '@/lib/AppContext'
 
 const ROTULOS = { adm: 'Administrador', admin: 'Administrador', analista: 'Analista', empresa: 'Empresa' }
@@ -16,6 +17,7 @@ export default function UsuariosPage() {
   const [empresaId, setEmpresaId] = useState('')
   const [permitidas, setPermitidas] = useState([])
   const [menus, setMenus] = useState(MENUS_CONCEDIVEIS.map(m => m.key))
+  const [menusEmp, setMenusEmp] = useState({})
   const [msg, setMsg] = useState('')
   const [erro, setErro] = useState('')
   const [salvando, setSalvando] = useState(false)
@@ -44,6 +46,7 @@ export default function UsuariosPage() {
           empresa_id: perfil === 'empresa' ? empresaId : '',
           empresas_permitidas: perfil === 'analista' ? permitidas.join(',') : '',
           menus: perfil === 'admin' ? '' : menus.join(','),
+          menus_por_empresa: perfil === 'analista' ? menusEmp : '',
         }),
       }).then(x => x.json())
       if (r.sucesso) {
@@ -108,21 +111,11 @@ export default function UsuariosPage() {
           </div>
         )}
 
-        {perfil !== 'admin' && (
-          <div className="form-sub">
-            <label>MENUS QUE ESTE USUÁRIO PODE ACESSAR</label>
-            <div className="chip-group">
-              {MENUS_CONCEDIVEIS.map(m => (
-                <label key={m.key} className="chip">
-                  <input type="checkbox" checked={menus.includes(m.key)}
-                    onChange={() => setMenus(a => a.includes(m.key) ? a.filter(x => x !== m.key) : [...a, m.key])} />
-                  {m.icon} {m.label}
-                </label>
-              ))}
-            </div>
-            <p className="dica-menus">O Dashboard e o Meu perfil ficam sempre disponíveis. Administradores acessam tudo.</p>
-          </div>
-        )}
+        <MenusPorEmpresa
+          perfil={perfil} padrao={menus} setPadrao={setMenus}
+          porEmpresa={menusEmp} setPorEmpresa={setMenusEmp}
+          empresasDisponiveis={permitidas.length ? empresas.filter(e => permitidas.includes(String(e.id))) : empresas}
+        />
 
         {msg && <div className="l-ok" style={{ marginTop: 10 }}>{msg}</div>}
         {erro && <div className="l-err" style={{ marginTop: 10 }}>{erro}</div>}
@@ -152,6 +145,15 @@ function CardUsuario({ u, empresas, eu, onMudou }) {
   const [menus, setMenus] = useState(() => {
     const salvos = String(u.menus || '').split(',').map(x => x.trim()).filter(Boolean)
     return salvos.length ? salvos : MENUS_CONCEDIVEIS.map(m => m.key)
+  })
+  const [menusEmp, setMenusEmp] = useState(() => {
+    try {
+      const o = JSON.parse(u.menus_por_empresa || '{}')
+      if (!o || typeof o !== 'object') return {}
+      return Object.fromEntries(Object.entries(o).map(([k, v]) => [
+        String(k), Array.isArray(v) ? v : String(v).split(',').map(x => x.trim()).filter(Boolean),
+      ]))
+    } catch { return {} }
   })
   const [ativo, setAtivo] = useState(String(u.ativo).toUpperCase() !== 'FALSE')
   const [msg, setMsg] = useState('')
@@ -233,21 +235,11 @@ function CardUsuario({ u, empresas, eu, onMudou }) {
             </div>
           )}
 
-          {perfil !== 'admin' && (
-            <div className="form-sub">
-              <label>MENUS QUE ESTE USUÁRIO PODE ACESSAR</label>
-              <div className="chip-group">
-                {MENUS_CONCEDIVEIS.map(m => (
-                  <label key={m.key} className="chip">
-                    <input type="checkbox" checked={menus.includes(m.key)}
-                      onChange={() => setMenus(a => a.includes(m.key) ? a.filter(x => x !== m.key) : [...a, m.key])} />
-                    {m.icon} {m.label}
-                  </label>
-                ))}
-              </div>
-              <p className="dica-menus">O Dashboard fica sempre disponível. Administradores acessam tudo.</p>
-            </div>
-          )}
+          <MenusPorEmpresa
+            perfil={perfil} padrao={menus} setPadrao={setMenus}
+            porEmpresa={menusEmp} setPorEmpresa={setMenusEmp}
+            empresasDisponiveis={permitidas.length ? empresas.filter(e => permitidas.includes(String(e.id))) : empresas}
+          />
 
           <div className="form-sub">
             <label className="chip" style={{ display: 'inline-flex' }}>
@@ -267,6 +259,7 @@ function CardUsuario({ u, empresas, eu, onMudou }) {
                 empresa_id: perfil === 'empresa' ? empresaId : '',
                 empresas_permitidas: perfil === 'analista' ? permitidas.join(',') : '',
                 menus: perfil === 'admin' ? '' : menus.join(','),
+                menus_por_empresa: perfil === 'analista' ? menusEmp : '',
               })}>
               {salvando ? 'Salvando...' : 'Salvar alterações'}
             </button>

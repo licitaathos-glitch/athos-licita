@@ -8,11 +8,11 @@ import { menuDaRota } from '@/lib/menus'
 function Shell({ children }) {
   const router = useRouter()
   const pathname = usePathname()
-  const { usuario, erro, carregando } = useApp()
+  const { usuario, erro, carregando, menusAtuais } = useApp()
 
   // Bloqueia o acesso por URL direta a um módulo que o usuário não tem
   const chave = menuDaRota(pathname)
-  const permitidos = Array.isArray(usuario?.menus) ? usuario.menus : []
+  const permitidos = Array.isArray(menusAtuais) ? menusAtuais : []
   const semAcesso = !carregando && usuario && chave && !permitidos.includes(chave)
 
   async function sair() {

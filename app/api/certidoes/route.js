@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server'
 import { lerAba, adicionarLinha, atualizarLinha, excluirLinha } from '@/lib/google'
-import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu } from '@/lib/auth'
+import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu, empresasComMenu } from '@/lib/auth'
 import { diasRestantes, statusPorDias, formatarData } from '@/lib/datas'
 import { rotuloTipo, temValidade } from '@/lib/tiposCertidao'
 import { novoId } from '@/lib/uuid'
 
 async function idsPermitidos(usuario) {
   const todas = await lerAba('Empresas')
-  const empresas = empresasVisiveis(usuario, todas.filter(e => e.id))
+  const empresas = empresasComMenu(usuario, 'certidoes', todas.filter(e => e.id))
   return {
     empresas,
     ids: new Set(empresas.map(e => String(e.id).trim())),

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { lerAba } from '@/lib/google'
 import { chamarGAS } from '@/lib/gas'
-import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu } from '@/lib/auth'
+import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu, empresasComMenu } from '@/lib/auth'
 
 // A extração via Gemini pode levar até ~40s
 export const maxDuration = 60
@@ -18,7 +18,7 @@ export async function POST(req) {
 
     // Confere se o usuário tem acesso a essa empresa
     const todas = await lerAba('Empresas')
-    const permitidas = empresasVisiveis(usuario, todas.filter(e => e.id))
+    const permitidas = empresasComMenu(usuario, 'certidoes', todas.filter(e => e.id))
     const empresa = permitidas.find(e => String(e.id).trim() === String(empresa_id).trim())
     if (!empresa) return NextResponse.json({ sucesso: false, erro: 'Sem acesso a esta empresa.' }, { status: 403 })
 
