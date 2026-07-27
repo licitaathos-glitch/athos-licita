@@ -311,6 +311,8 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
   const [portais, setPortais] = useState([])
   const [novoPortal, setNovoPortal] = useState('')
   const [buscandoItens, setBuscandoItens] = useState(false)
+  const [arquivosPncp, setArquivosPncp] = useState([])
+  const [baixando, setBaixando] = useState('')
   const [anexos, setAnexos] = useState(() => {
     if (Array.isArray(lic.anexos) && lic.anexos.length) return lic.anexos
     return lic.anexoDriveUrl ? [{ nome: 'Edital', url: lic.anexoDriveUrl, id: lic.anexoDriveId || '' }] : []
@@ -339,7 +341,11 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
         body: JSON.stringify({ link: alvo }),
       }).then(x => x.json())
       if (!r.sucesso) setErro(r.erro || 'Não foi possível importar os itens.')
-      else if (r.dados?.itens?.length) { setItens(r.dados.itens); setOk(r.dados.itens.length + ' itens importados do PNCP.') }
+      else if (r.dados?.itens?.length) {
+        setItens(r.dados.itens)
+        setArquivosPncp(r.dados.arquivos || [])
+        setOk(r.dados.itens.length + ' itens importados do PNCP.')
+      }
       else setErro('O PNCP não retornou itens para esta licitação. Inclua manualmente.')
     } catch { setErro('Erro de conexão.') }
     setBuscandoItens(false)
@@ -366,6 +372,10 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
           srp: d.srp || o.srp, link: d.link || o.link,
         }))
         if (d.itens?.length) setItens(d.itens)
+        setArquivosPncp(d.arquivos || [])
+        if (!d.itens?.length && d.diagItens?.length) {
+          setErro('Dados carregados, mas o PNCP não devolveu itens. [' + d.diagItens.slice(0, 2).join(' · ') + ']')
+        }
         setOk('Dados extraídos do PNCP — confira antes de salvar.')
       }
     } catch { setErro('Erro de conexão.') }
@@ -498,6 +508,57 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
           </div>
 
           <div className="form-sub"><label>LINK DO EDITAL</label><input value={f.link} onChange={e => set('link', e.target.value)} /></div>
+
+          {arquivosPncp.length > 0 && (
+            <div className="form-sub">
+              <label>📥 DOCUMENTOS PUBLICADOS NO PNCP ({arquivosPncp.length})</label>
+              <p className="dica-menus" style={{ marginTop: 0, marginBottom: 8 }}>
+                Clique para baixar do PNCP e guardar na pasta da empresa no Drive.
+              </p>
+              {arquivosPncp.map((a, i) => {
+                const jaTem = anexos.some(x => x.nome === (a.nomeArquivo || a.titulo))
+                return (
+                  <div className="anexo-item" key={i}>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📄 {a.titulo}</span>
+                    {jaTem
+                      ? <span className="pill pill-green">anexado</span>
+                      : <button className="iBtn" disabled={baixando === String(i)} onClick={async () => {
+                          setBaixando(String(i)); setErro('')
+                          try {
+                            const r = await fetch('/api/licitacoes/anexar-pncp', {
+                              method: 'POST', headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ url: a.url, nomeArquivo: a.nomeArquivo || a.titulo, empresaNome }),
+                            }).then(x => x.json())
+                            if (r.sucesso) {
+                              setAnexos(l => {
+                                const todos = [...l, { nome: r.nome, url: r.url, id: r.id }]
+                                set('anexoDriveId', todos[0].id || ''); set('anexoDriveUrl', todos[0].url || '')
+                                return todos
+                              })
+                            } else setErro(r.erro || 'Falha ao baixar do PNCP.')
+                          } catch { setErro('Erro de conexão.') }
+                          setBaixando('')
+                        }}>{baixando === String(i) ? 'Baixando...' : '⬇ Anexar'}</button>}
+                  </div>
+                )
+              })}
+              <button className="iBtn iBtn-up" style={{ marginTop: 6 }} disabled={!!baixando} onClick={async () => {
+                for (let i = 0; i < arquivosPncp.length; i++) {
+                  const a = arquivosPncp[i]
+                  if (anexos.some(x => x.nome === (a.nomeArquivo || a.titulo))) continue
+                  setBaixando('todos')
+                  try {
+                    const r = await fetch('/api/licitacoes/anexar-pncp', {
+                      method: 'POST', headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ url: a.url, nomeArquivo: a.nomeArquivo || a.titulo, empresaNome }),
+                    }).then(x => x.json())
+                    if (r.sucesso) setAnexos(l => [...l, { nome: r.nome, url: r.url, id: r.id }])
+                  } catch { /* segue para o próximo */ }
+                }
+                setBaixando('')
+              }}>{baixando === 'todos' ? 'Baixando todos...' : '⬇ Anexar todos'}</button>
+            </div>
+          )}
 
           <div className="form-sub">
             <label>📎 ARQUIVOS (edital, termo de referência, anexos...)</label>

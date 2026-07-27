@@ -44,7 +44,7 @@ export default function ModalChecklist({ lic, onFechar, onSalvo }) {
       const r = await fetch('/api/licitacoes', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: lic.id, empresa_id: lic.empresa_id, objeto: lic.objeto,
+          id: lic.id, empresa_id: lic.empresa_id || lic.empresaId, objeto: lic.objeto,
           checklistJson: JSON.stringify({ ...dados, _obs: obs, _veredito: resultado.veredito }),
           participar: decisao,
           // A decisão no checklist já move o cartão de fase
@@ -129,7 +129,7 @@ export default function ModalChecklist({ lic, onFechar, onSalvo }) {
           <div className="form-sub">
             <label>DECISÃO DE PARTICIPAÇÃO</label>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {[['Sim', '✅ Participar'], ['Não', '❌ Não participar'], ['Pendente', '⏳ Pendente']].map(([v, l]) => (
+              {[['Sim', '✅ Participar → Inscrição de proposta'], ['Não', '❌ Não participar → Descartado'], ['Pendente', '⏳ Pendente']].map(([v, l]) => (
                 <button key={v} className={'dec-btn' + (decisao === v ? ' on' : '')} onClick={() => setDecisao(v)}>{l}</button>
               ))}
             </div>

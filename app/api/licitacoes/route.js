@@ -11,7 +11,7 @@ const CAMPOS = ['numeroPNCP','numeroEdital','objeto','orgao','uf','valor','dataA
 
 const COLS_LIC = ['id','empresaId','empresaNome','numeroPNCP','numeroEdital','objeto','orgao','uf',
   'valor','dataPublicacao','dataAbertura','modalidade','status','link','origem','salvoEm',
-  'dataLimite','portal','srp','anexoDriveId','anexoDriveUrl','anexosJson','itensJson','checklistJson',
+  'dataLimite','dataSessao','portal','srp','anexoDriveId','anexoDriveUrl','anexosJson','itensJson','checklistJson',
   'participar', 'fase', ...COLS_RESULTADO]
 
 function parseItens(json) {
