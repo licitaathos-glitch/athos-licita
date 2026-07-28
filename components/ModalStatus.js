@@ -112,6 +112,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                     <thead>
                       <tr>
                         <th style={{ width: 40 }}>Vou</th>
+                        {itens.some(it => it.grupo) && <th style={{ width: 90 }}>Grupo</th>}
                         <th>Descrição</th>
                         <th style={{ width: 70 }}>Qtd</th>
                         <th style={{ width: 60 }}>Un</th>
@@ -127,6 +128,17 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                             <input type="checkbox" checked={it.participar}
                               onChange={e => setItem(i, 'participar', e.target.checked)} />
                           </td>
+                          {itens.some(x => x.grupo) && (
+                            <td>
+                              {it.grupo || '—'}
+                              {it.grupo && (
+                                <button className="iBtn" style={{ display: 'block', marginTop: 4, fontSize: 10, padding: '2px 6px' }}
+                                  onClick={() => setItens(a => a.map(x => x.grupo === it.grupo ? { ...x, participar: !it.participar } : x))}>
+                                  marcar grupo
+                                </button>
+                              )}
+                            </td>
+                          )}
                           <td style={{ maxWidth: 320 }}>{it.descricao || '—'}</td>
                           <td>{it.quantidade || '—'}</td>
                           <td>{it.unidade || '—'}</td>
@@ -149,6 +161,9 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                     </tbody>
                   </table>
                 </div>
+              )}
+              {itens.some(it => it.grupo) && (
+                <p className="dica-menus">Licitação por grupo/lote — o botão "marcar grupo" liga ou desliga todos os itens do mesmo grupo de uma vez.</p>
               )}
               <p className="dica-menus">
                 {marcados.length} de {itens.length} itens marcados

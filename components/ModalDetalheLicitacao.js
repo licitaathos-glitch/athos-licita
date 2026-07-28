@@ -64,28 +64,39 @@ export default function ModalDetalheLicitacao({
             </div>
           )}
 
-          {l.itens?.length > 0 && (
-            <div style={{ overflowX: 'auto', marginTop: 12 }}>
-              <table className="itens-tbl">
-                <thead><tr><th>Descrição</th><th>Qtd</th><th>Un</th>
-                  <th style={{ textAlign: 'right' }}>Vl. estimado</th>
-                  {l.itens.some(it => it.meuValor) && <th style={{ textAlign: 'right' }}>Nosso valor</th>}
-                </tr></thead>
-                <tbody>
-                  {l.itens.map((it, i) => (
-                    <tr key={i} style={{ opacity: it.participar === false ? .45 : 1 }}>
-                      <td style={{ maxWidth: 320 }}>{it.descricao}</td>
-                      <td>{it.quantidade}</td><td>{it.unidade}</td>
-                      <td style={{ textAlign: 'right' }}>{it.valorUnitarioRef ? Number(it.valorUnitarioRef).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}</td>
-                      {l.itens.some(x => x.meuValor) && (
-                        <td style={{ textAlign: 'right' }}>{it.meuValor ? Number(it.meuValor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}</td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          {l.itens?.length > 0 && (() => {
+            const temGrupos = l.itens.some(it => it.grupo)
+            const grupos = temGrupos
+              ? [...new Set(l.itens.map(it => it.grupo || 'Sem grupo'))]
+              : [null]
+            return (
+              <div style={{ overflowX: 'auto', marginTop: 12 }}>
+                {grupos.map((g, gi) => (
+                  <div key={gi} style={{ marginBottom: temGrupos ? 14 : 0 }}>
+                    {temGrupos && <div style={{ fontSize: 12, fontWeight: 800, color: '#1B2E4B', marginBottom: 6 }}>📦 Grupo: {g}</div>}
+                    <table className="itens-tbl">
+                      <thead><tr><th>Descrição</th><th>Qtd</th><th>Un</th>
+                        <th style={{ textAlign: 'right' }}>Vl. estimado</th>
+                        {l.itens.some(it => it.meuValor) && <th style={{ textAlign: 'right' }}>Nosso valor</th>}
+                      </tr></thead>
+                      <tbody>
+                        {l.itens.filter(it => !temGrupos || (it.grupo || 'Sem grupo') === g).map((it, i) => (
+                          <tr key={i} style={{ opacity: it.participar === false ? .45 : 1 }}>
+                            <td style={{ maxWidth: 320 }}>{it.descricao}</td>
+                            <td>{it.quantidade}</td><td>{it.unidade}</td>
+                            <td style={{ textAlign: 'right' }}>{it.valorUnitarioRef ? Number(it.valorUnitarioRef).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}</td>
+                            {l.itens.some(x => x.meuValor) && (
+                              <td style={{ textAlign: 'right' }}>{it.meuValor ? Number(it.meuValor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}</td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+              </div>
+            )
+          })()}
         </div>
 
         <div className="modal-foot" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
