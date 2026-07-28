@@ -394,9 +394,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .tbl-proposta input[type=checkbox]{width:auto}
 
 .card-mover{display:flex;gap:5px;align-items:center;margin-top:8px}
-.card-mover select{flex:1;min-width:0;padding:4px 6px;border:1.5px solid #E2E8F0;border-radius:7px;font-size:11px;font-family:inherit;background:#fff;color:#1B2E4B;cursor:pointer}
 .card-excluir{border:1.5px solid #FECACA;background:#fff;color:#DC2626;border-radius:7px;padding:3px 7px;cursor:pointer;font-size:11px;line-height:1.4}
 .card-excluir:hover{background:#FEF2F2}
+
+.card-data{font-size:11px;color:#1B2E4B;font-weight:600;margin-top:4px}
+.abas-fase{display:flex;gap:2px;border-bottom:2px solid #E2E8F0;margin-bottom:16px;overflow-x:auto}
+.aba-fase{display:flex;align-items:center;gap:7px;padding:11px 16px;border:none;background:transparent;font-family:inherit;font-size:13.5px;font-weight:600;color:#64748B;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap}
+.aba-fase:hover{color:#1B2E4B}
+.aba-fase.on{color:#1B2E4B;font-weight:800}
+.aba-cont{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:20px;padding:0 6px;border-radius:11px;font-size:11px;font-weight:800;color:#fff}
+.linha-lic{background:#fff;border-radius:12px;padding:12px 16px;box-shadow:0 1px 4px rgba(0,0,0,.07);margin-bottom:8px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;cursor:pointer;border-left:4px solid transparent}
+.linha-lic:hover{box-shadow:0 4px 14px rgba(0,0,0,.1)}
+.linha-lic .col1{flex:1;min-width:220px}
+.linha-lic .lic-num{font-weight:800;color:#1B2E4B;font-size:13.5px}
+.linha-lic .lic-obj{font-size:12.5px;color:#475569;margin-top:2px}
+.linha-lic .lic-meta{font-size:11px;color:#94A3B8;margin-top:3px}
+.linha-lic .lic-campo{min-width:110px}
+.lic-campo-lbl{display:block;font-size:10px;color:#94A3B8;font-weight:700;letter-spacing:.3px}
+.lic-campo-val{font-size:12.5px;color:#1B2E4B;font-weight:700}
 
 /* ══ ESQUECI MEU PIN ══ */
 .l-link{display:block;text-align:center;margin-top:16px;color:#1B2E4B;font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline;background:none;border:none;width:100%;font-family:inherit}

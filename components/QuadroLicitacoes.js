@@ -28,10 +28,6 @@ export default function QuadroLicitacoes({ licitacoes, somenteConsulta, onMover,
     <div className="quadro">
       {FASES.map(f => {
         const cards = porFase[f.id] || []
-        const valor = cards.reduce((s, l) => {
-          const n = Number(String(l.valor || '').replace(/[^\d,]/g, '').replace(',', '.')) || 0
-          return s + n
-        }, 0)
         return (
           <div
             key={f.id}
@@ -46,11 +42,6 @@ export default function QuadroLicitacoes({ licitacoes, somenteConsulta, onMover,
                 <span className="col-qtd" style={{ background: f.cor }}>{cards.length}</span>
               </div>
               <div className="col-desc">{f.desc}</div>
-              {valor > 0 && (
-                <div className="col-valor">
-                  R$ {valor.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
-                </div>
-              )}
             </div>
 
             <div className="col-cards">
@@ -70,6 +61,11 @@ export default function QuadroLicitacoes({ licitacoes, somenteConsulta, onMover,
                     <div className="card-edital">{l.numeroEdital || 'Sem nº'}</div>
                     <div className="card-obj">{String(l.objeto || '').slice(0, 95)}</div>
                     <div className="card-orgao">{l.orgao}{l.uf ? '/' + l.uf : ''}</div>
+                    {(l.dataSessao || l.dataLimite || l.dataAbertura) && (
+                      <div className="card-data">
+                        🗓 {l.dataSessao || l.dataLimite || l.dataAbertura}
+                      </div>
+                    )}
 
                     <div className="card-rodape">
                       {l.valor && <span className="card-valor">{l.valor}</span>}
@@ -88,16 +84,9 @@ export default function QuadroLicitacoes({ licitacoes, somenteConsulta, onMover,
 
                     {!somenteConsulta && (
                       <div className="card-mover" onClick={e => e.stopPropagation()}>
-                        <select
-                          value={f.id}
-                          title="Mover para outra fase"
-                          onChange={e => { if (e.target.value !== f.id) onMover(l, e.target.value) }}
-                        >
-                          {FASES.map(x => <option key={x.id} value={x.id}>{x.nome}</option>)}
-                        </select>
                         {podeExcluir && (
                           <button className="card-excluir" title="Excluir licitação"
-                            onClick={() => onExcluir(l)}>🗑</button>
+                            onClick={() => onExcluir(l)}>🗑 excluir</button>
                         )}
                       </div>
                     )}

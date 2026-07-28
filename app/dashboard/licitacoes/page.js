@@ -7,6 +7,7 @@ import ModalChecklist from '@/components/ModalChecklist'
 import ModalStatus from '@/components/ModalStatus'
 import { nomeResultado, corResultado } from '@/lib/resultado'
 import QuadroLicitacoes from '@/components/QuadroLicitacoes'
+import ListaLicitacoes from '@/components/ListaLicitacoes'
 import { FASES, faseDe } from '@/lib/fases'
 
 const MODAL_NOMES = ['Pregão Eletrônico', 'Pregão Presencial', 'Concorrência Eletrônica',
@@ -139,12 +140,19 @@ export default function LicitacoesPage() {
         ))}
         <div className="vista-toggle">
           <button className={vista === 'quadro' ? 'on' : ''} onClick={() => setVista('quadro')}>▦ Quadro</button>
+          <button className={vista === 'fases' ? 'on' : ''} onClick={() => setVista('fases')}>⊞ Por fase</button>
           <button className={vista === 'lista' ? 'on' : ''} onClick={() => setVista('lista')}>☰ Lista</button>
         </div>
       </div>
 
-      {vista === 'quadro' && (
+      {(vista === 'quadro' || vista === 'fases') && (
         <>
+          {vista === 'fases' ? (
+            <ListaLicitacoes
+              licitacoes={lista}
+              onAbrir={l => setAberta(aberta === l.id ? null : l.id)}
+            />
+          ) : (
           <QuadroLicitacoes
             licitacoes={lista}
             somenteConsulta={somenteConsulta}
@@ -153,6 +161,7 @@ export default function LicitacoesPage() {
             onExcluir={excluir}
             podeExcluir={!somenteConsulta}
           />
+          )}
           {aberta && (() => {
             const l = lista.find(x => x.id === aberta)
             if (!l) return null
@@ -196,8 +205,23 @@ export default function LicitacoesPage() {
                 {l.empresa_nome}{l.orgao ? ' · ' + l.orgao : ''}{l.uf ? '/' + l.uf : ''}{l.portal ? ' · ' + l.portal : ''}
               </div>
             </div>
+            <div className="lic-campo">
+              <span className="lic-campo-lbl">DATA DA SESSÃO</span>
+              <span className="lic-campo-val">{l.dataSessao || l.dataLimite || l.dataAbertura || '—'}</span>
+            </div>
+            <div className="lic-campo">
+              <span className="lic-campo-lbl">VALOR</span>
+              <span className="lic-campo-val">{l.valor || '—'}</span>
+            </div>
+            <div className="lic-campo">
+              <span className="lic-campo-lbl">ITENS</span>
+              <span className="lic-campo-val">{l.itens?.length || 0}</span>
+            </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-              {l.dataLimite && <span className="pill pill-gray">até {l.dataLimite.split(' ')[0]}</span>}
+              {(() => {
+                const fx = FASES.find(x => x.id === (l.fase || 'Em analise'))
+                return fx ? <span className="pill" style={{ background: fx.cor + '22', color: fx.cor }}>{fx.nome}</span> : null
+              })()}
               {l.resultado && l.resultado !== 'Aguardando'
                 ? <span className="pill" style={{ background: corResultado(l.resultado) + '22', color: corResultado(l.resultado) }}>{nomeResultado(l.resultado)}</span>
                 : <span className={'pill ' + (PART[l.participar] || 'pill-gray')}>{l.participar}</span>}
