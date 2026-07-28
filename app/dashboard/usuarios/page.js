@@ -66,10 +66,54 @@ export default function UsuariosPage() {
     return <div style={{ padding: 40, textAlign: 'center', color: '#64748B' }}>Você não tem permissão para acessar esta página.</div>
   }
 
+  const [testandoAlerta, setTestandoAlerta] = useState(false)
+  const [resultadoAlerta, setResultadoAlerta] = useState(null)
+
+  async function testarAlertas() {
+    setTestandoAlerta(true); setResultadoAlerta(null)
+    try {
+      const r = await fetch('/api/cron/testar', { method: 'POST' }).then(x => x.json())
+      setResultadoAlerta(r)
+    } catch {
+      setResultadoAlerta({ sucesso: false, erro: 'Erro de conexão.' })
+    }
+    setTestandoAlerta(false)
+  }
+
   return (
     <div>
       <h2 className="sec-title">Usuários</h2>
       <p className="sec-sub">Gerenciamento de perfis de acesso</p>
+
+      <div className="form-card" style={{ marginBottom: 16 }}>
+        <div className="form-card-title">📬 Alertas automáticos diários</div>
+        <p className="dica-menus" style={{ marginTop: 0, marginBottom: 10 }}>
+          Roda sozinho todo dia às 08h e manda para licita.athos@gmail.com: certidões vencendo, atas vencendo,
+          sessões de disputa amanhã e novas oportunidades do PNCP (para empresas com perfil de busca configurado em Oportunidades).
+        </p>
+        <button className="iBtn iBtn-up" onClick={testarAlertas} disabled={testandoAlerta}>
+          {testandoAlerta ? 'Rodando agora...' : '▶ Testar agora'}
+        </button>
+        {resultadoAlerta && (
+          <div style={{ marginTop: 12 }}>
+            {!resultadoAlerta.sucesso && <div className="l-err">{resultadoAlerta.erro}</div>}
+            {resultadoAlerta.sucesso && (
+              <table className="itens-tbl" style={{ marginTop: 4 }}>
+                <thead><tr><th>Empresa</th><th>E-mail</th><th>Certidões</th><th>Atas</th><th>Sessões</th><th>Oportunidades</th></tr></thead>
+                <tbody>
+                  {resultadoAlerta.resumo.map((r, i) => (
+                    <tr key={i}>
+                      <td>{r.empresa}</td>
+                      <td>{r.enviado ? '✅ enviado' : (r.motivo || '—')}</td>
+                      <td>{r.certidoes ?? 0}</td><td>{r.atas ?? 0}</td><td>{r.sessoes ?? 0}</td><td>{r.oportunidades ?? 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="form-card">
         <div className="form-card-title">+ Novo usuário</div>
