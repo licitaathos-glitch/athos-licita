@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useApp } from '@/lib/AppContext'
+import CalendarioGeral from '@/components/CalendarioGeral'
 
 const CORES = { ok: '#16A34A', warn: '#D97706', bad: '#DC2626', nd: '#CBD5E1' }
 
@@ -75,6 +76,12 @@ export default function DashboardPage() {
           </div>
         </div>
       ))}
+
+      <div style={{ marginTop: 26 }}>
+        <h3 className="sec-title" style={{ fontSize: 16 }}>📅 Calendário e alertas</h3>
+        <p className="sec-sub">Prazos, sessões, certidões, atas e pagamentos — clique para abrir o registro</p>
+        <CalendarioGeral compacto />
+      </div>
     </div>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { FASES, faseDe } from '@/lib/fases'
+import { FASES, normalizarFase } from '@/lib/fases'
 import { nomeResultado, corResultado } from '@/lib/resultado'
 
 // Visão em abas: as fases ficam no topo com a contagem e os processos
@@ -11,7 +11,7 @@ export default function ListaLicitacoes({ licitacoes, onAbrir, faseInicial }) {
   const porFase = {}
   FASES.forEach(f => { porFase[f.id] = [] })
   licitacoes.forEach(l => {
-    const f = faseDe(l)
+    const f = normalizarFase(l.fase || 'Em analise')
     if (porFase[f]) porFase[f].push(l)
   })
 

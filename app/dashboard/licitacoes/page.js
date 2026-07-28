@@ -1,5 +1,6 @@
 'use client'
-import { useCallback, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useApp } from '@/lib/AppContext'
 import { UFS } from '@/lib/pncpComum'
 import { enviarAoGAS, lerBase64 } from '@/lib/gasClient'
@@ -25,7 +26,7 @@ const inputParaBr = v => {
 }
 const PART = { Sim: 'pill-green', 'Não': 'pill-red', Pendente: 'pill-amber' }
 
-export default function LicitacoesPage() {
+function LicitacoesConteudo() {
   const { usuario, empresaAtual, empresas } = useApp()
   const perfil = String(usuario?.perfil || '').toLowerCase()
   const somenteConsulta = perfil === 'empresa'
@@ -40,6 +41,9 @@ export default function LicitacoesPage() {
   const [modalStatus, setModalStatus] = useState(null)
   const [vista, setVista] = useState('quadro')
 
+  const params = useSearchParams()
+  const idDaUrl = params.get('id')
+
   const carregar = useCallback(() => {
     fetch('/api/licitacoes').then(r => r.json())
       .then(r => { r.sucesso ? setLics(r.licitacoes) : setErro(r.erro || 'Erro ao carregar.') })
@@ -47,6 +51,14 @@ export default function LicitacoesPage() {
   }, [])
 
   useEffect(() => { carregar() }, [carregar])
+
+  // Vindo do calendário, já abre a licitação correspondente
+  useEffect(() => {
+    if (idDaUrl && lics?.some(l => l.id === idDaUrl)) {
+      setAberta(idDaUrl)
+      setVista('lista')
+    }
+  }, [idDaUrl, lics])
 
   if (erro) return <div style={{ padding: 40, textAlign: 'center', color: '#DC2626' }}>{erro}</div>
   if (!lics) return <div style={{ padding: 40, textAlign: 'center', color: '#64748B' }}>Carregando...</div>
@@ -634,5 +646,13 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LicitacoesPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', color: '#64748B' }}>Carregando...</div>}>
+      <LicitacoesConteudo />
+    </Suspense>
   )
 }

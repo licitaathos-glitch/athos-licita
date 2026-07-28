@@ -1,12 +1,12 @@
 'use client'
 import { useState } from 'react'
-import { FASES, faseDe, FORMAS_VALOR } from '@/lib/fases'
+import { FASES, FORMAS_VALOR, normalizarFase } from '@/lib/fases'
 import { RESULTADOS, MOTIVOS_NAO_PARTICIPACAO, MOTIVOS_PERDA } from '@/lib/resultado'
 
 const moeda = n => (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
 export default function ModalStatus({ lic, onFechar, onSalvo }) {
-  const [fase, setFase] = useState(lic.fase || 'Em analise')
+  const [fase, setFase] = useState(normalizarFase(lic.fase || 'Em analise'))
   const [f, setF] = useState({
     resultado: lic.resultado || 'Aguardando',
     motivo: lic.motivo || '',
@@ -53,7 +53,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
         corpo.motivo = ''
         corpo.status = 'Aberta'
       }
-      if (['Inscricao', 'Aguardando', 'Lances', 'Habilitacao'].includes(destino)) corpo.participar = 'Sim'
+      if (['Inscricao', 'Aguardando', 'Disputa'].includes(destino)) corpo.participar = 'Sim'
       if (['Ganhamos', 'Perdemos', 'Desclassificados', 'Deserta', 'Cancelada'].includes(f.resultado)) {
         corpo.status = 'Encerrada'
       }
@@ -158,7 +158,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
           )}
 
           {/* ── Aguardando: data e hora da sessão ── */}
-          {['Aguardando', 'Lances'].includes(fase) && (
+          {['Aguardando', 'Disputa'].includes(fase) && (
             <div className="form-sub">
               <label>DATA E HORA DA SESSÃO DE DISPUTA</label>
               <input value={f.dataSessao} onChange={e => set('dataSessao', e.target.value)}
@@ -170,16 +170,8 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
             </div>
           )}
 
-          {/* ── Lances: nosso lance ── */}
-          {fase === 'Lances' && (
-            <div className="form-sub">
-              <label>NOSSO ÚLTIMO LANCE (R$)</label>
-              <input type="number" step="0.01" value={f.nossoLance} onChange={e => set('nossoLance', e.target.value)} />
-            </div>
-          )}
-
-          {/* ── Habilitação: colocação e vencedor ── */}
-          {['Habilitacao', 'Finalizada'].includes(fase) && (
+          {/* ── Disputa: lance, colocação e vencedor ── */}
+          {['Disputa', 'Finalizada'].includes(fase) && (
             <div className="form-grid">
               <div><label className="mini-lbl">NOSSA COLOCAÇÃO</label>
                 <input type="number" min="1" value={f.colocacao} onChange={e => set('colocacao', e.target.value)} placeholder="1" /></div>
