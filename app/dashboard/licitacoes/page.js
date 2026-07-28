@@ -8,7 +8,8 @@ import ModalChecklist from '@/components/ModalChecklist'
 import ModalStatus from '@/components/ModalStatus'
 import { nomeResultado, corResultado } from '@/lib/resultado'
 import ListaLicitacoes from '@/components/ListaLicitacoes'
-import { FASES } from '@/lib/fases'
+import { FASES, normalizarFase } from '@/lib/fases'
+import { STATUS_LIC, corStatus, nomeStatus } from '@/lib/statusLicitacao'
 
 const MODAL_NOMES = ['Pregão Eletrônico', 'Pregão Presencial', 'Concorrência Eletrônica',
   'Concorrência Presencial', 'Dispensa', 'Inexigibilidade']
@@ -34,6 +35,9 @@ function LicitacoesConteudo() {
   const [erro, setErro] = useState('')
   const [busca, setBusca] = useState('')
   const [status, setStatus] = useState('')
+  const [filtroFase, setFiltroFase] = useState('')
+  const [filtroOrgao, setFiltroOrgao] = useState('')
+  const [filtroData, setFiltroData] = useState('')
   const [aberta, setAberta] = useState(null)
   const [editando, setEditando] = useState(null)
   const [checklist, setChecklist] = useState(null)
@@ -66,8 +70,20 @@ function LicitacoesConteudo() {
   const empresaNome = empresaSel ? (empresas.find(e => String(e.id) === empresaSel)?.nome || '') : 'Todas as empresas'
   const base = empresaSel ? lics.filter(l => l.empresa_id === empresaSel) : lics
 
+  // Data da licitação (para exibir e filtrar): usa a primeira que existir
+  const dataDaLicISO = l => {
+    const v = l.dataSessao || l.dataLimite || l.dataAbertura || ''
+    const m = String(v).match(/(\d{2})\/(\d{2})\/(\d{4})/)
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : ''
+  }
+
+  const orgaosDisponiveis = [...new Set(base.map(l => l.orgao).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'))
+
   const lista = base.filter(l => {
-    if (status && l.status !== status) return false
+    if (status && (l.status || 'Aberta') !== status) return false
+    if (filtroFase && normalizarFase(l.fase || 'Em analise') !== filtroFase) return false
+    if (filtroOrgao && l.orgao !== filtroOrgao) return false
+    if (filtroData && dataDaLicISO(l) !== filtroData) return false
     const q = busca.toLowerCase()
     if (q && ![l.objeto, l.orgao, l.numeroEdital, l.portal, l.uf].join(' ').toLowerCase().includes(q)) return false
     return true
@@ -146,9 +162,33 @@ function LicitacoesConteudo() {
 
       <div className="filtro-bar">
         <input className="busca-input" placeholder="Buscar por objeto, órgão, edital, portal..." value={busca} onChange={e => setBusca(e.target.value)} />
-        {vista === 'lista' && [['', 'Todas'], ['Aberta', 'Abertas'], ['Encerrada', 'Encerradas']].map(([k, l]) => (
-          <button key={k} className={'filtro-btn' + (status === k ? ' active' : '')} onClick={() => setStatus(k)}>{l}</button>
-        ))}
+
+        <select className="filtro-select" value={status} onChange={e => setStatus(e.target.value)}>
+          <option value="">Todos os status</option>
+          {STATUS_LIC.map(x => <option key={x.id} value={x.id}>{x.nome}</option>)}
+        </select>
+
+        {vista === 'lista' && (
+          <select className="filtro-select" value={filtroFase} onChange={e => setFiltroFase(e.target.value)}>
+            <option value="">Todas as fases</option>
+            {FASES.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+          </select>
+        )}
+
+        <select className="filtro-select" value={filtroOrgao} onChange={e => setFiltroOrgao(e.target.value)}>
+          <option value="">Todos os órgãos</option>
+          {orgaosDisponiveis.map(o => <option key={o} value={o}>{o.length > 40 ? o.slice(0, 40) + '…' : o}</option>)}
+        </select>
+
+        <input type="date" className="filtro-data" value={filtroData} onChange={e => setFiltroData(e.target.value)}
+          title="Data da licitação (sessão, limite ou abertura)" />
+
+        {(status || filtroFase || filtroOrgao || filtroData || busca) && (
+          <button className="iBtn" onClick={() => { setStatus(''); setFiltroFase(''); setFiltroOrgao(''); setFiltroData(''); setBusca('') }}>
+            ✕ Limpar filtros
+          </button>
+        )}
+
         <div className="vista-toggle">
           <button className={vista === 'fases' ? 'on' : ''} onClick={() => setVista('fases')}>⊞ Por fase</button>
           <button className={vista === 'lista' ? 'on' : ''} onClick={() => setVista('lista')}>☰ Lista</button>
@@ -407,7 +447,7 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
               <select value={f.srp} onChange={e => set('srp', e.target.value)}><option>Não</option><option>Sim</option></select>
             </div>
             <div><label className="mini-lbl">STATUS</label>
-              <select value={f.status} onChange={e => set('status', e.target.value)}><option>Aberta</option><option>Encerrada</option></select>
+              <select value={f.status} onChange={e => set('status', e.target.value)}>{STATUS_LIC.map(x => <option key={x.id} value={x.id}>{x.nome}</option>)}</select>
             </div>
           </div>
 

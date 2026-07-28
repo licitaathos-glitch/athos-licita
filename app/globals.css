@@ -403,17 +403,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .aba-fase:hover{color:#1B2E4B}
 .aba-fase.on{color:#1B2E4B;font-weight:800}
 .aba-cont{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:20px;padding:0 6px;border-radius:11px;font-size:11px;font-weight:800;color:#fff}
-.linha-lic{background:#fff;border-radius:12px;padding:12px 16px;box-shadow:0 1px 4px rgba(0,0,0,.07);margin-bottom:8px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;cursor:pointer;border-left:4px solid transparent}
-.linha-lic:hover{box-shadow:0 4px 14px rgba(0,0,0,.1)}
-.linha-lic .col1{flex:1;min-width:220px}
-.linha-lic .lic-num{font-weight:800;color:#1B2E4B;font-size:13.5px}
-.linha-lic .lic-obj{font-size:12.5px;color:#475569;margin-top:2px}
-.linha-lic .lic-meta{font-size:11px;color:#94A3B8;margin-top:3px}
-.linha-lic .lic-campo{min-width:110px}
 .lic-campo-lbl{display:block;font-size:10px;color:#94A3B8;font-weight:700;letter-spacing:.3px}
 .lic-campo-val{font-size:12.5px;color:#1B2E4B;font-weight:700}
 
 .mover-fase-sel{padding:7px 10px;border:1.5px solid #E2E8F0;border-radius:8px;font-size:12.5px;font-family:inherit;background:#fff;color:#1B2E4B;cursor:pointer}
+
+
+/* ══ LICITAÇÕES — grade fixa e alinhada (sem quebra de margem) ══ */
+.lic-grid-cols{grid-template-columns:minmax(0,1fr) 130px 120px 60px 150px 150px}
+.lic-grid-header{display:grid;grid-template-columns:minmax(0,1fr) 130px 120px 60px 150px 150px;gap:14px;padding:0 16px 6px;font-size:10.5px;font-weight:700;color:#94A3B8;letter-spacing:.4px;text-transform:uppercase}
+.lic-grid-row{display:grid;grid-template-columns:minmax(0,1fr) 130px 120px 60px 150px 150px;gap:14px;align-items:center;background:#fff;border-radius:12px;padding:12px 16px;box-shadow:0 1px 4px rgba(0,0,0,.07);margin-bottom:8px;cursor:pointer;border-left:4px solid transparent}
+.lic-grid-row:hover{box-shadow:0 4px 14px rgba(0,0,0,.1)}
+.lg-col1{min-width:0}
+.lg-col1 .lic-num{font-weight:800;color:#1B2E4B;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lg-col1 .lic-obj{font-size:12.5px;color:#475569;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lg-col1 .lic-meta{font-size:11px;color:#94A3B8;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lg-col{font-size:12.5px;font-weight:700;color:#1B2E4B;min-width:0;display:flex;flex-direction:column;gap:4px}
+@media(max-width:1100px){
+  .lic-grid-header{display:none}
+  .lic-grid-row{grid-template-columns:1fr;gap:6px}
+}
+
+/* filtros de licitação */
+.filtro-select{padding:7px 12px;border:1.5px solid #E2E8F0;border-radius:20px;font-size:12.5px;font-family:inherit;background:#fff;color:#1B2E4B;cursor:pointer}
+.filtro-data{padding:6px 12px;border:1.5px solid #E2E8F0;border-radius:20px;font-size:12.5px;font-family:inherit;background:#fff;color:#1B2E4B}
 
 /* ══ ESQUECI MEU PIN ══ */
 .l-link{display:block;text-align:center;margin-top:16px;color:#1B2E4B;font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline;background:none;border:none;width:100%;font-family:inherit}

@@ -2,8 +2,7 @@
 import { useState } from 'react'
 import { FASES, normalizarFase } from '@/lib/fases'
 import { nomeResultado, corResultado } from '@/lib/resultado'
-
-const PART = { Sim: 'pill-green', 'Não': 'pill-red', Pendente: 'pill-amber' }
+import { STATUS_LIC, corStatus, nomeStatus } from '@/lib/statusLicitacao'
 
 function diasAte(v) {
   const m = String(v || '').match(/(\d{2})\/(\d{2})\/(\d{4})/)
@@ -14,7 +13,8 @@ function diasAte(v) {
 }
 
 // Visão em abas por fase: os processos só aparecem depois de escolher a fase.
-// A visão "Lista" (todas as fases juntas) usa o mesmo componente de linha.
+// A visão "Lista" (todas as fases juntas) usa o mesmo componente de linha,
+// em grade fixa — colunas sempre alinhadas, sem quebra de margem.
 export default function ListaLicitacoes({
   licitacoes, somenteConsulta, onMover, onChecklist, onStatus, onEditar, onExcluir,
   planas = false, // true = mostra tudo junto, sem abas (usada pela visão "Lista")
@@ -53,58 +53,58 @@ export default function ListaLicitacoes({
         </div>
       )}
 
+      {listaAtual.length > 0 && (
+        <div className="lic-grid-header">
+          <span>Edital / Objeto</span>
+          <span>Data da sessão</span>
+          <span>Valor estimado</span>
+          <span>Itens</span>
+          <span>Fase</span>
+          <span>Status</span>
+        </div>
+      )}
+
       {listaAtual.map(l => {
         const fx = FASES.find(f => f.id === normalizarFase(l.fase || 'Em analise')) || FASES[0]
+        const st = l.status || 'Aberta'
         const dd = diasAte(l.dataSessao || l.dataLimite)
         const urgente = dd !== null && dd >= 0 && dd <= 3 && !['Finalizada', 'Descartado'].includes(fx.id)
         return (
           <div key={l.id}>
-            <div className="linha-lic" style={{ borderLeftColor: fx.cor }} onClick={() => setAberta(aberta === l.id ? null : l.id)}>
-              <div className="col1">
+            <div className="lic-grid-row" style={{ borderLeftColor: fx.cor }} onClick={() => setAberta(aberta === l.id ? null : l.id)}>
+              <div className="lg-col1">
                 <div className="lic-num">
                   {l.numeroEdital || 'Sem nº'}
                   {l.srp === 'Sim' && <span className="pill pill-gray" style={{ marginLeft: 6 }}>SRP</span>}
                 </div>
-                <div className="lic-obj">{String(l.objeto || '').slice(0, 120)}</div>
+                <div className="lic-obj">{l.objeto}</div>
                 <div className="lic-meta">
                   {l.empresa_nome}{l.orgao ? ' · ' + l.orgao : ''}{l.uf ? '/' + l.uf : ''}
                   {l.modalidade ? ' · ' + l.modalidade : ''}{l.portal ? ' · ' + l.portal : ''}
                 </div>
               </div>
 
-              <div className="lic-campo">
-                <span className="lic-campo-lbl">DATA DA SESSÃO</span>
-                <span className="lic-campo-val" style={urgente ? { color: '#DC2626' } : undefined}>
-                  {l.dataSessao || l.dataLimite || l.dataAbertura || '—'}
-                  {urgente && <> · {dd === 0 ? 'hoje' : dd + 'd'}</>}
-                </span>
+              <div className="lg-col" style={urgente ? { color: '#DC2626', fontWeight: 700 } : undefined}>
+                {l.dataSessao || l.dataLimite || l.dataAbertura || '—'}
+                {urgente && <div style={{ fontSize: 10.5 }}>{dd === 0 ? 'hoje' : dd + 'd'}</div>}
               </div>
 
-              <div className="lic-campo">
-                <span className="lic-campo-lbl">VALOR ESTIMADO</span>
-                <span className="lic-campo-val">{l.valor || '—'}</span>
+              <div className="lg-col">{l.valor || '—'}</div>
+
+              <div className="lg-col">{l.itens?.length || 0}</div>
+
+              <div className="lg-col">
+                <span className="pill" style={{ background: fx.cor + '22', color: fx.cor }}>{fx.nome}</span>
               </div>
 
-              <div className="lic-campo">
-                <span className="lic-campo-lbl">ITENS</span>
-                <span className="lic-campo-val">{l.itens?.length || 0}</span>
-              </div>
-
-              {planas && (
-                <div className="lic-campo">
-                  <span className="lic-campo-lbl">FASE</span>
-                  <span className="pill" style={{ background: fx.cor + '22', color: fx.cor }}>{fx.nome}</span>
-                </div>
-              )}
-
-              {l.resultado && l.resultado !== 'Aguardando' && (
-                <div className="lic-campo">
-                  <span className="lic-campo-lbl">RESULTADO</span>
-                  <span className="lic-campo-val" style={{ color: corResultado(l.resultado) }}>
+              <div className="lg-col">
+                <span className="pill" style={{ background: corStatus(st) + '22', color: corStatus(st) }}>{nomeStatus(st)}</span>
+                {l.resultado && l.resultado !== 'Aguardando' && (
+                  <span className="pill" style={{ background: corResultado(l.resultado) + '22', color: corResultado(l.resultado), marginTop: 4 }}>
                     {nomeResultado(l.resultado)}
                   </span>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             {aberta === l.id && (
@@ -113,7 +113,7 @@ export default function ListaLicitacoes({
                   {[['Órgão', l.orgao], ['UF', l.uf], ['Modalidade', l.modalidade], ['Portal', l.portal],
                     ['Nº PNCP', l.numeroPNCP], ['Valor estimado', l.valor], ['Abertura', l.dataAbertura],
                     ['Limite da proposta', l.dataLimite], ['Sessão de disputa', l.dataSessao],
-                    ['SRP', l.srp], ['Status', l.status]]
+                    ['SRP', l.srp], ['Status', nomeStatus(st)]]
                     .filter(x => x[1]).map(x => (
                       <div key={x[0]}><span className="dt-lbl">{x[0]}</span><span className="dt-val">{x[1]}</span></div>
                     ))}
