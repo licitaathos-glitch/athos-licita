@@ -145,9 +145,14 @@ function LicitacoesConteudo() {
           <h2 className="sec-title">Licitações</h2>
           <p className="sec-sub">{empresaNome}{somenteConsulta ? ' · modo consulta' : ''}</p>
         </div>
-        {!somenteConsulta && empresaSel && (
-          <button className="btn-primary" style={{ marginTop: 0 }} onClick={() => setEditando({})}>+ Incluir licitação</button>
-        )}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {perfil === 'adm' && (
+            <a href="/dashboard/importar-licitacoes" className="btn-ghost">⬆ Importar planilha</a>
+          )}
+          {!somenteConsulta && empresaSel && (
+            <button className="btn-primary" style={{ marginTop: 0 }} onClick={() => setEditando({})}>+ Incluir licitação</button>
+          )}
+        </div>
       </div>
 
       <div className="kpi-grid">
