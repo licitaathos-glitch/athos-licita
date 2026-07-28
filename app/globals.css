@@ -407,6 +407,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .aba-cont{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:20px;padding:0 6px;border-radius:11px;font-size:11px;font-weight:800;color:#fff}
 .lic-campo-lbl{display:block;font-size:10px;color:#94A3B8;font-weight:700;letter-spacing:.3px}
 .lic-campo-val{font-size:12.5px;color:#1B2E4B;font-weight:700}
+.totais-proposta{display:flex;gap:24px;flex-wrap:wrap;background:#F8FAFC;border-radius:10px;padding:10px 16px;margin-top:10px}
+.totais-proposta > div{display:flex;flex-direction:column;gap:2px}
+.totais-proposta .lic-campo-val{font-size:14px}
 
 .mover-fase-sel{padding:7px 10px;border:1.5px solid #E2E8F0;border-radius:8px;font-size:12.5px;font-family:inherit;background:#fff;color:#1B2E4B;cursor:pointer}
 

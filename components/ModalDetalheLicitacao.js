@@ -77,7 +77,7 @@ export default function ModalDetalheLicitacao({
                     <table className="itens-tbl">
                       <thead><tr><th>Descrição</th><th>Qtd</th><th>Un</th>
                         <th style={{ textAlign: 'right' }}>Vl. estimado</th>
-                        {l.itens.some(it => it.meuValor) && <th style={{ textAlign: 'right' }}>Nosso valor</th>}
+                        {l.itens.some(it => it.meuValor) && <th style={{ textAlign: 'right' }}>Valor mínimo</th>}
                       </tr></thead>
                       <tbody>
                         {l.itens.filter(it => !temGrupos || (it.grupo || 'Sem grupo') === g).map((it, i) => (

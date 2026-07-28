@@ -35,6 +35,15 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
 
   const marcados = itens.filter(it => it.participar)
   const semValor = marcados.filter(it => !String(it.meuValor).trim()).length
+  // Total do que estamos de fato participando (só os itens marcados) e o
+  // total da licitação inteira (todos os itens, pelo valor estimado) — útil
+  // quando não participamos de todos os itens e precisamos comparar os dois.
+  const totalParticipando = marcados.reduce((s, it) =>
+    s + (Number(it.quantidade) || 0) * (Number(it.meuValor) || 0), 0)
+  const totalEstimadoParticipando = marcados.reduce((s, it) =>
+    s + (Number(it.quantidade) || 0) * (Number(it.valorUnitarioRef) || 0), 0)
+  const totalLicitacao = itens.reduce((s, it) =>
+    s + (Number(it.quantidade) || 0) * (Number(it.valorUnitarioRef) || 0), 0)
 
   async function salvar(faseDestino) {
     const destino = faseDestino || fase
@@ -117,7 +126,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                         <th style={{ width: 70 }}>Qtd</th>
                         <th style={{ width: 60 }}>Un</th>
                         <th style={{ width: 110 }}>Estimado</th>
-                        <th style={{ width: 120 }}>Meu valor</th>
+                        <th style={{ width: 120 }}>Valor mínimo</th>
                         <th style={{ width: 120 }}>Forma</th>
                       </tr>
                     </thead>
@@ -169,6 +178,22 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                 {marcados.length} de {itens.length} itens marcados
                 {semValor > 0 && ` · ${semValor} ainda sem valor`}
               </p>
+              {itens.length > 0 && (
+                <div className="totais-proposta">
+                  <div>
+                    <span className="lic-campo-lbl">VALOR ESTIMADO — ITENS PARTICIPANDO</span>
+                    <span className="lic-campo-val">{moeda(totalEstimadoParticipando)}</span>
+                  </div>
+                  <div>
+                    <span className="lic-campo-lbl">NOSSO VALOR MÍNIMO — ITENS PARTICIPANDO</span>
+                    <span className="lic-campo-val" style={{ color: '#16A34A' }}>{moeda(totalParticipando)}</span>
+                  </div>
+                  <div>
+                    <span className="lic-campo-lbl">VALOR ESTIMADO — LICITAÇÃO INTEIRA</span>
+                    <span className="lic-campo-val">{moeda(totalLicitacao)}</span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
