@@ -73,7 +73,7 @@ export default function ModalDetalheLicitacao({
               <div style={{ overflowX: 'auto', marginTop: 12 }}>
                 {grupos.map((g, gi) => (
                   <div key={gi} style={{ marginBottom: temGrupos ? 14 : 0 }}>
-                    {temGrupos && <div style={{ fontSize: 12, fontWeight: 800, color: '#1B2E4B', marginBottom: 6 }}>📦 Grupo: {g}</div>}
+                    {temGrupos && <div style={{ fontSize: 12, fontWeight: 800, color: '#145653', marginBottom: 6 }}>📦 Grupo: {g}</div>}
                     <table className="itens-tbl">
                       <thead><tr><th>Descrição</th><th>Qtd</th><th>Un</th>
                         <th style={{ textAlign: 'right' }}>Vl. estimado</th>

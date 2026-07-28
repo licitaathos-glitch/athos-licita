@@ -168,7 +168,7 @@ export default function UsuariosPage() {
         </button>
       </div>
 
-      <div style={{ fontSize: 14, fontWeight: 700, color: '#1B2E4B', margin: '20px 0 12px' }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: '#145653', margin: '20px 0 12px' }}>
         Usuários cadastrados ({lista.length})
       </div>
       {lista.map(u => (
@@ -228,9 +228,9 @@ function CardUsuario({ u, empresas, eu, onMudou }) {
     <div>
       <div className="emp-card" style={{ cursor: 'pointer', opacity: inativo ? .55 : 1 }} onClick={() => setAberto(a => !a)}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, color: '#1B2E4B' }}>
+          <div style={{ fontWeight: 700, color: '#145653' }}>
             {u.nome}
-            {souEu && <span style={{ fontSize: 10, color: '#C9A84C', marginLeft: 6 }}>você</span>}
+            {souEu && <span style={{ fontSize: 10, color: '#B9A06B', marginLeft: 6 }}>você</span>}
           </div>
           <div style={{ fontSize: 11, color: '#94A3B8' }}>{u.email}</div>
         </div>

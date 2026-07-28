@@ -177,7 +177,7 @@ export default function FinanceiroPage() {
             <div className="emp-card" key={e.id}>
               <span className="emp-dot" style={{ background: CORES_STATUS[e.status] }} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, color: '#1B2E4B', fontSize: 13 }}>
+                <div style={{ fontWeight: 700, color: '#145653', fontSize: 13 }}>
                   NE {e.numeroEmpenho}{e.anexoDriveUrl ? <a href={e.anexoDriveUrl} target="_blank" rel="noreferrer" title="Nota de empenho" style={{ marginLeft: 6 }}>📎</a> : null}{e.itemDescricao ? ' — ' + e.itemDescricao.slice(0, 60) : ''}
                 </div>
                 <div style={{ fontSize: 11, color: '#94A3B8' }}>

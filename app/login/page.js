@@ -95,7 +95,7 @@ export default function LoginPage() {
     <div className="login-wrap">
       <div className="login-box">
         <div className="login-logo">
-          <div className="ico">⚡</div>
+          <img src="/brand/athos-mark.png" alt="Athos Licita" className="ico brand-mark" />
           <h1>Athos Licita</h1>
           <p>Plataforma integrada de gestão de licitações</p>
         </div>

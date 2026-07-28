@@ -82,7 +82,7 @@ export default function EmpresasPage() {
         </button>
       </div>
 
-      <div style={{ fontSize: 14, fontWeight: 700, color: '#1B2E4B', margin: '20px 0 12px' }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: '#145653', margin: '20px 0 12px' }}>
         Empresas cadastradas ({lista.length})
       </div>
       {lista.map(e => (
@@ -113,7 +113,7 @@ function CardEmpresa({ empresa, config, onSalvar }) {
     <div>
       <div className="emp-card" style={{ cursor: 'pointer' }} onClick={() => setAberto(a => !a)}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, color: '#1B2E4B' }}>{empresa.nome}</div>
+          <div style={{ fontWeight: 700, color: '#145653' }}>{empresa.nome}</div>
           <div style={{ fontSize: 11, color: '#94A3B8' }}>
             {empresa.cnpj}{empresa.responsavel ? ' · ' + empresa.responsavel : ''}
           </div>
@@ -125,7 +125,7 @@ function CardEmpresa({ empresa, config, onSalvar }) {
 
       {aberto && (
         <div className="detalhe-card">
-          <div style={{ fontSize: 12.5, fontWeight: 700, color: '#1B2E4B', marginBottom: 10 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: '#145653', marginBottom: 10 }}>
             💼 Modelo comercial — define como a receita é calculada no Financeiro
           </div>
           {MODELOS.map(m => (

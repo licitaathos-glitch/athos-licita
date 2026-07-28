@@ -58,7 +58,7 @@ export default function DashboardPage() {
         <div className="kpi"><div className="kpi-val kv-amber">{totais.alerta}</div><div className="kpi-label">Vencem em 7 dias</div></div>
       </div>
 
-      <div style={{ fontSize: 14, fontWeight: 700, color: '#1B2E4B', marginBottom: 12 }}>📋 Status por empresa</div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: '#145653', marginBottom: 12 }}>📋 Status por empresa</div>
       {empresasFiltradas.length === 0 && (
         <div style={{ color: '#94A3B8', fontSize: 13 }}>Nenhuma empresa para exibir.</div>
       )}
@@ -66,7 +66,7 @@ export default function DashboardPage() {
         <div className="emp-card" key={e.id}>
           <span className="emp-dot" style={{ background: CORES[e.status] }} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 700, color: '#1B2E4B' }}>{e.nome}</div>
+            <div style={{ fontWeight: 700, color: '#145653' }}>{e.nome}</div>
             <div style={{ fontSize: 11, color: '#94A3B8' }}>{e.cnpj}{e.responsavel ? ' · ' + e.responsavel : ''}</div>
           </div>
           <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>

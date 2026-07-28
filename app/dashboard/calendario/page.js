@@ -192,7 +192,7 @@ export default function CalendarioPage() {
       {diaAberto && (
         <div className="detalhe-card" style={{ marginTop: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <strong style={{ color: '#1B2E4B' }}>
+            <strong style={{ color: '#145653' }}>
               {diaAberto.split('-').reverse().join('/')} — {(porDia[diaAberto] || []).length} compromisso(s)
             </strong>
             <button className="iBtn" onClick={() => setDiaAberto(null)}>fechar</button>
@@ -201,7 +201,7 @@ export default function CalendarioPage() {
         </div>
       )}
 
-      <div style={{ margin: '22px 0 12px', fontSize: 14, fontWeight: 700, color: '#1B2E4B' }}>
+      <div style={{ margin: '22px 0 12px', fontSize: 14, fontWeight: 700, color: '#145653' }}>
         ⏰ Próximos compromissos
       </div>
       {proximos.length === 0 && <div style={{ color: '#94A3B8', fontSize: 13 }}>Nada nos próximos dias.</div>}

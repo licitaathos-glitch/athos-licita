@@ -144,7 +144,7 @@ export default function ImportarLicitacoesPage() {
                 <input type="checkbox" checked={r._incluir} onChange={e => atualizar(r._id, '_incluir', e.target.checked)}
                   style={{ marginTop: 4 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, color: '#1B2E4B', fontSize: 13.5 }}>
+                  <div style={{ fontWeight: 700, color: '#145653', fontSize: 13.5 }}>
                     {r.numeroEdital} {r._jaExiste && <span className="pill pill-gray" style={{ marginLeft: 6 }}>já existe na base</span>}
                     {r._foraDoMes && <span className="pill pill-blue" style={{ marginLeft: 6 }}>ainda em andamento · fora do mês filtrado</span>}
                   </div>

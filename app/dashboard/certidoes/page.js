@@ -87,7 +87,7 @@ export default function CertidoesPage() {
             <div className="doc-row" key={tipo.slug}>
               <span className="doc-ind" style={{ background: CORES[status] }} />
               <div style={{ flex: 1, minWidth: 140 }}>
-                <div style={{ fontWeight: 600, color: '#1B2E4B', fontSize: 13 }}>{tipo.nome}</div>
+                <div style={{ fontWeight: 600, color: '#145653', fontSize: 13 }}>{tipo.nome}</div>
                 {doc?.observacao && <div className="doc-obs">{doc.observacao}</div>}
                 {!empresaSel && doc && <div className="doc-obs">{doc.empresa_nome}</div>}
                 {doc?.link && <a href={doc.link} target="_blank" rel="noreferrer" className="drive-lnk">📄 abrir arquivo</a>}

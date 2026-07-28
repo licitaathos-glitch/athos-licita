@@ -111,7 +111,7 @@ export default function AtasPage() {
             <div className="emp-card" style={{ cursor: 'pointer' }} onClick={() => setAberta(aberta === a.id ? null : a.id)}>
               <span className="emp-dot" style={{ background: CORES[a.status] }} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, color: '#1B2E4B' }}>Ata {a.numeroAta}</div>
+                <div style={{ fontWeight: 700, color: '#145653' }}>Ata {a.numeroAta}</div>
                 <div style={{ fontSize: 11, color: '#94A3B8' }}>
                   {a.empresa_nome}{a.orgao ? ' · ' + a.orgao : ''}{a.uf ? '/' + a.uf : ''}
                 </div>
@@ -171,7 +171,7 @@ export default function AtasPage() {
 
                       {empDaAta.length > 0 && (
                         <div style={{ marginTop: 14 }}>
-                          <div style={{ fontSize: 12.5, fontWeight: 700, color: '#1B2E4B', marginBottom: 6 }}>
+                          <div style={{ fontSize: 12.5, fontWeight: 700, color: '#145653', marginBottom: 6 }}>
                             📄 Empenhos desta ata ({empDaAta.length})
                           </div>
                           <table className="itens-tbl">
@@ -399,7 +399,7 @@ function ModalAta({ ata, empresaId, onFechar, onSalvo }) {
                 <button className="iBtn iBtn-del" onClick={() => setItens(a => a.filter((_, j) => j !== i))}>×</button>
               </div>
             ))}
-            {itens.length > 0 && <div style={{ textAlign: 'right', fontWeight: 700, color: '#1B2E4B', marginTop: 8, fontSize: 12 }}>Valor total registrado: {fmtMoeda(total)}</div>}
+            {itens.length > 0 && <div style={{ textAlign: 'right', fontWeight: 700, color: '#145653', marginTop: 8, fontSize: 12 }}>Valor total registrado: {fmtMoeda(total)}</div>}
           </div>
 
           {erro && <div className="l-err" style={{ marginTop: 12 }}>{erro}</div>}

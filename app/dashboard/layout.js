@@ -25,7 +25,7 @@ function Shell({ children }) {
       <Sidebar />
       <div className="shell-content">
         <div className="topbar">
-          <div className="brand"><span className="ico">⚡</span> Athos Licita</div>
+          <div className="brand"><img src="/brand/athos-mark.png" alt="" className="ico brand-mark" /> Athos Licita</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             {usuario && <span style={{ fontSize: 13, opacity: .8 }}>{usuario.nome?.split(' ')[0]}</span>}
             <button onClick={sair}>Sair</button>
@@ -39,7 +39,7 @@ function Shell({ children }) {
           ) : semAcesso ? (
             <div style={{ padding: 48, textAlign: 'center' }}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>🔒</div>
-              <div style={{ fontWeight: 700, color: '#1B2E4B', marginBottom: 6 }}>Sem acesso a este módulo</div>
+              <div style={{ fontWeight: 700, color: '#145653', marginBottom: 6 }}>Sem acesso a este módulo</div>
               <p style={{ color: '#64748B', fontSize: 13, marginBottom: 16 }}>
                 Fale com o administrador se você precisa deste acesso.
               </p>

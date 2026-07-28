@@ -9,7 +9,7 @@ export default function Home() {
   return (
     <div className="lp">
       <header className="lp-header">
-        <div className="lp-brand"><span className="lp-ico">⚡</span> Athos Licita</div>
+        <div className="lp-brand"><img src="/brand/athos-mark.png" alt="" className="lp-ico brand-mark" /> Athos Licita</div>
         <Link href="/login" className="lp-btn-outline">Entrar</Link>
       </header>
 

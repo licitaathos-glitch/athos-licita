@@ -18,7 +18,7 @@ export default function Sidebar() {
 
   return (
     <aside className="sidebar">
-      <div className="sidebar-brand"><span className="ico">⚡</span> Athos Licita</div>
+      <div className="sidebar-brand"><img src="/brand/athos-mark.png" alt="" className="ico brand-mark" /> Athos Licita</div>
 
       {mostrarSeletor && (
         <div className="sidebar-empresa">
