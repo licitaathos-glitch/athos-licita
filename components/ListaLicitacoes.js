@@ -2,7 +2,8 @@
 import { useState } from 'react'
 import { FASES, normalizarFase } from '@/lib/fases'
 import { nomeResultado, corResultado } from '@/lib/resultado'
-import { STATUS_LIC, corStatus, nomeStatus } from '@/lib/statusLicitacao'
+import { corStatus, nomeStatus } from '@/lib/statusLicitacao'
+import ModalDetalheLicitacao from '@/components/ModalDetalheLicitacao'
 
 function diasAte(v) {
   const m = String(v || '').match(/(\d{2})\/(\d{2})\/(\d{4})/)
@@ -106,79 +107,26 @@ export default function ListaLicitacoes({
                 )}
               </div>
             </div>
-
-            {aberta === l.id && (
-              <div className="detalhe-card" onClick={e => e.stopPropagation()}>
-                <div className="detalhe-grid">
-                  {[['Órgão', l.orgao], ['UF', l.uf], ['Modalidade', l.modalidade], ['Portal', l.portal],
-                    ['Nº PNCP', l.numeroPNCP], ['Valor estimado', l.valor], ['Abertura', l.dataAbertura],
-                    ['Limite da proposta', l.dataLimite], ['Sessão de disputa', l.dataSessao],
-                    ['SRP', l.srp], ['Status', nomeStatus(st)]]
-                    .filter(x => x[1]).map(x => (
-                      <div key={x[0]}><span className="dt-lbl">{x[0]}</span><span className="dt-val">{x[1]}</span></div>
-                    ))}
-                </div>
-                {l.objeto && <p style={{ marginTop: 10 }}><strong>Objeto:</strong> {l.objeto}</p>}
-
-                {l.resultado && l.resultado !== 'Aguardando' && (
-                  <div className="bloco-disputa" style={{ borderColor: corResultado(l.resultado) }}>
-                    <strong style={{ color: corResultado(l.resultado) }}>🏁 {nomeResultado(l.resultado)}</strong>
-                    {l.motivo && <div style={{ marginTop: 3 }}>Motivo: {l.motivo}</div>}
-                    {(l.nossoLance || l.valorVencedor) && (
-                      <div style={{ marginTop: 3 }}>
-                        {l.nossoLance && <>Nosso lance: <strong>R$ {Number(l.nossoLance).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></>}
-                        {l.valorVencedor && <> · Vencedor: <strong>R$ {Number(l.valorVencedor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></>}
-                        {l.empresaVencedora && <> ({l.empresaVencedora})</>}
-                        {l.colocacao && <> · {l.colocacao}º lugar</>}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {l.itens?.length > 0 && (
-                  <div style={{ overflowX: 'auto', marginTop: 12 }}>
-                    <table className="itens-tbl">
-                      <thead><tr><th>Descrição</th><th>Qtd</th><th>Un</th>
-                        <th style={{ textAlign: 'right' }}>Vl. estimado</th>
-                        {l.itens.some(it => it.meuValor) && <th style={{ textAlign: 'right' }}>Nosso valor</th>}
-                      </tr></thead>
-                      <tbody>
-                        {l.itens.map((it, i) => (
-                          <tr key={i} style={{ opacity: it.participar === false ? .45 : 1 }}>
-                            <td style={{ maxWidth: 320 }}>{it.descricao}</td>
-                            <td>{it.quantidade}</td><td>{it.unidade}</td>
-                            <td style={{ textAlign: 'right' }}>{it.valorUnitarioRef ? Number(it.valorUnitarioRef).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}</td>
-                            {l.itens.some(x => x.meuValor) && (
-                              <td style={{ textAlign: 'right' }}>{it.meuValor ? Number(it.meuValor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}</td>
-                            )}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-                  {l.link && <a href={l.link} target="_blank" rel="noreferrer" className="iBtn">↗ Edital</a>}
-                  {(l.anexos?.length ? l.anexos : (l.anexoDriveUrl ? [{ nome: 'Anexo', url: l.anexoDriveUrl }] : []))
-                    .map((a, i) => <a key={i} href={a.url} target="_blank" rel="noreferrer" className="iBtn">📎 {a.nome}</a>)}
-
-                  {!somenteConsulta && <>
-                    <select className="mover-fase-sel" value={fx.id} title="Mover para outra fase"
-                      onChange={e => { if (e.target.value !== fx.id) onMover(l, e.target.value) }}>
-                      {FASES.map(x => <option key={x.id} value={x.id}>{x.nome}</option>)}
-                    </select>
-                    <button className="iBtn" onClick={() => onChecklist(l)}>📋 Checklist</button>
-                    <button className="iBtn" onClick={() => onStatus(l)}>🏁 Status</button>
-                    <button className="iBtn" onClick={() => onEditar(l)}>✏️ Editar</button>
-                    <button className="iBtn iBtn-del" onClick={() => onExcluir(l)}>🗑 Excluir</button>
-                  </>}
-                </div>
-              </div>
-            )}
           </div>
         )
       })}
+
+      {aberta && (() => {
+        const l = listaAtual.find(x => x.id === aberta) || licitacoes.find(x => x.id === aberta)
+        if (!l) return null
+        const fx = FASES.find(f => f.id === normalizarFase(l.fase || 'Em analise')) || FASES[0]
+        return (
+          <ModalDetalheLicitacao
+            lic={l} fx={fx} somenteConsulta={somenteConsulta}
+            onMover={(lic, novaFase) => { onMover(lic, novaFase); setAberta(null) }}
+            onChecklist={l2 => { onChecklist(l2); setAberta(null) }}
+            onStatus={l2 => { onStatus(l2); setAberta(null) }}
+            onEditar={l2 => { onEditar(l2); setAberta(null) }}
+            onExcluir={l2 => { onExcluir(l2); setAberta(null) }}
+            onFechar={() => setAberta(null)}
+          />
+        )
+      })()}
     </div>
   )
 }

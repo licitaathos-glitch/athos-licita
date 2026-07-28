@@ -71,7 +71,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
       <div className="modal modal-lg">
         <div className="modal-hdr">
           <div>
-            <div className="modal-hdr-sub">STATUS DA LICITAÇÃO</div>
+            <div className="modal-hdr-sub">ANDAMENTO DA LICITAÇÃO</div>
             <div className="modal-hdr-title">{lic.numeroEdital || 'Licitação'}</div>
             <div style={{ color: 'rgba(255,255,255,.55)', fontSize: 12, marginTop: 2 }}>
               {String(lic.objeto || '').slice(0, 90)}
