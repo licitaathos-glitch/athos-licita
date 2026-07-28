@@ -146,6 +146,7 @@ export default function ImportarLicitacoesPage() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, color: '#1B2E4B', fontSize: 13.5 }}>
                     {r.numeroEdital} {r._jaExiste && <span className="pill pill-gray" style={{ marginLeft: 6 }}>já existe na base</span>}
+                    {r._foraDoMes && <span className="pill pill-blue" style={{ marginLeft: 6 }}>ainda em andamento · fora do mês filtrado</span>}
                   </div>
                   <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>{r.orgao} / {r.uf} · {r.portal} · {r.dataAbertura} · {r.valor || 'valor não informado'}</div>
                   {r._aviso && <div style={{ fontSize: 11.5, color: '#B45309', marginTop: 4 }}>⚠️ {r._aviso}</div>}
