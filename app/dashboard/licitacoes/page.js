@@ -7,9 +7,8 @@ import { enviarAoGAS, lerBase64 } from '@/lib/gasClient'
 import ModalChecklist from '@/components/ModalChecklist'
 import ModalStatus from '@/components/ModalStatus'
 import { nomeResultado, corResultado } from '@/lib/resultado'
-import QuadroLicitacoes from '@/components/QuadroLicitacoes'
 import ListaLicitacoes from '@/components/ListaLicitacoes'
-import { FASES, faseDe } from '@/lib/fases'
+import { FASES } from '@/lib/fases'
 
 const MODAL_NOMES = ['Pregão Eletrônico', 'Pregão Presencial', 'Concorrência Eletrônica',
   'Concorrência Presencial', 'Dispensa', 'Inexigibilidade']
@@ -39,7 +38,7 @@ function LicitacoesConteudo() {
   const [editando, setEditando] = useState(null)
   const [checklist, setChecklist] = useState(null)
   const [modalStatus, setModalStatus] = useState(null)
-  const [vista, setVista] = useState('quadro')
+  const [vista, setVista] = useState('fases')
 
   const params = useSearchParams()
   const idDaUrl = params.get('id')
@@ -151,168 +150,37 @@ function LicitacoesConteudo() {
           <button key={k} className={'filtro-btn' + (status === k ? ' active' : '')} onClick={() => setStatus(k)}>{l}</button>
         ))}
         <div className="vista-toggle">
-          <button className={vista === 'quadro' ? 'on' : ''} onClick={() => setVista('quadro')}>▦ Quadro</button>
           <button className={vista === 'fases' ? 'on' : ''} onClick={() => setVista('fases')}>⊞ Por fase</button>
           <button className={vista === 'lista' ? 'on' : ''} onClick={() => setVista('lista')}>☰ Lista</button>
         </div>
       </div>
 
-      {(vista === 'quadro' || vista === 'fases') && (
-        <>
-          {vista === 'fases' ? (
-            <ListaLicitacoes
-              licitacoes={lista}
-              onAbrir={l => setAberta(aberta === l.id ? null : l.id)}
-            />
-          ) : (
-          <QuadroLicitacoes
-            licitacoes={lista}
-            somenteConsulta={somenteConsulta}
-            onMover={moverFase}
-            onAbrir={l => setAberta(aberta === l.id ? null : l.id)}
-            onExcluir={excluir}
-            podeExcluir={!somenteConsulta}
-          />
-          )}
-          {aberta && (() => {
-            const l = lista.find(x => x.id === aberta)
-            if (!l) return null
-            return (
-              <div className="detalhe-quadro">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-                  <div>
-                    <div style={{ fontWeight: 800, color: '#1B2E4B' }}>{l.numeroEdital || 'Sem nº'} — {l.orgao}</div>
-                    <div style={{ fontSize: 11.5, color: '#94A3B8' }}>
-                      {faseDe(l.fase).nome}{l.modalidade ? ' · ' + l.modalidade : ''}{l.portal ? ' · ' + l.portal : ''}
-                    </div>
-                  </div>
-                  <button className="iBtn" onClick={() => setAberta(null)}>fechar</button>
-                </div>
-                {l.objeto && <p style={{ marginTop: 8, fontSize: 12.5, color: '#475569' }}>{l.objeto}</p>}
-                <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-                  {l.link && <a href={l.link} target="_blank" rel="noreferrer" className="iBtn">↗ Edital</a>}
-                  {l.anexoDriveUrl && <a href={l.anexoDriveUrl} target="_blank" rel="noreferrer" className="iBtn">📎 Anexo</a>}
-                  {!somenteConsulta && <>
-                    <button className="iBtn" onClick={() => setChecklist(l)}>📋 Checklist</button>
-                    <button className="iBtn" onClick={() => setModalStatus(l)}>🏁 Status</button>
-                  <button className="iBtn iBtn-del" onClick={() => excluir(l)}>🗑 Excluir</button>
-                    <button className="iBtn" onClick={() => setEditando(l)}>✏️ Editar</button>
-                  </>}
-                </div>
-              </div>
-            )
-          })()}
-        </>
+      {vista === 'fases' && (
+        <ListaLicitacoes
+          licitacoes={lista}
+          somenteConsulta={somenteConsulta}
+          onMover={moverFase}
+          onChecklist={setChecklist}
+          onStatus={setModalStatus}
+          onEditar={setEditando}
+          onExcluir={excluir}
+        />
       )}
 
       {lista.length === 0 && <div style={{ color: '#94A3B8', fontSize: 13 }}>Nenhuma licitação. Use Oportunidades para trazer do PNCP ou inclua manualmente.</div>}
 
-      {vista === 'lista' && lista.map(l => (
-        <div key={l.id}>
-          <div className="emp-card" style={{ cursor: 'pointer' }} onClick={() => setAberta(aberta === l.id ? null : l.id)}>
-            <span className="emp-dot" style={{ background: l.status === 'Aberta' ? '#16A34A' : '#CBD5E1' }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 700, color: '#1B2E4B', fontSize: 13.5 }}>{l.numeroEdital || 'Sem nº'} — {l.objeto?.slice(0, 90)}</div>
-              <div style={{ fontSize: 11, color: '#94A3B8' }}>
-                {l.empresa_nome}{l.orgao ? ' · ' + l.orgao : ''}{l.uf ? '/' + l.uf : ''}{l.portal ? ' · ' + l.portal : ''}
-              </div>
-            </div>
-            <div className="lic-campo">
-              <span className="lic-campo-lbl">DATA DA SESSÃO</span>
-              <span className="lic-campo-val">{l.dataSessao || l.dataLimite || l.dataAbertura || '—'}</span>
-            </div>
-            <div className="lic-campo">
-              <span className="lic-campo-lbl">VALOR</span>
-              <span className="lic-campo-val">{l.valor || '—'}</span>
-            </div>
-            <div className="lic-campo">
-              <span className="lic-campo-lbl">ITENS</span>
-              <span className="lic-campo-val">{l.itens?.length || 0}</span>
-            </div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-              {(() => {
-                const fx = FASES.find(x => x.id === (l.fase || 'Em analise'))
-                return fx ? <span className="pill" style={{ background: fx.cor + '22', color: fx.cor }}>{fx.nome}</span> : null
-              })()}
-              {l.resultado && l.resultado !== 'Aguardando'
-                ? <span className="pill" style={{ background: corResultado(l.resultado) + '22', color: corResultado(l.resultado) }}>{nomeResultado(l.resultado)}</span>
-                : <span className={'pill ' + (PART[l.participar] || 'pill-gray')}>{l.participar}</span>}
-            </div>
-          </div>
-
-          {aberta === l.id && (
-            <div className="detalhe-card">
-              <div className="detalhe-grid">
-                {[['Órgão', l.orgao], ['UF', l.uf], ['Modalidade', l.modalidade], ['Portal', l.portal],
-                  ['Nº PNCP', l.numeroPNCP], ['Valor estimado', l.valor], ['Abertura', l.dataAbertura],
-                  ['Limite da proposta', l.dataLimite], ['SRP', l.srp], ['Status', l.status]]
-                  .filter(x => x[1]).map(x => (
-                    <div key={x[0]}><span className="dt-lbl">{x[0]}</span><span className="dt-val">{x[1]}</span></div>
-                  ))}
-              </div>
-              {l.objeto && <p style={{ marginTop: 10 }}><strong>Objeto:</strong> {l.objeto}</p>}
-
-              {l.resultado && l.resultado !== 'Aguardando' && (
-                <div className="bloco-disputa" style={{ borderColor: corResultado(l.resultado) }}>
-                  <strong style={{ color: corResultado(l.resultado) }}>🏁 {nomeResultado(l.resultado)}</strong>
-                  {l.motivo && <div style={{ marginTop: 3 }}>Motivo: {l.motivo}</div>}
-                  {(l.nossoLance || l.valorVencedor) && (
-                    <div style={{ marginTop: 3 }}>
-                      {l.nossoLance && <>Nosso lance: <strong>R$ {Number(l.nossoLance).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></>}
-                      {l.valorVencedor && <> · Vencedor: <strong>R$ {Number(l.valorVencedor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></>}
-                      {l.empresaVencedora && <> ({l.empresaVencedora})</>}
-                      {l.colocacao && <> · {l.colocacao}º lugar</>}
-                    </div>
-                  )}
-                  {l.observacaoDisputa && <div style={{ marginTop: 5, fontStyle: 'italic' }}>{l.observacaoDisputa}</div>}
-                </div>
-              )}
-
-              {l.itens.length > 0 && (
-                <div style={{ overflowX: 'auto', marginTop: 12 }}>
-                  <table className="itens-tbl">
-                    <thead><tr><th>Descrição</th><th>Qtd</th><th>Un</th><th style={{ textAlign: 'right' }}>Vl. unit. ref.</th></tr></thead>
-                    <tbody>
-                      {l.itens.map((it, i) => (
-                        <tr key={i}>
-                          <td style={{ maxWidth: 320 }}>{it.descricao}</td>
-                          <td>{it.quantidade}</td><td>{it.unidade}</td>
-                          <td style={{ textAlign: 'right' }}>{it.valorUnitarioRef ? 'R$ ' + Number(it.valorUnitarioRef).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-                {l.link && <a href={l.link} target="_blank" rel="noreferrer" className="iBtn">↗ Abrir edital</a>}
-                {(l.anexos?.length ? l.anexos : (l.anexoDriveUrl ? [{ nome: 'Anexo', url: l.anexoDriveUrl }] : []))
-                  .map((a, i) => (
-                    <a key={i} href={a.url} target="_blank" rel="noreferrer" className="iBtn">📎 {a.nome}</a>
-                  ))}
-                {!somenteConsulta && <>
-                  <span style={{ fontSize: 11.5, color: '#64748B', marginLeft: 4 }}>Participar?</span>
-                  {['Sim', 'Não', 'Pendente'].map(v => (
-                    <button key={v} className={'iBtn' + (l.participar === v ? ' iBtn-up' : '')} onClick={() => decidir(l, v)}>{v}</button>
-                  ))}
-                  <button className="iBtn" onClick={() => setChecklist(l)}>📋 Checklist</button>
-                  <button className="iBtn" onClick={() => setModalStatus(l)}>🏁 Status</button>
-                  <button className="iBtn" onClick={() => setEditando(l)}>✏️ Editar</button>
-                  <button className="iBtn iBtn-del" onClick={async () => {
-                    if (!confirm('Excluir esta licitação?')) return
-                    const r = await fetch('/api/licitacoes', {
-                      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ id: l.id }),
-                    }).then(x => x.json())
-                    if (r.sucesso) { setAberta(null); carregar() } else alert(r.erro || 'Erro.')
-                  }}>🗑</button>
-                </>}
-              </div>
-            </div>
-          )}
-        </div>
-      ))}
+      {vista === 'lista' && (
+        <ListaLicitacoes
+          licitacoes={lista}
+          somenteConsulta={somenteConsulta}
+          onMover={moverFase}
+          onChecklist={setChecklist}
+          onStatus={setModalStatus}
+          onEditar={setEditando}
+          onExcluir={excluir}
+          planas
+        />
+      )}
 
       {modalStatus && (
         <ModalStatus lic={modalStatus} onFechar={() => setModalStatus(null)}
