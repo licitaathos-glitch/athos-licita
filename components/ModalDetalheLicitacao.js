@@ -78,6 +78,9 @@ export default function ModalDetalheLicitacao({
                       <thead><tr><th>Descrição</th><th>Qtd</th><th>Un</th>
                         <th style={{ textAlign: 'right' }}>Vl. estimado</th>
                         {l.itens.some(it => it.meuValor) && <th style={{ textAlign: 'right' }}>Valor mínimo</th>}
+                        {l.itens.some(it => it.lanceFinal) && <th style={{ textAlign: 'right' }}>Nosso lance</th>}
+                        {l.itens.some(it => it.colocacao) && <th>Colocação</th>}
+                        {l.itens.some(it => it.vencedorNome || it.vencedorPreco) && <th>Vencedor</th>}
                       </tr></thead>
                       <tbody>
                         {l.itens.filter(it => !temGrupos || (it.grupo || 'Sem grupo') === g).map((it, i) => (
@@ -87,6 +90,13 @@ export default function ModalDetalheLicitacao({
                             <td style={{ textAlign: 'right' }}>{it.valorUnitarioRef ? Number(it.valorUnitarioRef).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}</td>
                             {l.itens.some(x => x.meuValor) && (
                               <td style={{ textAlign: 'right' }}>{it.meuValor ? Number(it.meuValor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}</td>
+                            )}
+                            {l.itens.some(x => x.lanceFinal) && (
+                              <td style={{ textAlign: 'right' }}>{it.lanceFinal ? Number(it.lanceFinal).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}</td>
+                            )}
+                            {l.itens.some(x => x.colocacao) && <td>{it.colocacao || '—'}</td>}
+                            {l.itens.some(x => x.vencedorNome || x.vencedorPreco) && (
+                              <td>{it.vencedorNome || '—'}{it.vencedorPreco ? ' · ' + Number(it.vencedorPreco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : ''}</td>
                             )}
                           </tr>
                         ))}

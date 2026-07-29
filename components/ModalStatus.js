@@ -210,18 +210,57 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
             </div>
           )}
 
-          {/* ── Disputa: lance, colocação e vencedor ── */}
+          {/* ── Disputa: lance, colocação e vencedor — por item quando houver itens ── */}
           {['Disputa', 'Finalizada'].includes(fase) && (
-            <div className="form-grid">
-              <div><label className="mini-lbl">NOSSA COLOCAÇÃO</label>
-                <input type="number" min="1" value={f.colocacao} onChange={e => set('colocacao', e.target.value)} placeholder="1" /></div>
-              <div><label className="mini-lbl">NOSSO LANCE (R$)</label>
-                <input type="number" step="0.01" value={f.nossoLance} onChange={e => set('nossoLance', e.target.value)} /></div>
-              <div><label className="mini-lbl">EMPRESA VENCEDORA</label>
-                <input value={f.empresaVencedora} onChange={e => set('empresaVencedora', e.target.value)} placeholder="Nome do concorrente" /></div>
-              <div><label className="mini-lbl">PREÇO DA VENCEDORA (R$)</label>
-                <input type="number" step="0.01" value={f.valorVencedor} onChange={e => set('valorVencedor', e.target.value)} /></div>
-            </div>
+            itens.length > 0 ? (
+              <div className="form-sub">
+                <label>NOSSO LANCE E VENCEDOR POR ITEM</label>
+                <p className="dica-menus" style={{ marginTop: 0, marginBottom: 8 }}>
+                  Só os itens marcados na Inscrição de proposta aparecem aqui.
+                </p>
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="tbl-proposta">
+                    <thead>
+                      <tr>
+                        <th>Descrição</th>
+                        <th style={{ width: 70 }}>Qtd</th>
+                        <th style={{ width: 110 }}>Nosso lance</th>
+                        <th style={{ width: 70 }}>Colocação</th>
+                        <th style={{ width: 160 }}>Empresa vencedora</th>
+                        <th style={{ width: 110 }}>Preço vencedor</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itens.map((it, i) => it.participar && (
+                        <tr key={i}>
+                          <td style={{ maxWidth: 260 }}>{it.descricao || '—'}</td>
+                          <td>{it.quantidade || '—'}</td>
+                          <td><input type="number" step="0.01" value={it.lanceFinal || ''} placeholder={it.meuValor || '0,00'}
+                            onChange={e => setItem(i, 'lanceFinal', e.target.value)} /></td>
+                          <td><input type="number" min="1" value={it.colocacao || ''} placeholder="1"
+                            onChange={e => setItem(i, 'colocacao', e.target.value)} /></td>
+                          <td><input value={it.vencedorNome || ''} placeholder="Nome do concorrente"
+                            onChange={e => setItem(i, 'vencedorNome', e.target.value)} /></td>
+                          <td><input type="number" step="0.01" value={it.vencedorPreco || ''}
+                            onChange={e => setItem(i, 'vencedorPreco', e.target.value)} /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="form-grid">
+                <div><label className="mini-lbl">NOSSA COLOCAÇÃO</label>
+                  <input type="number" min="1" value={f.colocacao} onChange={e => set('colocacao', e.target.value)} placeholder="1" /></div>
+                <div><label className="mini-lbl">NOSSO LANCE (R$)</label>
+                  <input type="number" step="0.01" value={f.nossoLance} onChange={e => set('nossoLance', e.target.value)} /></div>
+                <div><label className="mini-lbl">EMPRESA VENCEDORA</label>
+                  <input value={f.empresaVencedora} onChange={e => set('empresaVencedora', e.target.value)} placeholder="Nome do concorrente" /></div>
+                <div><label className="mini-lbl">PREÇO DA VENCEDORA (R$)</label>
+                  <input type="number" step="0.01" value={f.valorVencedor} onChange={e => set('valorVencedor', e.target.value)} /></div>
+              </div>
+            )
           )}
 
           {/* ── Finalizada / Descartado: resultado e motivo ── */}
