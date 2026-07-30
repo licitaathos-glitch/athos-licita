@@ -69,13 +69,23 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
   const motivos = f.resultado === 'Nao participamos' ? MOTIVOS_NAO_PARTICIPACAO
     : (f.resultado === 'Perdemos' || f.resultado === 'Desclassificados') ? MOTIVOS_PERDA : null
 
+  // Quando a forma é "% de desconto", o valor mínimo é um percentual sobre o
+  // estimado, não um preço em R$ — aqui convertemos para o preço unitário
+  // efetivo, para os totais funcionarem do mesmo jeito em qualquer forma.
+  const precoEfetivo = it => {
+    const estimado = Number(it.valorUnitarioRef) || 0
+    const v = Number(it.meuValor) || 0
+    if (it.formaValor === 'desconto') return estimado * (1 - v / 100)
+    return v
+  }
+
   const marcados = itens.filter(it => it.participar)
   const semValor = marcados.filter(it => !String(it.meuValor).trim()).length
   // Total do que estamos de fato participando (só os itens marcados) e o
   // total da licitação inteira (todos os itens, pelo valor estimado) — útil
   // quando não participamos de todos os itens e precisamos comparar os dois.
   const totalParticipando = marcados.reduce((s, it) =>
-    s + (Number(it.quantidade) || 0) * (Number(it.meuValor) || 0), 0)
+    s + (Number(it.quantidade) || 0) * precoEfetivo(it), 0)
   const totalEstimadoParticipando = marcados.reduce((s, it) =>
     s + (Number(it.quantidade) || 0) * (Number(it.valorUnitarioRef) || 0), 0)
   const totalLicitacao = itens.reduce((s, it) =>
@@ -263,7 +273,13 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                           <td>
                             <input type="number" step="0.01" value={it.meuValor}
                               disabled={!it.participar}
-                              onChange={e => setItem(i, 'meuValor', e.target.value)} placeholder="0,00" />
+                              onChange={e => setItem(i, 'meuValor', e.target.value)}
+                              placeholder={it.formaValor === 'desconto' ? '% desconto' : '0,00'} />
+                            {it.formaValor === 'desconto' && it.meuValor && it.valorUnitarioRef && (
+                              <div style={{ fontSize: 10.5, color: '#64748B', marginTop: 2 }}>
+                                = {moeda(precoEfetivo(it))}
+                              </div>
+                            )}
                           </td>
                           <td>
                             <select value={it.formaValor} disabled={!it.participar}

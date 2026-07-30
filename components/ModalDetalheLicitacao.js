@@ -89,7 +89,13 @@ export default function ModalDetalheLicitacao({
                             <td>{it.quantidade}</td><td>{it.unidade}</td>
                             <td style={{ textAlign: 'right' }}>{it.valorUnitarioRef ? Number(it.valorUnitarioRef).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}</td>
                             {l.itens.some(x => x.meuValor) && (
-                              <td style={{ textAlign: 'right' }}>{it.meuValor ? Number(it.meuValor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}</td>
+                              <td style={{ textAlign: 'right' }}>
+                                {it.meuValor
+                                  ? (it.formaValor === 'desconto'
+                                      ? it.meuValor + '% desc.'
+                                      : Number(it.meuValor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }))
+                                  : '—'}
+                              </td>
                             )}
                             {l.itens.some(x => x.lanceFinal) && (
                               <td style={{ textAlign: 'right' }}>{it.lanceFinal ? Number(it.lanceFinal).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}</td>
