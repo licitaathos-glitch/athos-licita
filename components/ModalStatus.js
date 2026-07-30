@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { FASES, FORMAS_VALOR, normalizarFase } from '@/lib/fases'
 import { RESULTADOS, MOTIVOS_NAO_PARTICIPACAO, MOTIVOS_PERDA } from '@/lib/resultado'
 import { CHECKLIST, avaliar } from '@/lib/checklist'
+import PainelCotacao from '@/components/PainelCotacao'
 
 const moeda = n => (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -316,6 +317,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                   </div>
                 </div>
               )}
+              <PainelCotacao lic={lic} itens={itens} setItens={setItens} marcados={marcados} />
             </div>
           )}
 
