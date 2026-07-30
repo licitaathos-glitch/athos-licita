@@ -1,9 +1,17 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { FASES, FORMAS_VALOR, normalizarFase } from '@/lib/fases'
 import { RESULTADOS, MOTIVOS_NAO_PARTICIPACAO, MOTIVOS_PERDA } from '@/lib/resultado'
+import { CHECKLIST, avaliar } from '@/lib/checklist'
 
 const moeda = n => (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+
+const CORES_VEREDITO = {
+  descartar:  { bg: '#FEF2F2', bd: '#FECACA', cor: '#991B1B', ico: '⛔' },
+  atencao:    { bg: '#FFFBEB', bd: '#FCD34D', cor: '#92400E', ico: '⚠️' },
+  participar: { bg: '#F0FDF4', bd: '#BBF7D0', cor: '#166534', ico: '✅' },
+  incompleto: { bg: '#F8FAFC', bd: '#E2E8F0', cor: '#64748B', ico: '📋' },
+}
 
 export default function ModalStatus({ lic, onFechar, onSalvo }) {
   const [fase, setFase] = useState(normalizarFase(lic.fase || 'Em analise'))
@@ -26,6 +34,34 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
     })))
   const [erro, setErro] = useState('')
   const [salvando, setSalvando] = useState(false)
+
+  // ── Checklist embutido na fase "Em análise" ──
+  const [chkDados, setChkDados] = useState(() => {
+    try { return JSON.parse(lic.checklistJson || '{}') } catch { return {} }
+  })
+  const [chkObs, setChkObs] = useState(() => {
+    try { return (JSON.parse(lic.checklistJson || '{}')._obs) || '' } catch { return '' }
+  })
+  const [certAlerta, setCertAlerta] = useState(null)
+
+  useEffect(() => {
+    if (fase !== 'Em analise') return
+    fetch('/api/certidoes').then(r => r.json()).then(r => {
+      if (!r.sucesso) return
+      const daEmpresa = r.certidoes.filter(c => c.empresa_id === lic.empresa_id && c.tem_validade)
+      setCertAlerta({
+        vencidas: daEmpresa.filter(c => c.status === 'bad'),
+        alerta: daEmpresa.filter(c => c.status === 'warn'),
+      })
+    }).catch(() => {})
+  }, [fase, lic.empresa_id])
+
+  const chkResultado = avaliar(chkDados)
+  const chkResponder = (k, v) => setChkDados(d => ({ ...d, [k]: { ...(d[k] || {}), resposta: v } }))
+  const chkDetalhar = (k, v) => setChkDados(d => ({ ...d, [k]: { ...(d[k] || {}), detalhe: v } }))
+  // A decisão de participar já move a licitação para a fase correspondente
+  const chkDecidir = v => setFase(v === 'Sim' ? 'Inscricao' : v === 'Não' ? 'Descartado' : 'Em analise')
+  const chkDecisaoAtual = fase === 'Inscricao' ? 'Sim' : fase === 'Descartado' ? 'Não' : 'Pendente'
 
   const set = (k, v) => setF(o => ({ ...o, [k]: v }))
   const setItem = (i, k, v) => setItens(a => a.map((it, j) => j === i ? { ...it, [k]: v } : it))
@@ -53,6 +89,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
         id: lic.id, empresa_id: lic.empresa_id, objeto: lic.objeto,
         fase: destino, ...f,
         itensJson: JSON.stringify(itens),
+        checklistJson: JSON.stringify({ ...chkDados, _obs: chkObs, _veredito: chkResultado.veredito }),
       }
       if (destino === 'Descartado') corpo.participar = 'Não'
       // Reabrir uma licitação encerrada: limpa o desfecho para não voltar sozinha
@@ -105,6 +142,75 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
               ))}
             </div>
           </div>
+
+          {/* ── Em análise: checklist de viabilidade embutido aqui ── */}
+          {fase === 'Em analise' && (
+            <div className="form-sub">
+              <div className="veredito" style={{ background: CORES_VEREDITO[chkResultado.veredito].bg, borderColor: CORES_VEREDITO[chkResultado.veredito].bd, color: CORES_VEREDITO[chkResultado.veredito].cor }}>
+                <div style={{ fontSize: 22 }}>{CORES_VEREDITO[chkResultado.veredito].ico}</div>
+                <div>
+                  <strong>{chkResultado.titulo}</strong>
+                  <div style={{ fontSize: 12, marginTop: 2 }}>{chkResultado.motivo}</div>
+                  <div className="progresso"><span style={{ width: (chkResultado.respondidos / chkResultado.total * 100) + '%' }} /></div>
+                </div>
+              </div>
+
+              {certAlerta && (certAlerta.vencidas.length > 0 || certAlerta.alerta.length > 0) && (
+                <div className="aviso-box" style={{ background: '#FEF2F2', borderColor: '#FECACA', color: '#991B1B', marginTop: 10 }}>
+                  <strong>Atenção às certidões desta empresa:</strong>
+                  {certAlerta.vencidas.length > 0 && <div>⛔ {certAlerta.vencidas.length} vencida(s): {certAlerta.vencidas.map(c => c.tipo).join(', ')}</div>}
+                  {certAlerta.alerta.length > 0 && <div>⚠️ {certAlerta.alerta.length} vence(m) em até 7 dias: {certAlerta.alerta.map(c => c.tipo).join(', ')}</div>}
+                </div>
+              )}
+
+              {CHECKLIST.map(sec => (
+                <div key={sec.secao} style={{ marginTop: 16 }}>
+                  <div className="chk-secao">
+                    {sec.secao}
+                    <span>{sec.desc}</span>
+                  </div>
+                  {sec.itens.map(it => {
+                    const r = chkDados[it.k]?.resposta || ''
+                    const reprovado = chkResultado.reprovados.includes(it.k)
+                    return (
+                      <div className={'chk-item' + (reprovado ? ' reprovado' : '')} key={it.k}>
+                        <div style={{ flex: 1, minWidth: 200 }}>
+                          <div className="chk-titulo">
+                            {it.label}
+                            {it.eliminatorio && <span className="tag-elim">eliminatório</span>}
+                          </div>
+                          <div className="chk-pergunta">{it.pergunta}</div>
+                          <div className="chk-ajuda">{it.ajuda}</div>
+                          <input className="chk-detalhe-input" placeholder="Anotação (o que o edital diz, nº da cláusula...)"
+                            value={chkDados[it.k]?.detalhe || ''} onChange={e => chkDetalhar(it.k, e.target.value)} />
+                        </div>
+                        <div className="chk-sn">
+                          {[['S', 'Sim'], ['N', 'Não'], ['NA', 'N/A']].map(([v, l]) => (
+                            <button key={v} className={'chk-btn' + (r === v ? ' ' + (v === 'N' ? 'n' : 's') : '')}
+                              onClick={() => chkResponder(it.k, v)}>{l}</button>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ))}
+
+              <div className="form-sub" style={{ marginTop: 14 }}>
+                <label>OBSERVAÇÕES DO CHECKLIST</label>
+                <textarea rows={2} value={chkObs} onChange={e => setChkObs(e.target.value)} placeholder="Estratégia de lance, preço-alvo, riscos..." />
+              </div>
+
+              <div className="form-sub">
+                <label>DECISÃO DE PARTICIPAÇÃO</label>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {[['Sim', '✅ Participar → Inscrição de proposta'], ['Não', '❌ Não participar → Descartado'], ['Pendente', '⏳ Pendente']].map(([v, l]) => (
+                    <button key={v} className={'dec-btn' + (chkDecisaoAtual === v ? ' on' : '')} onClick={() => chkDecidir(v)}>{l}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ── Inscrição de proposta: escolher itens e preços ── */}
           {fase === 'Inscricao' && (

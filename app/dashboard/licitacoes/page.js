@@ -4,7 +4,6 @@ import { useSearchParams } from 'next/navigation'
 import { useApp } from '@/lib/AppContext'
 import { UFS } from '@/lib/pncpComum'
 import { enviarAoGAS, lerBase64 } from '@/lib/gasClient'
-import ModalChecklist from '@/components/ModalChecklist'
 import ModalStatus from '@/components/ModalStatus'
 import { nomeResultado, corResultado } from '@/lib/resultado'
 import ListaLicitacoes from '@/components/ListaLicitacoes'
@@ -40,7 +39,6 @@ function LicitacoesConteudo() {
   const [filtroData, setFiltroData] = useState('')
   const [aberta, setAberta] = useState(null)
   const [editando, setEditando] = useState(null)
-  const [checklist, setChecklist] = useState(null)
   const [modalStatus, setModalStatus] = useState(null)
   const [vista, setVista] = useState('fases')
 
@@ -205,7 +203,6 @@ function LicitacoesConteudo() {
           licitacoes={lista}
           somenteConsulta={somenteConsulta}
           onMover={moverFase}
-          onChecklist={setChecklist}
           onStatus={setModalStatus}
           onEditar={setEditando}
           onExcluir={excluir}
@@ -219,7 +216,6 @@ function LicitacoesConteudo() {
           licitacoes={lista}
           somenteConsulta={somenteConsulta}
           onMover={moverFase}
-          onChecklist={setChecklist}
           onStatus={setModalStatus}
           onEditar={setEditando}
           onExcluir={excluir}
@@ -230,11 +226,6 @@ function LicitacoesConteudo() {
       {modalStatus && (
         <ModalStatus lic={modalStatus} onFechar={() => setModalStatus(null)}
           onSalvo={() => { setModalStatus(null); carregar() }} />
-      )}
-
-      {checklist && (
-        <ModalChecklist lic={checklist} onFechar={() => setChecklist(null)}
-          onSalvo={() => { setChecklist(null); carregar() }} />
       )}
 
       {editando && (

@@ -17,7 +17,7 @@ function diasAte(v) {
 // A visão "Lista" (todas as fases juntas) usa o mesmo componente de linha,
 // em grade fixa — colunas sempre alinhadas, sem quebra de margem.
 export default function ListaLicitacoes({
-  licitacoes, somenteConsulta, onMover, onChecklist, onStatus, onEditar, onExcluir,
+  licitacoes, somenteConsulta, onMover, onStatus, onEditar, onExcluir,
   planas = false, // true = mostra tudo junto, sem abas (usada pela visão "Lista")
 }) {
   const [faseAtiva, setFaseAtiva] = useState(FASES[0].id)
@@ -119,7 +119,6 @@ export default function ListaLicitacoes({
           <ModalDetalheLicitacao
             lic={l} fx={fx} somenteConsulta={somenteConsulta}
             onMover={(lic, novaFase) => { onMover(lic, novaFase); setAberta(null) }}
-            onChecklist={l2 => { onChecklist(l2); setAberta(null) }}
             onStatus={l2 => { onStatus(l2); setAberta(null) }}
             onEditar={l2 => { onEditar(l2); setAberta(null) }}
             onExcluir={l2 => { onExcluir(l2); setAberta(null) }}

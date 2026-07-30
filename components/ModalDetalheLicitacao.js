@@ -6,7 +6,7 @@ import { nomeStatus } from '@/lib/statusLicitacao'
 // Janela com os detalhes completos de uma licitação — antes isso expandia
 // dentro da própria lista; agora abre à parte, sem empurrar as outras linhas.
 export default function ModalDetalheLicitacao({
-  lic, fx, somenteConsulta, onMover, onChecklist, onStatus, onEditar, onExcluir, onFechar,
+  lic, fx, somenteConsulta, onMover, onStatus, onEditar, onExcluir, onFechar,
 }) {
   const l = lic
   const st = l.status || 'Aberta'
@@ -119,7 +119,7 @@ export default function ModalDetalheLicitacao({
               onChange={e => { if (e.target.value !== fx.id) onMover(l, e.target.value) }}>
               {FASES.map(x => <option key={x.id} value={x.id}>{x.nome}</option>)}
             </select>
-            {mostrarChecklist && <button className="iBtn" onClick={() => onChecklist(l)}>📋 Checklist</button>}
+            {mostrarChecklist && <span className="dica-menus" style={{ margin: 0 }}>📋 checklist dentro de "Andamento"</span>}
             <button className="iBtn" onClick={() => onStatus(l)}>📈 Andamento</button>
             <button className="iBtn" onClick={() => onEditar(l)}>✏️ Editar</button>
             <button className="iBtn iBtn-del" onClick={() => onExcluir(l)}>🗑 Excluir</button>
