@@ -14,6 +14,7 @@ export default function PainelCotacao({ lic, itens, setItens, marcados }) {
   const [mensagem, setMensagem] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [linkGerado, setLinkGerado] = useState('')
+  const [copiado, setCopiado] = useState(null)
 
   function carregar() {
     fetch(`/api/licitacoes/cotacao?licitacaoId=${lic.id}`).then(r => r.json())
@@ -63,24 +64,37 @@ export default function PainelCotacao({ lic, itens, setItens, marcados }) {
 
       {lista && lista.length > 0 && (
         <div style={{ marginTop: 10 }}>
-          {lista.map(c => (
-            <div className="cotacao-item" key={c.id}>
-              <div className="cotacao-item-hdr">
-                <span><strong>{c.destinatarioEmail}</strong> · {c.itens.length} item{c.itens.length > 1 ? 's' : ''}</span>
-                <span className={'pill ' + (c.status === 'Respondida' ? 'pill-green' : 'pill-amber')}>{c.status}</span>
-              </div>
-              {c.status === 'Respondida' && (
-                <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 11.5, color: '#64748B' }}>
-                    {c.respostaItens.filter(r => r.precoFornecedor).length} preço(s) recebido(s)
-                    {c.numeroCotacaoFornecedor && ' · nº ' + c.numeroCotacaoFornecedor}
-                  </span>
-                  {c.anexoDriveUrl && <a href={c.anexoDriveUrl} target="_blank" rel="noreferrer" className="iBtn">📎 anexo</a>}
-                  <button className="iBtn iBtn-up" onClick={() => usarPrecos(c)}>usar estes preços</button>
+          {lista.map(c => {
+            const link = typeof window !== 'undefined' ? `${window.location.origin}/cotacao/${c.token}` : ''
+            return (
+              <div className="cotacao-item" key={c.id}>
+                <div className="cotacao-item-hdr">
+                  <span><strong>{c.destinatarioEmail}</strong> · {c.itens.length} item{c.itens.length > 1 ? 's' : ''}</span>
+                  <span className={'pill ' + (c.status === 'Respondida' ? 'pill-green' : 'pill-amber')}>{c.status}</span>
                 </div>
-              )}
-            </div>
-          ))}
+                <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <input readOnly value={link} onClick={e => e.target.select()}
+                    style={{ flex: 1, minWidth: 180, padding: '5px 8px', fontSize: 11, border: '1px solid #E2E8F0', borderRadius: 7, color: '#64748B' }} />
+                  <button className="iBtn" onClick={() => {
+                    navigator.clipboard.writeText(link); setCopiado(c.id)
+                    setTimeout(() => setCopiado(null), 2000)
+                  }}>
+                    {copiado === c.id ? '✓ copiado' : '📋 copiar link'}
+                  </button>
+                </div>
+                {c.status === 'Respondida' && (
+                  <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 11.5, color: '#64748B' }}>
+                      {c.respostaItens.filter(r => r.precoFornecedor).length} preço(s) recebido(s)
+                      {c.numeroCotacaoFornecedor && ' · nº ' + c.numeroCotacaoFornecedor}
+                    </span>
+                    {c.anexoDriveUrl && <a href={c.anexoDriveUrl} target="_blank" rel="noreferrer" className="iBtn">📎 anexo</a>}
+                    <button className="iBtn iBtn-up" onClick={() => usarPrecos(c)}>usar estes preços</button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
 
