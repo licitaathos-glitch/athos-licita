@@ -315,7 +315,7 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
         }
         setOk('Dados extraídos do PNCP — confira antes de salvar. Os documentos ficam para anexar na fase "Em análise", no Andamento.')
       }
-    } catch { setErro('Erro de conexão.') }
+    } catch (e) { setErro('Erro de conexão: ' + (e && e.message ? e.message : 'desconhecido')) }
     setExtraindo(false)
   }
 
@@ -395,6 +395,7 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
               </button>
             </div>
             {ok && <div style={{ marginTop: 8, fontSize: 12.5, color: '#166534', fontWeight: 600 }}>✅ {ok}</div>}
+            {erro && <div className="l-err" style={{ marginTop: 8 }}>{erro}</div>}
           </div>
 
           <div className="form-sub"><label>OBJETO</label><textarea rows={3} value={f.objeto} onChange={e => set('objeto', e.target.value)} /></div>
