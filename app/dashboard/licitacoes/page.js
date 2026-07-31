@@ -305,13 +305,18 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
       if (!r.sucesso) setErro(r.erro || 'Não foi possível importar os itens.')
       else if (r.dados?.itens?.length) {
         setItens(r.dados.itens)
-        setArquivosPncp(r.dados.arquivos || [])
         setOk(r.dados.itens.length + ' itens importados do PNCP.')
-        if (r.dados.arquivos?.length) {
-          setOk(r.dados.itens.length + ' itens importados · anexando documentos do PNCP...')
-          await baixarEAnexarTodos(r.dados.arquivos, anexos)
-          setOk(r.dados.itens.length + ' itens importados e documentos anexados automaticamente.')
-        }
+        try {
+          const ra = await fetch('/api/licitacoes/arquivos-pncp', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ link: alvo }),
+          }).then(x => x.json())
+          if (ra.sucesso && ra.arquivos?.length) {
+            setArquivosPncp(ra.arquivos)
+            await baixarEAnexarTodos(ra.arquivos, anexos)
+            setOk(r.dados.itens.length + ' itens importados e documentos anexados automaticamente.')
+          }
+        } catch { /* itens já importados, anexo automático fica de fora */ }
       }
       else setErro('O PNCP não retornou itens para esta licitação. Inclua manualmente.')
     } catch { setErro('Erro de conexão.') }
@@ -339,17 +344,28 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
           srp: d.srp || o.srp, link: d.link || o.link,
         }))
         if (d.itens?.length) setItens(d.itens)
-        setArquivosPncp(d.arquivos || [])
         if (!d.itens?.length && d.diagItens?.length) {
           setErro('Dados carregados, mas o PNCP não devolveu itens. [' + d.diagItens.slice(0, 2).join(' · ') + ']')
         }
-        if (d.arquivos?.length) {
-          setOk('Dados extraídos — anexando documentos do PNCP automaticamente...')
-          await baixarEAnexarTodos(d.arquivos, anexos)
-          setOk('Dados extraídos e ' + d.arquivos.length + ' documento(s) do PNCP anexado(s) automaticamente — confira antes de salvar.')
-        } else {
-          setOk('Dados extraídos do PNCP — confira antes de salvar.'
-            + (d.diagArquivos ? ' ⚠️ ' + d.diagArquivos + (d.link ? ' Baixe pelo "Link do edital" acima e anexe manualmente.' : '') : ''))
+        setOk('Dados extraídos do PNCP — confira antes de salvar.')
+
+        // Busca dos documentos é totalmente separada da extração acima —
+        // se isso falhar ou demorar, não afeta o que já foi preenchido.
+        try {
+          const ra = await fetch('/api/licitacoes/arquivos-pncp', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ link: linkPncp.trim() }),
+          }).then(x => x.json())
+          if (ra.sucesso && ra.arquivos?.length) {
+            setArquivosPncp(ra.arquivos)
+            setOk('Dados extraídos — anexando documentos do PNCP automaticamente...')
+            await baixarEAnexarTodos(ra.arquivos, anexos)
+            setOk('Dados extraídos e ' + ra.arquivos.length + ' documento(s) do PNCP anexado(s) automaticamente — confira antes de salvar.')
+          } else if (!ra.sucesso) {
+            setOk(o => o + ' ⚠️ ' + (ra.erro || 'Não achei documentos para anexar automaticamente.') + ' Baixe pelo "Link do edital" e anexe manualmente.')
+          }
+        } catch {
+          setOk(o => o + ' ⚠️ Não consegui checar documentos automaticamente — anexe manualmente se precisar.')
         }
       }
     } catch { setErro('Erro de conexão.') }
