@@ -4,6 +4,7 @@ import { FASES, FORMAS_VALOR, normalizarFase } from '@/lib/fases'
 import { RESULTADOS, MOTIVOS_NAO_PARTICIPACAO, MOTIVOS_PERDA } from '@/lib/resultado'
 import { CHECKLIST, avaliar } from '@/lib/checklist'
 import PainelCotacao from '@/components/PainelCotacao'
+import { enviarAoGAS } from '@/lib/gasClient'
 
 const moeda = n => (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -44,6 +45,11 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
     try { return (JSON.parse(lic.checklistJson || '{}')._obs) || '' } catch { return '' }
   })
   const [certAlerta, setCertAlerta] = useState(null)
+  const [analisandoIA, setAnalisandoIA] = useState(false)
+  const [resumoRiscos, setResumoRiscos] = useState(() => {
+    try { return JSON.parse(lic.checklistJson || '{}')._riscos || '' } catch { return '' }
+  })
+  const [avisoIA, setAvisoIA] = useState('')
 
   useEffect(() => {
     if (fase !== 'Em analise') return
@@ -63,6 +69,33 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
   // A decisão de participar já move a licitação para a fase correspondente
   const chkDecidir = v => setFase(v === 'Sim' ? 'Inscricao' : v === 'Não' ? 'Descartado' : 'Em analise')
   const chkDecisaoAtual = fase === 'Inscricao' ? 'Sim' : fase === 'Descartado' ? 'Não' : 'Pendente'
+
+  const temAnexo = !!(lic.anexoDriveId)
+  async function resumirComIA() {
+    if (!temAnexo) { setAvisoIA('Anexe o PDF do edital em "Editar" antes de usar a IA.'); return }
+    setAvisoIA(''); setAnalisandoIA(true)
+    try {
+      const r = await enviarAoGAS({ action: 'analisarChecklistGemini', licitacaoId: lic.id, empresaId: lic.empresa_id })
+      if (!r || !r.sucesso) {
+        setAvisoIA((r && r.erro) || 'Não foi possível ler o edital agora. Tente novamente em instantes.')
+      } else {
+        const g = r.checklist || {}
+        setChkDados(d => {
+          const novo = { ...d }
+          Object.keys(g).forEach(k => {
+            if (k.startsWith('_')) return
+            novo[k] = { resposta: g[k].resposta || '', detalhe: g[k].detalhe || '' }
+          })
+          return novo
+        })
+        if (g._riscos) setResumoRiscos(g._riscos)
+        setAvisoIA('✅ Edital lido e checklist preenchido pela IA — revise as respostas antes de decidir.')
+      }
+    } catch (e) {
+      setAvisoIA('Erro: ' + e.message)
+    }
+    setAnalisandoIA(false)
+  }
 
   const set = (k, v) => setF(o => ({ ...o, [k]: v }))
   const setItem = (i, k, v) => setItens(a => a.map((it, j) => j === i ? { ...it, [k]: v } : it))
@@ -100,7 +133,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
         id: lic.id, empresa_id: lic.empresa_id, objeto: lic.objeto,
         fase: destino, ...f,
         itensJson: JSON.stringify(itens),
-        checklistJson: JSON.stringify({ ...chkDados, _obs: chkObs, _veredito: chkResultado.veredito }),
+        checklistJson: JSON.stringify({ ...chkDados, _obs: chkObs, _veredito: chkResultado.veredito, _riscos: resumoRiscos }),
       }
       if (destino === 'Descartado') corpo.participar = 'Não'
       // Reabrir uma licitação encerrada: limpa o desfecho para não voltar sozinha
@@ -157,6 +190,28 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
           {/* ── Em análise: checklist de viabilidade embutido aqui ── */}
           {fase === 'Em analise' && (
             <div className="form-sub">
+              <div className="ia-resumo-box">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <div style={{ fontSize: 12.5, color: '#145653' }}>
+                    <strong>🤖 Resumo do edital por IA</strong>
+                    <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
+                      {temAnexo ? 'Lê o PDF anexado e preenche o checklist abaixo automaticamente.' : 'Anexe o edital em "Editar" para habilitar.'}
+                    </div>
+                  </div>
+                  <button className="iBtn iBtn-up" onClick={resumirComIA} disabled={analisandoIA || !temAnexo}>
+                    {analisandoIA ? '🤖 Lendo o edital... (15–40s)' : '🤖 Resumir com IA'}
+                  </button>
+                </div>
+                {avisoIA && <p style={{ fontSize: 12, marginTop: 8, marginBottom: 0, color: avisoIA.startsWith('✅') ? '#166534' : '#B45309' }}>{avisoIA}</p>}
+              </div>
+
+              {resumoRiscos && (
+                <div className="ia-riscos-box">
+                  <strong>⚠️ Pontos de atenção (segundo a IA)</strong>
+                  <p style={{ margin: '4px 0 0' }}>{resumoRiscos}</p>
+                </div>
+              )}
+
               <div className="veredito" style={{ background: CORES_VEREDITO[chkResultado.veredito].bg, borderColor: CORES_VEREDITO[chkResultado.veredito].bd, color: CORES_VEREDITO[chkResultado.veredito].cor }}>
                 <div style={{ fontSize: 22 }}>{CORES_VEREDITO[chkResultado.veredito].ico}</div>
                 <div>

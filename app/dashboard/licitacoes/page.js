@@ -272,6 +272,27 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
   }, [])
 
   // Busca os itens no PNCP a partir do link já preenchido
+  async function baixarEAnexarTodos(lista, anexosAtuais) {
+    let atuais = anexosAtuais
+    for (const a of lista) {
+      if (atuais.some(x => x.nome === (a.nomeArquivo || a.titulo))) continue
+      setBaixando('todos')
+      try {
+        const r = await fetch('/api/licitacoes/anexar-pncp', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: a.url, nomeArquivo: a.nomeArquivo || a.titulo, empresaNome }),
+        }).then(x => x.json())
+        if (r.sucesso) {
+          atuais = [...atuais, { nome: r.nome, url: r.url, id: r.id }]
+          setAnexos(atuais)
+          if (atuais.length === 1) { set('anexoDriveId', r.id || ''); set('anexoDriveUrl', r.url || '') }
+        }
+      } catch { /* segue para o próximo */ }
+    }
+    setBaixando('')
+    return atuais
+  }
+
   async function importarItens() {
     const alvo = (linkPncp || f.link || '').trim()
     if (!alvo) { setErro('Informe o link do PNCP para importar os itens.'); return }
@@ -286,6 +307,11 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
         setItens(r.dados.itens)
         setArquivosPncp(r.dados.arquivos || [])
         setOk(r.dados.itens.length + ' itens importados do PNCP.')
+        if (r.dados.arquivos?.length) {
+          setOk(r.dados.itens.length + ' itens importados · anexando documentos do PNCP...')
+          await baixarEAnexarTodos(r.dados.arquivos, anexos)
+          setOk(r.dados.itens.length + ' itens importados e documentos anexados automaticamente.')
+        }
       }
       else setErro('O PNCP não retornou itens para esta licitação. Inclua manualmente.')
     } catch { setErro('Erro de conexão.') }
@@ -317,7 +343,13 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
         if (!d.itens?.length && d.diagItens?.length) {
           setErro('Dados carregados, mas o PNCP não devolveu itens. [' + d.diagItens.slice(0, 2).join(' · ') + ']')
         }
-        setOk('Dados extraídos do PNCP — confira antes de salvar.')
+        if (d.arquivos?.length) {
+          setOk('Dados extraídos — anexando documentos do PNCP automaticamente...')
+          await baixarEAnexarTodos(d.arquivos, anexos)
+          setOk('Dados extraídos e ' + d.arquivos.length + ' documento(s) do PNCP anexado(s) automaticamente — confira antes de salvar.')
+        } else {
+          setOk('Dados extraídos do PNCP — confira antes de salvar.')
+        }
       }
     } catch { setErro('Erro de conexão.') }
     setExtraindo(false)
@@ -454,7 +486,7 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
             <div className="form-sub">
               <label>📥 DOCUMENTOS PUBLICADOS NO PNCP ({arquivosPncp.length})</label>
               <p className="dica-menus" style={{ marginTop: 0, marginBottom: 8 }}>
-                Clique para baixar do PNCP e guardar na pasta da empresa no Drive.
+                Baixados e anexados automaticamente ao extrair pelo link. Use os botões abaixo só se algum falhar.
               </p>
               {arquivosPncp.map((a, i) => {
                 const jaTem = anexos.some(x => x.nome === (a.nomeArquivo || a.titulo))
@@ -483,21 +515,10 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
                   </div>
                 )
               })}
-              <button className="iBtn iBtn-up" style={{ marginTop: 6 }} disabled={!!baixando} onClick={async () => {
-                for (let i = 0; i < arquivosPncp.length; i++) {
-                  const a = arquivosPncp[i]
-                  if (anexos.some(x => x.nome === (a.nomeArquivo || a.titulo))) continue
-                  setBaixando('todos')
-                  try {
-                    const r = await fetch('/api/licitacoes/anexar-pncp', {
-                      method: 'POST', headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ url: a.url, nomeArquivo: a.nomeArquivo || a.titulo, empresaNome }),
-                    }).then(x => x.json())
-                    if (r.sucesso) setAnexos(l => [...l, { nome: r.nome, url: r.url, id: r.id }])
-                  } catch { /* segue para o próximo */ }
-                }
-                setBaixando('')
-              }}>{baixando === 'todos' ? 'Baixando todos...' : '⬇ Anexar todos'}</button>
+              <button className="iBtn iBtn-up" style={{ marginTop: 6 }} disabled={!!baixando}
+                onClick={() => baixarEAnexarTodos(arquivosPncp, anexos)}>
+                {baixando === 'todos' ? 'Baixando todos...' : '⬇ Anexar todos'}
+              </button>
             </div>
           )}
 
