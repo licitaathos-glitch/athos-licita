@@ -348,7 +348,8 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
           await baixarEAnexarTodos(d.arquivos, anexos)
           setOk('Dados extraídos e ' + d.arquivos.length + ' documento(s) do PNCP anexado(s) automaticamente — confira antes de salvar.')
         } else {
-          setOk('Dados extraídos do PNCP — confira antes de salvar.')
+          setOk('Dados extraídos do PNCP — confira antes de salvar.'
+            + (d.diagArquivos ? ' ⚠️ ' + d.diagArquivos + (d.link ? ' Baixe pelo "Link do edital" acima e anexe manualmente.' : '') : ''))
         }
       }
     } catch { setErro('Erro de conexão.') }
