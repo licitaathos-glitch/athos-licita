@@ -83,6 +83,9 @@ export default function ListaLicitacoes({
                   {l.empresa_nome}{l.orgao ? ' · ' + l.orgao : ''}{l.uf ? '/' + l.uf : ''}
                   {l.modalidade ? ' · ' + l.modalidade : ''}{l.portal ? ' · ' + l.portal : ''}
                 </div>
+                {l.observacaoDisputa && (
+                  <div className="lic-obs" title={l.observacaoDisputa}>📝 {l.observacaoDisputa}</div>
+                )}
               </div>
 
               <div className="lg-col" style={urgente ? { color: '#DC2626', fontWeight: 700 } : undefined}>

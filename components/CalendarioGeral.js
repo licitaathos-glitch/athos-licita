@@ -13,6 +13,7 @@ const TIPOS = {
   certidao:  { rotulo: 'Vencimento de certidão', cor: '#B45309', bg: '#FFFBEB', ico: '📋', href: '/dashboard/certidoes' },
   ata:       { rotulo: 'Vencimento de ata', cor: '#0F766E', bg: '#F0FDFA', ico: '🗂️', href: '/dashboard/atas' },
   pagamento: { rotulo: 'Previsão de pagamento', cor: '#15803D', bg: '#F0FDF4', ico: '💰', href: '/dashboard/financeiro' },
+  manual:    { rotulo: 'Evento', cor: '#9333EA', bg: '#F5F3FF', ico: '📌', href: '' },
 }
 
 const parseBR = v => {
@@ -39,6 +40,7 @@ export default function CalendarioGeral({ compacto = false }) {
   const [erro, setErro] = useState('')
   const [visiveis, setVisiveis] = useState(Object.keys(TIPOS))
   const [diaAberto, setDiaAberto] = useState(null)
+  const [modalEvento, setModalEvento] = useState(null) // null=fechado; {}=novo; {data}=novo com data; objeto completo=editar
 
   const carregar = useCallback(() => {
     Promise.all([
@@ -46,12 +48,14 @@ export default function CalendarioGeral({ compacto = false }) {
       fetch('/api/certidoes').then(r => r.json()),
       fetch('/api/atas').then(r => r.json()),
       fetch('/api/empenhos').then(r => r.json()),
-    ]).then(([l, c, a, e]) => {
+      fetch('/api/calendario/eventos').then(r => r.json()),
+    ]).then(([l, c, a, e, ev]) => {
       setDados({
         lics: l.sucesso ? l.licitacoes : [],
         certidoes: c.sucesso ? c.certidoes : [],
         atas: a.sucesso ? a.atas : [],
         empenhos: e.sucesso ? e.empenhos : [],
+        manuais: ev.sucesso ? ev.eventos : [],
       })
     }).catch(() => setErro('Erro de conexão.'))
   }, [])
@@ -97,6 +101,11 @@ export default function CalendarioGeral({ compacto = false }) {
       if (d) ev.push({ data: d, tipo: 'pagamento', titulo: 'NE ' + e.numeroEmpenho,
         detalhe: e.itemDescricao || '', extra: e.orgao, empresa: e.empresa_nome,
         badge: 'R$ ' + (e.faturamento || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) })
+    })
+
+    ;(dados.manuais || []).filter(m => !empresaSel || !m.empresaId || m.empresaId === empresaSel).forEach(m => {
+      if (m.data) ev.push({ id: m.id, data: m.data, tipo: 'manual', titulo: m.titulo,
+        detalhe: m.descricao || '', empresa: m.empresaNome, manual: m })
     })
 
     return ev.filter(e => visiveis.includes(e.tipo))
@@ -163,6 +172,10 @@ export default function CalendarioGeral({ compacto = false }) {
           </div>
         </div>
 
+        <div style={{ padding: '8px 14px 0', display: 'flex', justifyContent: 'flex-end' }}>
+          <button className="iBtn iBtn-up" onClick={() => setModalEvento({ data: hojeStr })}>+ Novo evento</button>
+        </div>
+
         <div className="cal-grid">
           {DOW.map(d => <div className="cal-dow" key={d}>{d}</div>)}
         </div>
@@ -175,10 +188,18 @@ export default function CalendarioGeral({ compacto = false }) {
             return (
               <div className={'cal-day' + (chave === hojeStr ? ' hoje' : '') + (diaAberto === chave ? ' sel' : '')}
                 key={i} onClick={() => evs.length && setDiaAberto(diaAberto === chave ? null : chave)}>
-                <div className="cal-num">{d}</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div className="cal-num">{d}</div>
+                  <button className="cal-add" title="Novo evento neste dia"
+                    onClick={ev => { ev.stopPropagation(); setModalEvento({ data: chave }) }}>+</button>
+                </div>
                 {evs.slice(0, 3).map((e, j) => (
                   <div className="cal-ev" key={j} style={{ background: TIPOS[e.tipo].bg, color: TIPOS[e.tipo].cor, cursor: 'pointer' }}
-                    onClick={ev => { ev.stopPropagation(); window.location.href = TIPOS[e.tipo].href + (e.id ? '?id=' + e.id : '') }}
+                    onClick={ev => {
+                      ev.stopPropagation()
+                      if (e.tipo === 'manual') setModalEvento(e.manual)
+                      else window.location.href = TIPOS[e.tipo].href + (e.id ? '?id=' + e.id : '')
+                    }}
                     title={e.titulo + ' — ' + (e.extra || '')}>
                     {TIPOS[e.tipo].ico} {e.titulo}
                   </div>
@@ -198,7 +219,7 @@ export default function CalendarioGeral({ compacto = false }) {
             </strong>
             <button className="iBtn" onClick={() => setDiaAberto(null)}>fechar</button>
           </div>
-          {(porDia[diaAberto] || []).map((e, i) => <LinhaEvento e={e} key={i} />)}
+          {(porDia[diaAberto] || []).map((e, i) => <LinhaEvento e={e} key={i} onEditarManual={setModalEvento} />)}
         </div>
       )}
 
@@ -206,12 +227,20 @@ export default function CalendarioGeral({ compacto = false }) {
         ⏰ Próximos compromissos
       </div>
       {proximos.length === 0 && <div style={{ color: '#94A3B8', fontSize: 13 }}>Nada nos próximos dias.</div>}
-      {proximos.map((e, i) => <LinhaEvento e={e} key={i} mostrarData />)}
+      {proximos.map((e, i) => <LinhaEvento e={e} key={i} mostrarData onEditarManual={setModalEvento} />)}
+
+      {modalEvento && (
+        <ModalEvento
+          evento={modalEvento} empresas={empresas} empresaAtual={empresaAtual}
+          onFechar={() => setModalEvento(null)}
+          onSalvo={() => { setModalEvento(null); carregar() }}
+        />
+      )}
     </div>
   )
 }
 
-function LinhaEvento({ e, mostrarData }) {
+function LinhaEvento({ e, mostrarData, onEditarManual }) {
   const t = TIPOS[e.tipo]
   const dd = diasEntre(e.data)
   const urgente = dd !== null && dd <= 3
@@ -232,7 +261,78 @@ function LinhaEvento({ e, mostrarData }) {
             {dd === 0 ? 'hoje' : dd === 1 ? 'amanhã' : `em ${dd}d`}
           </span>
         )}
-        <Link href={t.href + (e.id ? '?id=' + e.id : '')} className="iBtn">abrir</Link>
+        {e.tipo === 'manual'
+          ? <button className="iBtn" onClick={() => onEditarManual(e.manual)}>editar</button>
+          : <Link href={t.href + (e.id ? '?id=' + e.id : '')} className="iBtn">abrir</Link>}
+      </div>
+    </div>
+  )
+}
+
+function ModalEvento({ evento, empresas, empresaAtual, onFechar, onSalvo }) {
+  const ed = !!evento.id
+  const [titulo, setTitulo] = useState(evento.titulo || '')
+  const [data, setData] = useState(evento.data || '')
+  const [empresaId, setEmpresaId] = useState(evento.empresaId || (empresaAtual !== 'todas' ? String(empresaAtual) : ''))
+  const [descricao, setDescricao] = useState(evento.descricao || '')
+  const [erro, setErro] = useState('')
+  const [salvando, setSalvando] = useState(false)
+  const [excluindo, setExcluindo] = useState(false)
+
+  async function salvar() {
+    if (!titulo.trim() || !data) { setErro('Título e data são obrigatórios.'); return }
+    setErro(''); setSalvando(true)
+    try {
+      const r = await fetch('/api/calendario/eventos', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: evento.id || null, empresaId: empresaId || '', titulo, data, descricao }),
+      }).then(x => x.json())
+      if (r.sucesso) onSalvo(); else setErro(r.erro || 'Erro ao salvar.')
+    } catch { setErro('Erro de conexão.') }
+    setSalvando(false)
+  }
+
+  async function excluir() {
+    if (!confirm('Excluir este evento?')) return
+    setExcluindo(true)
+    try {
+      const r = await fetch('/api/calendario/eventos', {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: evento.id }),
+      }).then(x => x.json())
+      if (r.sucesso) onSalvo(); else setErro(r.erro || 'Erro ao excluir.')
+    } catch { setErro('Erro de conexão.') }
+    setExcluindo(false)
+  }
+
+  return (
+    <div className="overlay" onClick={e => { if (e.target === e.currentTarget) onFechar() }}>
+      <div className="modal">
+        <div className="modal-hdr">
+          <div><div className="modal-hdr-sub">CALENDÁRIO</div><div className="modal-hdr-title">{ed ? 'Editar evento' : 'Novo evento'}</div></div>
+          <button className="modal-x" onClick={onFechar}>×</button>
+        </div>
+        <div className="modal-body">
+          <div className="form-sub"><label>TÍTULO</label>
+            <input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Ex: Reunião com o órgão, prazo interno..." /></div>
+          <div className="form-sub"><label>DATA</label>
+            <input type="date" value={data} onChange={e => setData(e.target.value)} /></div>
+          <div className="form-sub"><label>EMPRESA (opcional)</label>
+            <select value={empresaId} onChange={e => setEmpresaId(e.target.value)}>
+              <option value="">Todas as empresas</option>
+              {empresas.map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
+            </select>
+          </div>
+          <div className="form-sub"><label>DESCRIÇÃO (opcional)</label>
+            <textarea rows={3} value={descricao} onChange={e => setDescricao(e.target.value)} /></div>
+          {erro && <div className="l-err">{erro}</div>}
+        </div>
+        <div className="modal-foot">
+          {ed && <button className="iBtn iBtn-del" onClick={excluir} disabled={excluindo}>{excluindo ? 'Excluindo...' : '🗑 Excluir'}</button>}
+          <div style={{ flex: 1 }} />
+          <button className="btn-ghost" onClick={onFechar}>Cancelar</button>
+          <button className="btn-primary" style={{ marginTop: 0 }} onClick={salvar} disabled={salvando}>{salvando ? 'Salvando...' : 'Salvar evento'}</button>
+        </div>
       </div>
     </div>
   )
