@@ -357,11 +357,20 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
     if (!f.objeto.trim() && !f.numeroEdital.trim()) { setErro('Informe o objeto ou o nº do edital.'); return }
     setErro(''); setSalvando(true)
     try {
+      const abertura = inputParaBr(f.dataAbertura)
+      // Só sincroniza a "data da sessão" com a abertura quando elas já
+      // estavam alinhadas (ou nunca foi definida) — se alguém ajustou uma
+      // data de sessão diferente da abertura no Andamento (ex: negociou um
+      // novo dia), essa escolha não é sobrescrita aqui.
+      const semDivergenciaManual = !lic.dataSessao || lic.dataSessao === lic.dataAbertura
+      const dataSessaoFinal = semDivergenciaManual ? abertura : lic.dataSessao
+
       const r = await fetch('/api/licitacoes', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: lic.id || null, empresa_id: empresaId, ...f,
-          dataAbertura: inputParaBr(f.dataAbertura), dataLimite: inputParaBr(f.dataLimite),
+          dataAbertura: abertura, dataLimite: inputParaBr(f.dataLimite),
+          dataSessao: dataSessaoFinal,
           itensJson: JSON.stringify(itens.filter(it => String(it.descricao || '').trim())),
           anexosJson: JSON.stringify(anexos),
           portal: f.portal === '__outro' ? (novoPortal.trim() || '') : f.portal,

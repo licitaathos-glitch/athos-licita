@@ -114,7 +114,10 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
             anexoDriveId: r.id, anexoDriveUrl: r.url,
           }),
         })
-        setAvisoIA('✅ ' + a.titulo + ' anexado.')
+        const ehZip = /\.zip$/i.test(r.nome || '')
+        setAvisoIA(ehZip
+          ? '⚠️ ' + a.titulo + ' anexado, mas é um arquivo .zip — a IA não consegue ler dentro de um zip. Abra o arquivo, extraia o PDF do edital e anexe ele direto (em "Editar").'
+          : '✅ ' + a.titulo + ' anexado.')
       } else setAvisoIA('Falha em ' + a.titulo + ': ' + (r.erro || 'erro desconhecido'))
     } catch {
       setAvisoIA('Erro de conexão ao anexar ' + a.titulo + '.')
@@ -123,6 +126,10 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
   }
   async function resumirComIA() {
     if (!temAnexo) { setAvisoIA('Anexe o PDF do edital em "Editar" antes de usar a IA.'); return }
+    if (/\.zip$/i.test(anexoLocal.nome || '')) {
+      setAvisoIA('O anexo atual é um .zip — a IA só lê PDF/imagem diretamente. Extraia o PDF do edital de dentro do zip e anexe ele (em "Editar").')
+      return
+    }
     setAvisoIA(''); setAnalisandoIA(true)
     try {
       const r = await enviarAoGAS({ action: 'analisarChecklistGemini', licitacaoId: lic.id, empresaId: lic.empresa_id })
