@@ -77,12 +77,16 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
   const [anexandoArquivo, setAnexandoArquivo] = useState('')
 
   async function buscarArquivosEdital() {
-    if (!lic.link) { setAvisoIA('Esta licitação não tem "Link do edital" cadastrado — inclua em "Editar".'); return }
+    // Prioriza o número de controle PNCP (estável) em vez do "Link do edital"
+    // — depois que a licitação é extraída, esse campo passa a guardar o link
+    // do portal de origem (Comprasnet, BLL...), não mais o link do PNCP.
+    const referencia = lic.numeroPNCP || lic.link
+    if (!referencia) { setAvisoIA('Esta licitação não tem nº de controle PNCP nem "Link do edital" cadastrado — inclua em "Editar".'); return }
     setAvisoIA(''); setBuscandoArquivos(true); setArquivosEdital(null)
     try {
       const r = await fetch('/api/licitacoes/arquivos-pncp', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ link: lic.link }),
+        body: JSON.stringify({ link: referencia }),
       }).then(x => x.json())
       if (r.sucesso && r.arquivos?.length) setArquivosEdital(r.arquivos)
       else setAvisoIA(r.erro || 'Não achei documentos no PNCP para esta licitação.')
