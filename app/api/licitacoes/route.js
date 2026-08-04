@@ -57,7 +57,7 @@ export async function GET(req) {
         valorVencedor: l.valorVencedor || '',
         empresaVencedora: l.empresaVencedora || '',
         colocacao: l.colocacao || '',
-        observacaoDisputa: l.observacaoDisputa || '',
+        observacaoDisputa: l.observacaoDisputa || '', dataHomologacao: l.dataHomologacao || '',
         salvoEm: l.salvoEm || '',
       }))
       .sort((a, b) => String(b.salvoEm).localeCompare(String(a.salvoEm)))

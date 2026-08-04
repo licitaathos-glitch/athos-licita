@@ -32,14 +32,25 @@ export default function RelatorioPage() {
 
   const rel = useMemo(() => {
     if (!dados || !empresaSel) return null
-    const lics = dados.lics.filter(l => l.empresa_id === empresaSel && mesDe(l.dataAbertura) === mes)
+    const todasDaEmpresa = dados.lics.filter(l => l.empresa_id === empresaSel)
     const empenhos = dados.empenhos.filter(e => e.empresa_id === empresaSel && mesDe(e.dataEmpenho) === mes)
+
+    // O que teve desfecho (ganhou/perdeu/não participou/etc.) entra no mês em
+    // que isso aconteceu — pela data de homologação quando ela existir,
+    // senão pela data de abertura (registros antigos, sem homologação).
+    const comDesfecho = l => l.resultado && l.resultado !== 'Aguardando'
+    const mesDoDesfecho = l => mesDe(l.dataHomologacao) || mesDe(l.dataAbertura)
+    const lics = todasDaEmpresa.filter(l => comDesfecho(l) && mesDoDesfecho(l) === mes)
+
+    // O que ainda está em andamento (sem desfecho) aparece sempre, em
+    // qualquer mês do relatório — não importa quando foi aberta, porque
+    // continua sendo trabalho em curso agora
+    const aguardando = todasDaEmpresa.filter(l => !comDesfecho(l))
 
     const disputadas = lics.filter(l => ['Ganhamos', 'Perdemos', 'Desclassificados'].includes(l.resultado))
     const ganhas = lics.filter(l => l.resultado === 'Ganhamos')
     const perdidas = lics.filter(l => ['Perdemos', 'Desclassificados'].includes(l.resultado))
     const naoParticipamos = lics.filter(l => l.resultado === 'Nao participamos')
-    const aguardando = lics.filter(l => !l.resultado || l.resultado === 'Aguardando')
 
     // Agrupa os motivos de não participação
     const motivos = {}
@@ -220,7 +231,7 @@ export default function RelatorioPage() {
 
           {rel.aguardando.length > 0 && (
             <>
-              <h2 className="rel-h2">5. Em andamento</h2>
+              <h2 className="rel-h2">5. Em andamento (posição atual, independente do mês de abertura)</h2>
               <table className="rel-tabela">
                 <thead><tr><th>Edital</th><th>Órgão</th><th>Sessão</th><th style={{ textAlign: 'right' }}>Estimado</th></tr></thead>
                 <tbody>

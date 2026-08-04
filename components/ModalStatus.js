@@ -7,6 +7,8 @@ import PainelCotacao from '@/components/PainelCotacao'
 import { enviarAoGAS } from '@/lib/gasClient'
 
 const moeda = n => (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+const isoParaBR = v => { const p = String(v || '').split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : v }
+const brParaISO = v => { const m = String(v || '').match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? `${m[3]}-${m[2]}-${m[1]}` : '' }
 
 const CORES_VEREDITO = {
   descartar:  { bg: '#FEF2F2', bd: '#FECACA', cor: '#991B1B', ico: '⛔' },
@@ -26,6 +28,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
     colocacao: lic.colocacao || '',
     observacaoDisputa: lic.observacaoDisputa || '',
     dataSessao: lic.dataSessao || '',
+    dataHomologacao: brParaISO(lic.dataHomologacao) || '',
   })
   const [itens, setItens] = useState(() =>
     (lic.itens || []).map(it => ({
@@ -189,6 +192,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
       const corpo = {
         id: lic.id, empresa_id: lic.empresa_id, objeto: lic.objeto,
         fase: destino, ...f,
+        dataHomologacao: isoParaBR(f.dataHomologacao),
         itensJson: JSON.stringify(itens),
         checklistJson: JSON.stringify({ ...chkDados, _obs: chkObs, _veredito: chkResultado.veredito, _riscos: resumoRiscos }),
       }
@@ -545,6 +549,15 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                   ))}
                 </div>
               </div>
+              {fase === 'Finalizada' && (
+                <div className="form-sub">
+                  <label>DATA DA HOMOLOGAÇÃO</label>
+                  <input type="date" value={f.dataHomologacao} onChange={e => set('dataHomologacao', e.target.value)} />
+                  <p className="dica-menus" style={{ marginTop: 4 }}>
+                    Importante para o relatório mensal — é o mês em que a licitação entra no relatório, não o mês em que foi aberta.
+                  </p>
+                </div>
+              )}
               {motivos && (
                 <div className="form-sub">
                   <label>MOTIVO</label>

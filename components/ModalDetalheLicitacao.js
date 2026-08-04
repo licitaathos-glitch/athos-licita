@@ -52,6 +52,7 @@ export default function ModalDetalheLicitacao({
           {l.resultado && l.resultado !== 'Aguardando' && (
             <div className="bloco-disputa" style={{ borderColor: corResultado(l.resultado) }}>
               <strong style={{ color: corResultado(l.resultado) }}>🏁 {nomeResultado(l.resultado)}</strong>
+              {l.dataHomologacao && <span style={{ marginLeft: 8, fontSize: 12, fontWeight: 400 }}>homologada em {l.dataHomologacao}</span>}
               {l.motivo && <div style={{ marginTop: 3 }}>Motivo: {l.motivo}</div>}
               {(l.nossoLance || l.valorVencedor) && (
                 <div style={{ marginTop: 3 }}>
