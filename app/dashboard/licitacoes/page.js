@@ -359,18 +359,21 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
     setErro(''); setSalvando(true)
     try {
       const abertura = inputParaBr(f.dataAbertura)
-      // Só sincroniza a "data da sessão" com a abertura quando elas já
-      // estavam alinhadas (ou nunca foi definida) — se alguém ajustou uma
-      // data de sessão diferente da abertura no Andamento (ex: negociou um
-      // novo dia), essa escolha não é sobrescrita aqui.
-      const semDivergenciaManual = !lic.dataSessao || lic.dataSessao === lic.dataAbertura
-      const dataSessaoFinal = semDivergenciaManual ? abertura : lic.dataSessao
+      const limite = inputParaBr(f.dataLimite)
+      // A "data da sessão" (disputa) do Pregão Eletrônico coincide com o
+      // encerramento do prazo de propostas (Limite), não com a Abertura —
+      // são momentos diferentes: a Abertura só marca quando começa a
+      // aceitar propostas, às vezes dias/semanas antes da sessão em si.
+      // Só sincroniza quando não houver uma data de sessão ajustada à mão
+      // no Andamento (ex: negociaram um novo dia após um adiamento).
+      const semDivergenciaManual = !lic.dataSessao || lic.dataSessao === lic.dataLimite || lic.dataSessao === lic.dataAbertura
+      const dataSessaoFinal = semDivergenciaManual ? (limite || abertura) : lic.dataSessao
 
       const r = await fetch('/api/licitacoes', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: lic.id || null, empresa_id: empresaId, ...f,
-          dataAbertura: abertura, dataLimite: inputParaBr(f.dataLimite),
+          dataAbertura: abertura, dataLimite: limite,
           dataSessao: dataSessaoFinal,
           itensJson: JSON.stringify(itens.filter(it => String(it.descricao || '').trim())),
           anexosJson: JSON.stringify(anexos),
