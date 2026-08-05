@@ -109,6 +109,13 @@ export default function ModalDetalheLicitacao({
                         ))}
                       </tbody>
                     </table>
+                    {l.itens.some(it => it.lanceFinal) && (
+                      <div style={{ textAlign: 'right', fontSize: 12.5, fontWeight: 700, color: '#16A34A', marginTop: 6 }}>
+                        Total dos nossos lances: {l.itens.filter(it => !temGrupos || (it.grupo || 'Sem grupo') === g)
+                          .reduce((s, it) => s + (Number(it.lanceFinal || it.meuValor) || 0) * (Number(it.quantidade) || 0), 0)
+                          .toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

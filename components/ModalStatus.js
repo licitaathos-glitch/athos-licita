@@ -576,6 +576,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                         <th>Descrição</th>
                         <th style={{ width: 70 }}>Qtd</th>
                         <th style={{ width: 110 }}>Nosso lance</th>
+                        <th style={{ width: 110 }}>Total do item</th>
                         <th style={{ width: 70 }}>Colocação</th>
                         <th style={{ width: 160 }}>Empresa vencedora</th>
                         <th style={{ width: 110 }}>Preço vencedor</th>
@@ -588,6 +589,9 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                           <td>{it.quantidade || '—'}</td>
                           <td><input type="number" step="0.01" value={it.lanceFinal || ''} placeholder={it.meuValor || '0,00'}
                             onChange={e => setItem(i, 'lanceFinal', e.target.value)} /></td>
+                          <td style={{ fontWeight: 700, color: '#1B2E4B', whiteSpace: 'nowrap' }}>
+                            {moeda((Number(it.lanceFinal || it.meuValor) || 0) * (Number(it.quantidade) || 0))}
+                          </td>
                           <td><input type="number" min="1" value={it.colocacao || ''} placeholder="1"
                             onChange={e => setItem(i, 'colocacao', e.target.value)} /></td>
                           <td><input value={it.vencedorNome || ''} placeholder="Nome do concorrente"
@@ -598,6 +602,15 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                       ))}
                     </tbody>
                   </table>
+                </div>
+                <div className="totais-proposta" style={{ marginTop: 10 }}>
+                  <div>
+                    <span className="lic-campo-lbl">VALOR TOTAL DA CONTRATAÇÃO (NOSSOS LANCES)</span>
+                    <span className="lic-campo-val" style={{ color: '#16A34A', fontSize: 16 }}>
+                      {moeda(itens.filter(it => it.participar).reduce((s, it) =>
+                        s + (Number(it.lanceFinal || it.meuValor) || 0) * (Number(it.quantidade) || 0), 0))}
+                    </span>
+                  </div>
                 </div>
               </div>
             ) : (
