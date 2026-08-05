@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useApp } from '@/lib/AppContext'
 import { faseDe } from '@/lib/fases'
+import { tipoEventoInfo } from '@/lib/tiposEvento'
 
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 const DOW = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
@@ -262,7 +263,7 @@ export default function CalendarioGeral({ compacto = false }) {
 
 function LinhaEvento({ e, mostrarData, onEditarManual }) {
   const t = TIPOS[e.tipo]
-  const icone = e.manual?.tipoEvento === 'suspensao' ? '⏸' : t.ico
+  const icone = e.manual?.tipoEvento ? tipoEventoInfo(e.manual.tipoEvento).ico : t.ico
   const dd = diasEntre(e.data)
   const urgente = dd !== null && dd >= 0 && dd <= 3
   const textoPrazo = dd === null ? '' : dd === 0 ? 'hoje' : dd === 1 ? 'amanhã' : dd === -1 ? 'ontem'
