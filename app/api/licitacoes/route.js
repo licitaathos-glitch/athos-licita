@@ -4,14 +4,18 @@ import { COLS_RESULTADO } from '@/lib/resultado'
 import { faseAutomatica, faseInferida } from '@/lib/fases'
 import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu, empresasComMenu } from '@/lib/auth'
 import { novoId } from '@/lib/uuid'
+import { chunkCampo, juntarChunk, nomesChunk } from '@/lib/chunkCampo'
 
 const CAMPOS = ['numeroPNCP','numeroEdital','objeto','orgao','uf','valor','dataAbertura',
   'dataLimite','dataSessao','modalidade','status','link','portal','srp','anexoDriveId','anexoDriveUrl','anexosJson',
   'itensJson','checklistJson','participar', 'fase', ...COLS_RESULTADO]
 
+// itensJson vem em várias colunas (itensJson, itensJson_2, ...) porque licitações
+// com muitos itens passam do limite de 50000 caracteres de uma única célula do Sheets
 const COLS_LIC = ['id','empresaId','empresaNome','numeroPNCP','numeroEdital','objeto','orgao','uf',
   'valor','dataPublicacao','dataAbertura','modalidade','status','link','origem','salvoEm',
-  'dataLimite','dataSessao','portal','srp','anexoDriveId','anexoDriveUrl','anexosJson','itensJson','checklistJson',
+  'dataLimite','dataSessao','portal','srp','anexoDriveId','anexoDriveUrl','anexosJson',
+  ...nomesChunk('itensJson'), 'checklistJson',
   'participar', 'fase', ...COLS_RESULTADO]
 
 function parseItens(json) {
@@ -45,7 +49,7 @@ export async function GET(req) {
         status: l.status || 'Aberta', srp: l.srp || 'Não', link: l.link || '',
         anexoDriveUrl: l.anexoDriveUrl || '', anexoDriveId: l.anexoDriveId || '',
         anexos: parseItens(l.anexosJson),
-        itens: parseItens(l.itensJson), checklistJson: l.checklistJson || '',
+        itens: parseItens(juntarChunk(l, 'itensJson')), checklistJson: l.checklistJson || '',
         participar: l.participar || 'Pendente',
         fase: faseAutomatica({
           fase: faseInferida({ fase: l.fase, resultado: l.resultado, participar: l.participar, status: l.status }),
@@ -86,6 +90,10 @@ export async function POST(req) {
 
     const campos = {}
     CAMPOS.forEach(c => { if (b[c] !== undefined) campos[c] = b[c] })
+    if (campos.itensJson !== undefined) {
+      try { Object.assign(campos, chunkCampo('itensJson', campos.itensJson)) }
+      catch (e) { return NextResponse.json({ sucesso: false, erro: e.message }) }
+    }
 
     if (b.id) {
       const r = await atualizarLinha('Licitacoes', 'id', b.id, campos)
