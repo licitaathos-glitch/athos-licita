@@ -248,6 +248,7 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
     anexoDriveId: lic.anexoDriveId || '', anexoDriveUrl: lic.anexoDriveUrl || '',
   })
   const [itens, setItens] = useState(lic.itens || [])
+  const [buscaItemLic, setBuscaItemLic] = useState('')
   const [grupoAtual, setGrupoAtual] = useState('')
   const [portais, setPortais] = useState([])
   const [novoPortal, setNovoPortal] = useState('')
@@ -481,6 +482,10 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
               <label style={{ margin: 0 }}>ITENS DA LICITAÇÃO {itens.length > 0 && <span style={{ fontWeight: 400, color: '#94A3B8' }}>({itens.length})</span>}</label>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                {itens.length > 3 && (
+                  <input placeholder="🔍 Buscar item..." value={buscaItemLic} onChange={e => setBuscaItemLic(e.target.value)}
+                    style={{ width: 160, padding: '6px 10px', fontSize: 12 }} />
+                )}
                 <input placeholder="Grupo/lote (opcional)" value={grupoAtual} onChange={e => setGrupoAtual(e.target.value)}
                   style={{ width: 160, padding: '6px 10px', fontSize: 12 }} title="Preenchido nos próximos itens adicionados" />
                 <button className="iBtn" onClick={importarItens} disabled={buscandoItens}>
@@ -495,7 +500,7 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
                 <span>Grupo</span><span>Descrição</span><span>Qtd</span><span>UN</span><span>Vl. unit.</span><span></span>
               </div>
             )}
-            {itens.map((it, i) => (
+            {itens.map((it, i) => (!buscaItemLic || String(it.descricao || '').toLowerCase().includes(buscaItemLic.toLowerCase())) && (
               <div className="item-row-lic" key={i}>
                 <input placeholder="Grupo" value={it.grupo || ''} onChange={e => setItem(i, 'grupo', e.target.value)} />
                 <input placeholder="Descrição" value={it.descricao || ''} onChange={e => setItem(i, 'descricao', e.target.value)} />
