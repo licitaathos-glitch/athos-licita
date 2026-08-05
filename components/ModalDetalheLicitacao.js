@@ -1,7 +1,9 @@
 'use client'
+import { useState } from 'react'
 import { FASES } from '@/lib/fases'
 import { nomeResultado, corResultado } from '@/lib/resultado'
 import { nomeStatus } from '@/lib/statusLicitacao'
+import Toggle from '@/components/Toggle'
 
 // Janela com os detalhes completos de uma licitação — antes isso expandia
 // dentro da própria lista; agora abre à parte, sem empurrar as outras linhas.
@@ -13,6 +15,10 @@ export default function ModalDetalheLicitacao({
   // O checklist só faz sentido enquanto a decisão de participar ainda está em
   // aberto — da análise até a montagem da proposta. Depois disso, já foi usado.
   const mostrarChecklist = ['Em analise', 'Inscricao'].includes(fx.id)
+  // Por padrão só mostra os itens marcados como "vou participar" — em
+  // licitações com dezenas de itens, ver todos de uma vez atrapalha
+  const temParticipacaoDefinida = (l.itens || []).some(it => it.participar !== undefined)
+  const [somenteParticipando, setSomenteParticipando] = useState(temParticipacaoDefinida)
 
   return (
     <div className="overlay" onClick={e => { if (e.target === e.currentTarget) onFechar() }}>
@@ -66,30 +72,45 @@ export default function ModalDetalheLicitacao({
           )}
 
           {l.itens?.length > 0 && (() => {
-            const temGrupos = l.itens.some(it => it.grupo)
+            const itensBase = somenteParticipando ? l.itens.filter(it => it.participar !== false) : l.itens
+            const temGrupos = itensBase.some(it => it.grupo)
             const grupos = temGrupos
-              ? [...new Set(l.itens.map(it => it.grupo || 'Sem grupo'))]
+              ? [...new Set(itensBase.map(it => it.grupo || 'Sem grupo'))]
               : [null]
             return (
-              <div style={{ overflowX: 'auto', marginTop: 12 }}>
+              <div style={{ marginTop: 12 }}>
+                {temParticipacaoDefinida && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ fontSize: 12, color: '#64748B' }}>
+                      {itensBase.length} de {l.itens.length} itens
+                    </span>
+                    <Toggle ligado={somenteParticipando} onChange={setSomenteParticipando} label="Somente participando" />
+                  </div>
+                )}
+                {itensBase.length === 0 && (
+                  <div style={{ color: '#94A3B8', fontSize: 12.5, padding: '10px 0' }}>
+                    Nenhum item marcado para participar ainda — desligue o filtro acima para ver todos.
+                  </div>
+                )}
+              <div style={{ overflowX: 'auto' }}>
                 {grupos.map((g, gi) => (
                   <div key={gi} style={{ marginBottom: temGrupos ? 14 : 0 }}>
                     {temGrupos && <div style={{ fontSize: 12, fontWeight: 800, color: '#145653', marginBottom: 6 }}>📦 Grupo: {g}</div>}
                     <table className="itens-tbl">
                       <thead><tr><th>Descrição</th><th>Qtd</th><th>Un</th>
                         <th style={{ textAlign: 'right' }}>Vl. estimado</th>
-                        {l.itens.some(it => it.meuValor) && <th style={{ textAlign: 'right' }}>Valor mínimo</th>}
-                        {l.itens.some(it => it.lanceFinal) && <th style={{ textAlign: 'right' }}>Nosso lance</th>}
-                        {l.itens.some(it => it.colocacao) && <th>Colocação</th>}
-                        {l.itens.some(it => it.vencedorNome || it.vencedorPreco) && <th>Vencedor</th>}
+                        {itensBase.some(it => it.meuValor) && <th style={{ textAlign: 'right' }}>Valor mínimo</th>}
+                        {itensBase.some(it => it.lanceFinal) && <th style={{ textAlign: 'right' }}>Nosso lance</th>}
+                        {itensBase.some(it => it.colocacao) && <th>Colocação</th>}
+                        {itensBase.some(it => it.vencedorNome || it.vencedorPreco) && <th>Vencedor</th>}
                       </tr></thead>
                       <tbody>
-                        {l.itens.filter(it => !temGrupos || (it.grupo || 'Sem grupo') === g).map((it, i) => (
+                        {itensBase.filter(it => !temGrupos || (it.grupo || 'Sem grupo') === g).map((it, i) => (
                           <tr key={i} style={{ opacity: it.participar === false ? .45 : 1 }}>
                             <td style={{ maxWidth: 320 }}>{it.descricao}</td>
                             <td>{it.quantidade}</td><td>{it.unidade}</td>
                             <td style={{ textAlign: 'right' }}>{it.valorUnitarioRef ? Number(it.valorUnitarioRef).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}</td>
-                            {l.itens.some(x => x.meuValor) && (
+                            {itensBase.some(x => x.meuValor) && (
                               <td style={{ textAlign: 'right' }}>
                                 {it.meuValor
                                   ? (it.formaValor === 'desconto'
@@ -98,26 +119,27 @@ export default function ModalDetalheLicitacao({
                                   : '—'}
                               </td>
                             )}
-                            {l.itens.some(x => x.lanceFinal) && (
+                            {itensBase.some(x => x.lanceFinal) && (
                               <td style={{ textAlign: 'right' }}>{it.lanceFinal ? Number(it.lanceFinal).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}</td>
                             )}
-                            {l.itens.some(x => x.colocacao) && <td>{it.colocacao || '—'}</td>}
-                            {l.itens.some(x => x.vencedorNome || x.vencedorPreco) && (
+                            {itensBase.some(x => x.colocacao) && <td>{it.colocacao || '—'}</td>}
+                            {itensBase.some(x => x.vencedorNome || x.vencedorPreco) && (
                               <td>{it.vencedorNome || '—'}{it.vencedorPreco ? ' · ' + Number(it.vencedorPreco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : ''}</td>
                             )}
                           </tr>
                         ))}
                       </tbody>
                     </table>
-                    {l.itens.some(it => it.lanceFinal) && (
+                    {itensBase.some(it => it.lanceFinal) && (
                       <div style={{ textAlign: 'right', fontSize: 12.5, fontWeight: 700, color: '#16A34A', marginTop: 6 }}>
-                        Total dos nossos lances: {l.itens.filter(it => !temGrupos || (it.grupo || 'Sem grupo') === g)
+                        Total dos nossos lances: {itensBase.filter(it => !temGrupos || (it.grupo || 'Sem grupo') === g)
                           .reduce((s, it) => s + (Number(it.lanceFinal || it.meuValor) || 0) * (Number(it.quantidade) || 0), 0)
                           .toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                       </div>
                     )}
                   </div>
                 ))}
+              </div>
               </div>
             )
           })()}

@@ -4,12 +4,16 @@ import { FASES, FORMAS_VALOR, normalizarFase } from '@/lib/fases'
 import { RESULTADOS, MOTIVOS_NAO_PARTICIPACAO, MOTIVOS_PERDA } from '@/lib/resultado'
 import { CHECKLIST, avaliar } from '@/lib/checklist'
 import PainelCotacao from '@/components/PainelCotacao'
+import Toggle from '@/components/Toggle'
 import { enviarAoGAS } from '@/lib/gasClient'
 
 const moeda = n => (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 const isoParaBR = v => { const p = String(v || '').split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : v }
 const brParaISO = v => { const m = String(v || '').match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? `${m[3]}-${m[2]}-${m[1]}` : '' }
-const itemVisivel = (it, busca) => !busca || String(it.descricao || '').toLowerCase().includes(busca.toLowerCase())
+const itemVisivel = (it, busca, somenteSel) => {
+  if (somenteSel && !it.participar) return false
+  return !busca || String(it.descricao || '').toLowerCase().includes(busca.toLowerCase())
+}
 
 const CORES_VEREDITO = {
   descartar:  { bg: '#FEF2F2', bd: '#FECACA', cor: '#991B1B', ico: '⛔' },
@@ -215,6 +219,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
 
   const marcados = itens.filter(it => it.participar)
   const [buscaItem, setBuscaItem] = useState('')
+  const [somenteSelecionados, setSomenteSelecionados] = useState(false)
   const semValor = marcados.filter(it => !String(it.meuValor).trim()).length
   // Total do que estamos de fato participando (só os itens marcados) e o
   // total da licitação inteira (todos os itens, pelo valor estimado) — útil
@@ -426,10 +431,11 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
                   <input className="busca-input" style={{ flex: 1, minWidth: 160 }} placeholder="Buscar item por descrição..."
                     value={buscaItem} onChange={e => setBuscaItem(e.target.value)} />
+                  <Toggle ligado={somenteSelecionados} onChange={setSomenteSelecionados} label="Somente selecionados" />
                   <button className="iBtn" onClick={() => setItens(a => a.map((it, i) =>
-                    itemVisivel(it, buscaItem) ? { ...it, participar: true } : it))}>Marcar todos</button>
+                    itemVisivel(it, buscaItem, somenteSelecionados) ? { ...it, participar: true } : it))}>Marcar todos</button>
                   <button className="iBtn" onClick={() => setItens(a => a.map((it, i) =>
-                    itemVisivel(it, buscaItem) ? { ...it, participar: false } : it))}>Desmarcar todos</button>
+                    itemVisivel(it, buscaItem, somenteSelecionados) ? { ...it, participar: false } : it))}>Desmarcar todos</button>
                 </div>
               )}
               {itens.length > 0 && (
@@ -448,7 +454,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {itens.map((it, i) => itemVisivel(it, buscaItem) && (
+                      {itens.map((it, i) => itemVisivel(it, buscaItem, somenteSelecionados) && (
                         <tr key={i} style={{ opacity: it.participar ? 1 : .45 }}>
                           <td style={{ textAlign: 'center' }}>
                             <input type="checkbox" checked={it.participar}

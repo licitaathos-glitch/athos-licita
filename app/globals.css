@@ -486,3 +486,9 @@ body{font-family:'Manrope',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-seri
 /* ══ RESUMO DO EDITAL POR IA (fase Em análise) ══ */
 .ia-resumo-box{background:#F0FDF9;border:1px solid #B9A06B55;border-radius:10px;padding:12px 14px;margin-bottom:10px}
 .ia-riscos-box{background:#FFFBEB;border:1px solid #FCD34D;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12.5px;color:#92400E}
+/* ══ TOGGLE (interruptor) ══ */
+.toggle-wrap{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px;color:#374151;font-weight:600;user-select:none}
+.toggle-track{position:relative;width:38px;height:21px;border-radius:20px;background:#CBD5E1;transition:background .15s;flex-shrink:0}
+.toggle-track.on{background:#145653}
+.toggle-knob{position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.toggle-track.on .toggle-knob{left:19px}
