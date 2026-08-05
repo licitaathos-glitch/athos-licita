@@ -105,7 +105,7 @@ export default function CalendarioGeral({ compacto = false }) {
 
     ;(dados.manuais || []).filter(m => !empresaSel || !m.empresaId || m.empresaId === empresaSel).forEach(m => {
       if (m.data) ev.push({ id: m.id, data: m.data, tipo: 'manual', titulo: m.titulo,
-        detalhe: m.descricao || '', empresa: m.empresaNome, manual: m })
+        detalhe: m.descricao || '', empresa: m.empresaNome, manual: m, licitacaoId: m.licitacaoId || '' })
     })
 
     return ev.filter(e => visiveis.includes(e.tipo))
@@ -120,6 +120,16 @@ export default function CalendarioGeral({ compacto = false }) {
   const proximos = useMemo(() => {
     const h = hojeISO()
     return eventos.filter(e => e.data >= h).sort((a, b) => a.data.localeCompare(b.data)).slice(0, 12)
+  }, [eventos])
+
+  // O que aconteceu nos últimos dias — para "o que eu fiz/o que venceu
+  // recentemente", sem precisar navegar mês a mês pra trás
+  const recentes = useMemo(() => {
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0)
+    const limite = new Date(hoje); limite.setDate(limite.getDate() - 6)
+    const limiteISO = limite.toISOString().slice(0, 10)
+    const h = hojeISO()
+    return eventos.filter(e => e.data < h && e.data >= limiteISO).sort((a, b) => b.data.localeCompare(a.data)).slice(0, 10)
   }, [eventos])
 
   if (erro) return <div style={{ padding: 40, textAlign: 'center', color: '#DC2626' }}>{erro}</div>
@@ -197,10 +207,11 @@ export default function CalendarioGeral({ compacto = false }) {
                   <div className="cal-ev" key={j} style={{ background: TIPOS[e.tipo].bg, color: TIPOS[e.tipo].cor, cursor: 'pointer' }}
                     onClick={ev => {
                       ev.stopPropagation()
-                      if (e.tipo === 'manual') setModalEvento(e.manual)
+                      if (e.tipo === 'manual' && !e.licitacaoId) setModalEvento(e.manual)
+                      else if (e.tipo === 'manual') window.location.href = '/dashboard/licitacoes?id=' + e.licitacaoId
                       else window.location.href = TIPOS[e.tipo].href + (e.id ? '?id=' + e.id : '')
                     }}
-                    title={e.titulo + ' — ' + (e.extra || '')}>
+                    title={(e.empresa ? e.empresa + ' — ' : '') + e.titulo + (e.extra ? ' — ' + e.extra : '')}>
                     {TIPOS[e.tipo].ico} {e.titulo}
                   </div>
                 ))}
@@ -223,6 +234,15 @@ export default function CalendarioGeral({ compacto = false }) {
         </div>
       )}
 
+      {recentes.length > 0 && (
+        <>
+          <div style={{ margin: '22px 0 12px', fontSize: 14, fontWeight: 700, color: '#145653' }}>
+            🕓 Últimos dias
+          </div>
+          {recentes.map((e, i) => <LinhaEvento e={e} key={i} mostrarData onEditarManual={setModalEvento} />)}
+        </>
+      )}
+
       <div style={{ margin: '22px 0 12px', fontSize: 14, fontWeight: 700, color: '#145653' }}>
         ⏰ Próximos compromissos
       </div>
@@ -242,27 +262,33 @@ export default function CalendarioGeral({ compacto = false }) {
 
 function LinhaEvento({ e, mostrarData, onEditarManual }) {
   const t = TIPOS[e.tipo]
+  const icone = e.manual?.tipoEvento === 'suspensao' ? '⏸' : t.ico
   const dd = diasEntre(e.data)
-  const urgente = dd !== null && dd <= 3
+  const urgente = dd !== null && dd >= 0 && dd <= 3
+  const textoPrazo = dd === null ? '' : dd === 0 ? 'hoje' : dd === 1 ? 'amanhã' : dd === -1 ? 'ontem'
+    : dd < 0 ? `há ${Math.abs(dd)}d` : `em ${dd}d`
   return (
     <div className="ev-linha" style={{ borderLeftColor: t.cor }}>
-      <span className="ev-ico" style={{ background: t.bg }}>{t.ico}</span>
+      <span className="ev-ico" style={{ background: t.bg }}>{icone}</span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="ev-titulo">{e.titulo}</div>
+        <div className="ev-titulo">
+          {e.empresa && <span className="ev-empresa-chip">{e.empresa}</span>}
+          {e.titulo}
+        </div>
         {e.detalhe && <div className="ev-detalhe">{e.detalhe}</div>}
         <div className="ev-meta">
-          {t.rotulo}{e.extra ? ' · ' + e.extra : ''}{e.empresa ? ' · ' + e.empresa : ''}
+          {t.rotulo}{e.extra ? ' · ' + e.extra : ''}
         </div>
       </div>
       <div style={{ display: 'flex', gap: 7, alignItems: 'center', flexShrink: 0 }}>
         {e.badge && <span className="pill pill-gray">{e.badge}</span>}
         {mostrarData && (
-          <span className={'ev-prazo' + (urgente ? ' urg' : '')}>
-            {dd === 0 ? 'hoje' : dd === 1 ? 'amanhã' : `em ${dd}d`}
-          </span>
+          <span className={'ev-prazo' + (urgente ? ' urg' : '')}>{textoPrazo}</span>
         )}
         {e.tipo === 'manual'
-          ? <button className="iBtn" onClick={() => onEditarManual(e.manual)}>editar</button>
+          ? (e.licitacaoId
+              ? <Link href={'/dashboard/licitacoes?id=' + e.licitacaoId} className="iBtn">📄 abrir licitação</Link>
+              : <button className="iBtn" onClick={() => onEditarManual(e.manual)}>editar</button>)
           : <Link href={t.href + (e.id ? '?id=' + e.id : '')} className="iBtn">abrir</Link>}
       </div>
     </div>

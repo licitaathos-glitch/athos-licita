@@ -3,7 +3,7 @@ import { lerAba, adicionarLinha, atualizarLinha, excluirLinha, garantirAba } fro
 import { getUsuarioFromReq, podeEditar, empresasVisiveis } from '@/lib/auth'
 import { novoId } from '@/lib/uuid'
 
-const COLS = ['id', 'empresaId', 'empresaNome', 'titulo', 'data', 'descricao', 'criadoPor', 'criadoEm']
+const COLS = ['id', 'empresaId', 'empresaNome', 'titulo', 'data', 'descricao', 'licitacaoId', 'licitacaoEdital', 'tipoEvento', 'criadoPor', 'criadoEm']
 
 export async function GET(req) {
   const usuario = await getUsuarioFromReq(req)
@@ -20,6 +20,8 @@ export async function GET(req) {
       .map(e => ({
         id: e.id, empresaId: e.empresaId || '', empresaNome: e.empresaNome || '',
         titulo: e.titulo || '', data: e.data || '', descricao: e.descricao || '',
+        licitacaoId: e.licitacaoId || '', licitacaoEdital: e.licitacaoEdital || '',
+        tipoEvento: e.tipoEvento || '',
       }))
     return NextResponse.json({ sucesso: true, eventos })
   } catch (e) {
@@ -33,7 +35,7 @@ export async function POST(req) {
   if (!podeEditar(usuario)) return NextResponse.json({ sucesso: false, erro: 'Seu perfil é somente consulta.' }, { status: 403 })
 
   try {
-    const { id, empresaId, titulo, data, descricao } = await req.json()
+    const { id, empresaId, titulo, data, descricao, licitacaoId, licitacaoEdital, tipoEvento } = await req.json()
     if (!titulo || !data) return NextResponse.json({ sucesso: false, erro: 'Título e data são obrigatórios.' })
 
     await garantirAba('EventosCalendario', COLS)
@@ -48,13 +50,17 @@ export async function POST(req) {
     }
 
     if (id) {
-      const r = await atualizarLinha('EventosCalendario', 'id', id, { empresaId: empresaId || '', empresaNome, titulo, data, descricao: descricao || '' })
+      const r = await atualizarLinha('EventosCalendario', 'id', id, {
+        empresaId: empresaId || '', empresaNome, titulo, data, descricao: descricao || '',
+        licitacaoId: licitacaoId || '', licitacaoEdital: licitacaoEdital || '', tipoEvento: tipoEvento || '',
+      })
       if (!r.ok) return NextResponse.json({ sucesso: false, erro: r.erro })
       return NextResponse.json({ sucesso: true, id })
     }
     const novoIdGerado = novoId()
     const r = await adicionarLinha('EventosCalendario', {
       id: novoIdGerado, empresaId: empresaId || '', empresaNome, titulo, data, descricao: descricao || '',
+      licitacaoId: licitacaoId || '', licitacaoEdital: licitacaoEdital || '', tipoEvento: tipoEvento || '',
       criadoPor: usuario.email || usuario.nome || '', criadoEm: new Date().toISOString(),
     })
     if (!r.ok) return NextResponse.json({ sucesso: false, erro: r.erro })

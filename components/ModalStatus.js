@@ -74,6 +74,45 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
   const chkDecidir = v => setFase(v === 'Sim' ? 'Inscricao' : v === 'Não' ? 'Descartado' : 'Em analise')
   const chkDecisaoAtual = fase === 'Inscricao' ? 'Sim' : fase === 'Descartado' ? 'Não' : 'Pendente'
 
+  // ── Suspensão da sessão: registra e já cria o evento no calendário ──
+  const [suspensaoAberta, setSuspensaoAberta] = useState(false)
+  const [dataRetorno, setDataRetorno] = useState('')
+  const [obsSuspensao, setObsSuspensao] = useState('')
+  const [salvandoSuspensao, setSalvandoSuspensao] = useState(false)
+  const [avisoSuspensao, setAvisoSuspensao] = useState('')
+
+  async function registrarSuspensao() {
+    if (!dataRetorno) { setAvisoSuspensao('Informe a data e hora prevista de retorno.'); return }
+    setSalvandoSuspensao(true); setAvisoSuspensao('')
+    try {
+      const [dataParte, horaParte] = dataRetorno.split('T')
+      const [ano, mesN, dia] = dataParte.split('-')
+      const dataSessaoBR = `${dia}/${mesN}/${ano} ${horaParte || '00:00'}`
+
+      const ev = await fetch('/api/calendario/eventos', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          titulo: '↩ Retorno: ' + (lic.numeroEdital || 'licitação') + ' (suspensa)',
+          data: dataParte,
+          descricao: obsSuspensao || 'Sessão suspensa — aguardando retorno.',
+          empresaId: lic.empresa_id, licitacaoId: lic.id, licitacaoEdital: lic.numeroEdital, tipoEvento: 'suspensao',
+        }),
+      }).then(x => x.json())
+      if (!ev.sucesso) { setAvisoSuspensao(ev.erro || 'Erro ao criar o evento no calendário.'); setSalvandoSuspensao(false); return }
+
+      await fetch('/api/licitacoes', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: lic.id, empresa_id: lic.empresa_id, objeto: lic.objeto, status: 'Suspensa', dataSessao: dataSessaoBR }),
+      })
+      set('dataSessao', dataSessaoBR)
+      setAvisoSuspensao('✅ Suspensão registrada — evento criado no calendário e status da licitação atualizado para "Suspensa".')
+      setDataRetorno(''); setObsSuspensao(''); setSuspensaoAberta(false)
+    } catch {
+      setAvisoSuspensao('Erro de conexão.')
+    }
+    setSalvandoSuspensao(false)
+  }
+
   const [anexoLocal, setAnexoLocal] = useState({ id: lic.anexoDriveId || '', url: lic.anexoDriveUrl || '', nome: '' })
   const temAnexo = !!(anexoLocal.id)
   const [arquivosEdital, setArquivosEdital] = useState(null)
@@ -492,6 +531,33 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                 Chegando esse horário, a licitação passa sozinha para "Fase de lances".
                 Em branco, vale o limite da proposta ({lic.dataLimite || 'não informado'}).
               </p>
+            </div>
+          )}
+
+          {['Aguardando', 'Disputa'].includes(fase) && (
+            <div className="form-sub">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={{ margin: 0 }}>⏸ Sessão suspensa?</label>
+                <button className="iBtn" onClick={() => setSuspensaoAberta(a => !a)}>
+                  {suspensaoAberta ? 'Fechar' : '+ Registrar suspensão'}
+                </button>
+              </div>
+              {suspensaoAberta && (
+                <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 10, padding: 12, marginTop: 8 }}>
+                  <p className="dica-menus" style={{ marginTop: 0 }}>
+                    Registra a suspensão, muda o status da licitação para "Suspensa" e já cria um lembrete no calendário
+                    para o dia do retorno — sem precisar criar o evento manualmente.
+                  </p>
+                  <label className="mini-lbl">DATA E HORA PREVISTA DE RETORNO</label>
+                  <input type="datetime-local" value={dataRetorno} onChange={e => setDataRetorno(e.target.value)} />
+                  <label className="mini-lbl" style={{ marginTop: 8, display: 'block' }}>OBSERVAÇÃO (opcional)</label>
+                  <textarea rows={2} value={obsSuspensao} onChange={e => setObsSuspensao(e.target.value)} placeholder="Motivo da suspensão, o que precisa ser resolvido..." />
+                  {avisoSuspensao && <p style={{ fontSize: 12, marginTop: 8, color: avisoSuspensao.startsWith('✅') ? '#166534' : '#B45309' }}>{avisoSuspensao}</p>}
+                  <button className="iBtn iBtn-up" style={{ marginTop: 8 }} onClick={registrarSuspensao} disabled={salvandoSuspensao}>
+                    {salvandoSuspensao ? 'Registrando...' : '⏸ Registrar suspensão e criar evento'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
