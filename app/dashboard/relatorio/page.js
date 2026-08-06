@@ -12,21 +12,14 @@ const brl = v => v ? 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFraction
 // Nunca usar dataAbertura sozinha — ela só marca o início do prazo.
 const dataRef = l => l.dataSessao || l.dataLimite || l.dataAbertura
 
-// Totais por itens marcados como "participando", no mesmo cálculo usado na
-// tela de acesso à licitação (Andamento): valor estimado desses itens e o
-// valor com que de fato disputamos/vencemos (considerando forma "desconto").
-function totaisItensParticipando(itens) {
-  const arr = Array.isArray(itens) ? itens : []
-  const marcados = arr.filter(it => it.participar)
-  const precoEfetivo = it => {
-    const estimado = Number(it.valorUnitarioRef) || 0
-    const v = Number(it.meuValor) || 0
-    return it.formaValor === 'desconto' ? estimado * (1 - v / 100) : v
-  }
-  return {
-    estimadoParticipando: marcados.reduce((s, it) => s + (Number(it.quantidade) || 0) * (Number(it.valorUnitarioRef) || 0), 0),
-    nossoParticipando: marcados.reduce((s, it) => s + (Number(it.quantidade) || 0) * precoEfetivo(it), 0),
-  }
+// Valor com que efetivamente vencemos um item: o lance final registrado na
+// fase "Finalizada", ou o valor mínimo proposto (convertendo % de desconto
+// pro preço equivalente, quando for o caso).
+const valorVencidoItem = it => {
+  if (it.lanceFinal) return Number(it.lanceFinal) || 0
+  const estimado = Number(it.valorUnitarioRef) || 0
+  const v = Number(it.meuValor) || 0
+  return it.formaValor === 'desconto' ? estimado * (1 - v / 100) : v
 }
 
 export default function RelatorioPage() {
@@ -220,15 +213,20 @@ export default function RelatorioPage() {
                       {l.colocacao && <> · Nossa colocação: {l.colocacao}º</>}
                     </div>
                   )}
-                  {l.resultado === 'Ganhamos' && l.itens?.some(it => it.participar) && (() => {
-                    const t = totaisItensParticipando(l.itens)
-                    return (
-                      <div className="rel-lic-disputa">
-                        Valor estimado (itens participando): <strong>{brl(t.estimadoParticipando)}</strong>
-                        {' · '}Valor que vencemos (itens participando): <strong>{brl(t.nossoParticipando)}</strong>
-                      </div>
-                    )
-                  })()}
+                  {l.resultado === 'Ganhamos' && l.itens?.some(it => it.participar) && (
+                    <table className="rel-tabela" style={{ marginTop: 6 }}>
+                      <thead><tr><th>Item</th><th style={{ textAlign: 'right' }}>Vl. estimado</th><th style={{ textAlign: 'right' }}>Valor que vencemos</th></tr></thead>
+                      <tbody>
+                        {l.itens.filter(it => it.participar).map((it, i) => (
+                          <tr key={i}>
+                            <td style={{ maxWidth: 320 }}>{it.descricao}</td>
+                            <td style={{ textAlign: 'right' }}>{it.valorUnitarioRef ? brl(it.valorUnitarioRef) : 'Sigiloso'}</td>
+                            <td style={{ textAlign: 'right' }}>{brl(valorVencidoItem(it))}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
                   {l.motivo && <div className="rel-lic-motivo">Motivo: {l.motivo}</div>}
                   {l.observacaoDisputa && <div className="rel-lic-obs">{l.observacaoDisputa}</div>}
                 </div>
@@ -261,12 +259,13 @@ export default function RelatorioPage() {
             <>
               <h2 className="rel-h2">5. Em andamento (até {rotuloMes})</h2>
               <table className="rel-tabela">
-                <thead><tr><th>Edital</th><th>Órgão</th><th>Sessão</th><th style={{ textAlign: 'right' }}>Estimado</th><th>Observações</th></tr></thead>
+                <thead><tr><th>Edital</th><th>Órgão</th><th>Objeto</th><th>Sessão</th><th style={{ textAlign: 'right' }}>Estimado</th><th>Observações</th></tr></thead>
                 <tbody>
                   {rel.aguardando.map(l => (
                     <tr key={l.id}>
                       <td>{l.numeroEdital || '—'}</td>
                       <td style={{ maxWidth: 260 }}>{l.orgao}</td>
+                      <td style={{ maxWidth: 280 }}>{l.objeto || '—'}</td>
                       <td>{(dataRef(l) || '').split(' ')[0] || '—'}</td>
                       <td style={{ textAlign: 'right' }}>{l.valor || '—'}</td>
                       <td>{l.observacaoDisputa || '—'}</td>

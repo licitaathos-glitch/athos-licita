@@ -487,7 +487,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                           <td>{it.quantidade || '—'}</td>
                           <td>{it.unidade || '—'}</td>
                           <td style={{ color: '#64748B' }}>
-                            {it.valorUnitarioRef ? moeda(it.valorUnitarioRef) : '—'}
+                            {it.valorUnitarioRef ? moeda(it.valorUnitarioRef) : 'Sigiloso'}
                           </td>
                           <td>
                             <input type="number" step="0.01" value={it.meuValor}
