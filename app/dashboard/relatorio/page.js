@@ -58,10 +58,19 @@ export default function RelatorioPage() {
 
     const comDesfecho = l => l.resultado && l.resultado !== 'Aguardando'
 
-    // "Oportunidades analisadas" são todas as licitações do mês do relatório
-    // (pela sessão/limite/abertura, o que estiver disponível) — tiveram
-    // desfecho já ou não.
-    const lics = todasDaEmpresa.filter(l => mesDe(dataRef(l)) === mes)
+    // Para quem já tem desfecho, o mês do relatório é definido pela DATA DE
+    // HOMOLOGAÇÃO (é o campo que a própria tela de Andamento explica: "é o
+    // mês em que a licitação entra no relatório, não o mês em que foi
+    // aberta"). Só cai pra sessão/limite/abertura se não tiver homologação
+    // registrada (ex: "Não participamos", que não passa por homologação).
+    const mesDoDesfecho = l => mesDe(l.dataHomologacao) || mesDe(dataRef(l))
+
+    // "Oportunidades analisadas" = o que teve desfecho neste mês (pela
+    // homologação) + o que ainda está pendente com sessão/limite/abertura
+    // neste mês — ou seja, todo mundo que fez parte do trabalho do mês.
+    const decididasNoMes = todasDaEmpresa.filter(l => comDesfecho(l) && mesDoDesfecho(l) === mes)
+    const pendentesNoMes = todasDaEmpresa.filter(l => !comDesfecho(l) && mesDe(dataRef(l)) === mes)
+    const lics = [...decididasNoMes, ...pendentesNoMes]
 
     // O "em andamento" mostra o que ainda está sem desfecho até o último dia
     // do mês do relatório (olhando pra trás) — nunca usa a data de hoje,
