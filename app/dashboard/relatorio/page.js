@@ -7,6 +7,28 @@ import { fmtBRL } from '@/lib/comercial'
 const MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro']
 const brl = v => v ? 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '—'
 
+// Data que de fato representa "quando" a licitação acontece: a sessão, se
+// já tiver sido ajustada; senão o limite da proposta; senão a abertura.
+// Nunca usar dataAbertura sozinha — ela só marca o início do prazo.
+const dataRef = l => l.dataSessao || l.dataLimite || l.dataAbertura
+
+// Totais por itens marcados como "participando", no mesmo cálculo usado na
+// tela de acesso à licitação (Andamento): valor estimado desses itens e o
+// valor com que de fato disputamos/vencemos (considerando forma "desconto").
+function totaisItensParticipando(itens) {
+  const arr = Array.isArray(itens) ? itens : []
+  const marcados = arr.filter(it => it.participar)
+  const precoEfetivo = it => {
+    const estimado = Number(it.valorUnitarioRef) || 0
+    const v = Number(it.meuValor) || 0
+    return it.formaValor === 'desconto' ? estimado * (1 - v / 100) : v
+  }
+  return {
+    estimadoParticipando: marcados.reduce((s, it) => s + (Number(it.quantidade) || 0) * (Number(it.valorUnitarioRef) || 0), 0),
+    nossoParticipando: marcados.reduce((s, it) => s + (Number(it.quantidade) || 0) * precoEfetivo(it), 0),
+  }
+}
+
 export default function RelatorioPage() {
   const { empresaAtual, empresas } = useApp()
   const hoje = new Date()
@@ -18,10 +40,9 @@ export default function RelatorioPage() {
     Promise.all([
       fetch('/api/licitacoes').then(r => r.json()),
       fetch('/api/empenhos').then(r => r.json()),
-      fetch('/api/certidoes').then(r => r.json()),
-    ]).then(([l, e, c]) => {
+    ]).then(([l, e]) => {
       if (!l.sucesso) { setErro(l.erro || 'Erro ao carregar.'); return }
-      setDados({ lics: l.licitacoes, empenhos: e.sucesso ? e.empenhos : [], certidoes: c.sucesso ? c.certidoes : [] })
+      setDados({ lics: l.licitacoes, empenhos: e.sucesso ? e.empenhos : [] })
     }).catch(() => setErro('Erro de conexão.'))
   }, [])
 
@@ -35,40 +56,36 @@ export default function RelatorioPage() {
     const todasDaEmpresa = dados.lics.filter(l => l.empresa_id === empresaSel)
     const empenhos = dados.empenhos.filter(e => e.empresa_id === empresaSel && mesDe(e.dataEmpenho) === mes)
 
-    // O que teve desfecho (ganhou/perdeu/não participou/etc.) entra no mês em
-    // que isso aconteceu — pela data de homologação quando ela existir,
-    // senão pela data de abertura (registros antigos, sem homologação).
     const comDesfecho = l => l.resultado && l.resultado !== 'Aguardando'
-    const mesDoDesfecho = l => mesDe(l.dataHomologacao) || mesDe(l.dataAbertura)
-    const lics = todasDaEmpresa.filter(l => comDesfecho(l) && mesDoDesfecho(l) === mes)
 
-    // O que ainda está em andamento (sem desfecho) aparece sempre, em
-    // qualquer mês do relatório — não importa quando foi aberta, porque
-    // continua sendo trabalho em curso agora
-    const aguardando = todasDaEmpresa.filter(l => !comDesfecho(l))
+    // "Oportunidades analisadas" são todas as licitações do mês do relatório
+    // (pela sessão/limite/abertura, o que estiver disponível) — tiveram
+    // desfecho já ou não.
+    const lics = todasDaEmpresa.filter(l => mesDe(dataRef(l)) === mes)
+
+    // O "em andamento" mostra o que ainda está sem desfecho até o último dia
+    // do mês do relatório (olhando pra trás) — nunca usa a data de hoje,
+    // porque o relatório pode ser gerado bem depois do mês em questão. Isso
+    // deixa de fora sessões futuras já agendadas além do mês do relatório.
+    const aguardando = todasDaEmpresa.filter(l => {
+      if (comDesfecho(l)) return false
+      const m = mesDe(dataRef(l))
+      return !m || m <= mes
+    })
 
     const disputadas = lics.filter(l => ['Ganhamos', 'Perdemos', 'Desclassificados'].includes(l.resultado))
     const ganhas = lics.filter(l => l.resultado === 'Ganhamos')
     const perdidas = lics.filter(l => ['Perdemos', 'Desclassificados'].includes(l.resultado))
     const naoParticipamos = lics.filter(l => l.resultado === 'Nao participamos')
 
-    // Agrupa os motivos de não participação
-    const motivos = {}
-    naoParticipamos.forEach(l => {
-      const k = l.motivo || 'Não informado'
-      motivos[k] = (motivos[k] || 0) + 1
-    })
-
     const taxa = disputadas.length ? (ganhas.length / disputadas.length) * 100 : 0
 
     return {
       lics, disputadas, ganhas, perdidas, naoParticipamos, aguardando,
-      motivos: Object.entries(motivos).sort((a, b) => b[1] - a[1]),
       taxa,
       faturamento: empenhos.reduce((s, e) => s + e.faturamento, 0),
       receita: empenhos.reduce((s, e) => s + e.receita, 0),
       empenhos,
-      certVencendo: dados.certidoes.filter(c => c.empresa_id === empresaSel && (c.status === 'bad' || c.status === 'warn')),
     }
   }, [dados, empresaSel, mes])
 
@@ -183,7 +200,7 @@ export default function RelatorioPage() {
                     <span style={{ color: corResultado(l.resultado) }}>{nomeResultado(l.resultado)}</span>
                   </div>
                   <div className="rel-lic-meta">
-                    {l.modalidade}{l.portal ? ' · ' + l.portal : ''}{l.dataAbertura ? ' · sessão em ' + l.dataAbertura.split(' ')[0] : ''}
+                    {l.modalidade}{l.portal ? ' · ' + l.portal : ''}{dataRef(l) ? ' · sessão em ' + dataRef(l).split(' ')[0] : ''}
                     {l.valor ? ' · estimado ' + l.valor : ''}
                   </div>
                   {l.objeto && <div className="rel-lic-obj">{l.objeto}</div>}
@@ -194,6 +211,15 @@ export default function RelatorioPage() {
                       {l.colocacao && <> · Nossa colocação: {l.colocacao}º</>}
                     </div>
                   )}
+                  {l.resultado === 'Ganhamos' && l.itens?.some(it => it.participar) && (() => {
+                    const t = totaisItensParticipando(l.itens)
+                    return (
+                      <div className="rel-lic-disputa">
+                        Valor estimado (itens participando): <strong>{brl(t.estimadoParticipando)}</strong>
+                        {' · '}Valor que vencemos (itens participando): <strong>{brl(t.nossoParticipando)}</strong>
+                      </div>
+                    )
+                  })()}
                   {l.motivo && <div className="rel-lic-motivo">Motivo: {l.motivo}</div>}
                   {l.observacaoDisputa && <div className="rel-lic-obs">{l.observacaoDisputa}</div>}
                 </div>
@@ -205,15 +231,7 @@ export default function RelatorioPage() {
             <>
               <h2 className="rel-h2">4. Oportunidades analisadas e não disputadas</h2>
               <table className="rel-tabela">
-                <thead><tr><th>Motivo</th><th style={{ textAlign: 'right' }}>Quantidade</th></tr></thead>
-                <tbody>
-                  {rel.motivos.map(([m, q]) => (
-                    <tr key={m}><td>{m}</td><td style={{ textAlign: 'right' }}>{q}</td></tr>
-                  ))}
-                </tbody>
-              </table>
-              <table className="rel-tabela" style={{ marginTop: 10 }}>
-                <thead><tr><th>Edital</th><th>Órgão</th><th>UF</th><th style={{ textAlign: 'right' }}>Estimado</th><th>Motivo</th></tr></thead>
+                <thead><tr><th>Edital</th><th>Órgão</th><th>UF</th><th style={{ textAlign: 'right' }}>Estimado</th><th>Motivo</th><th>Observações</th></tr></thead>
                 <tbody>
                   {rel.naoParticipamos.map(l => (
                     <tr key={l.id}>
@@ -222,6 +240,7 @@ export default function RelatorioPage() {
                       <td>{l.uf}</td>
                       <td style={{ textAlign: 'right' }}>{l.valor || '—'}</td>
                       <td>{l.motivo || '—'}</td>
+                      <td>{l.observacaoDisputa || '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -231,36 +250,17 @@ export default function RelatorioPage() {
 
           {rel.aguardando.length > 0 && (
             <>
-              <h2 className="rel-h2">5. Em andamento (posição atual, independente do mês de abertura)</h2>
+              <h2 className="rel-h2">5. Em andamento (até {rotuloMes})</h2>
               <table className="rel-tabela">
-                <thead><tr><th>Edital</th><th>Órgão</th><th>Sessão</th><th style={{ textAlign: 'right' }}>Estimado</th></tr></thead>
+                <thead><tr><th>Edital</th><th>Órgão</th><th>Sessão</th><th style={{ textAlign: 'right' }}>Estimado</th><th>Observações</th></tr></thead>
                 <tbody>
                   {rel.aguardando.map(l => (
                     <tr key={l.id}>
                       <td>{l.numeroEdital || '—'}</td>
                       <td style={{ maxWidth: 260 }}>{l.orgao}</td>
-                      <td>{(l.dataAbertura || '').split(' ')[0] || '—'}</td>
+                      <td>{(dataRef(l) || '').split(' ')[0] || '—'}</td>
                       <td style={{ textAlign: 'right' }}>{l.valor || '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </>
-          )}
-
-          {rel.certVencendo.length > 0 && (
-            <>
-              <h2 className="rel-h2">6. Documentação — atenção</h2>
-              <p className="rel-texto">Os documentos abaixo exigem renovação para não comprometer a habilitação nas próximas disputas:</p>
-              <table className="rel-tabela">
-                <thead><tr><th>Documento</th><th>Validade</th><th>Situação</th></tr></thead>
-                <tbody>
-                  {rel.certVencendo.map(c => (
-                    <tr key={c.id}>
-                      <td>{c.tipo}</td><td>{c.validade || '—'}</td>
-                      <td style={{ color: c.status === 'bad' ? '#DC2626' : '#D97706', fontWeight: 700 }}>
-                        {c.status === 'bad' ? 'Vencida' : 'Vence em ' + c.dias + ' dias'}
-                      </td>
+                      <td>{l.observacaoDisputa || '—'}</td>
                     </tr>
                   ))}
                 </tbody>
