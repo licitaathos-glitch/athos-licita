@@ -74,7 +74,7 @@ export async function POST(req) {
         assunto: `Pedido de cotação — ${numeroEdital || 'licitação'} (${empresa.nome})`,
         htmlBody: html,
       })
-      if (!env || env.sucesso === false) avisoEmail = (env && env.erro) || 'Não foi possível enviar o e-mail.'
+      if (!env || env.sucesso === false || env.erro) avisoEmail = (env && env.erro) || 'Não foi possível enviar o e-mail.'
     } catch (e) {
       avisoEmail = 'O pedido foi salvo, mas o e-mail não pôde ser enviado: ' + e.message
     }

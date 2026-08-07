@@ -61,7 +61,7 @@ export async function POST(req) {
     let avisoEmail = null
     try {
       const env = await chamarGAS({ action: 'enviarBoasVindas', email, nome, pin, perfil })
-      if (!env || env.sucesso === false) {
+      if (!env || env.sucesso === false || env.erro) {
         avisoEmail = (env && (env.erro || env.mensagem)) || 'Não foi possível enviar o e-mail.'
       }
     } catch (e) {
@@ -140,7 +140,7 @@ export async function PUT(req) {
           action: 'enviarBoasVindas',
           email: alvo.email, nome: nome || alvo.nome, pin: novoPin, perfil: perfil || alvo.perfil,
         })
-        if (!env || env.sucesso === false) avisoEmail = (env && env.erro) || 'E-mail não enviado.'
+        if (!env || env.sucesso === false || env.erro) avisoEmail = (env && env.erro) || 'E-mail não enviado.'
       } catch (e) { avisoEmail = e.message }
     }
 
