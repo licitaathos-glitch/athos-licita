@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { FASES, normalizarFase } from '@/lib/fases'
 import { nomeResultado, corResultado } from '@/lib/resultado'
 import { corStatus, nomeStatus } from '@/lib/statusLicitacao'
@@ -19,9 +19,19 @@ function diasAte(v) {
 export default function ListaLicitacoes({
   licitacoes, somenteConsulta, onMover, onStatus, onEditar, onExcluir,
   planas = false, // true = mostra tudo junto, sem abas (usada pela visão "Lista")
+  abrirId = null, // vindo do calendário: já abre essa licitação direto, sem passar pela lista
 }) {
   const [faseAtiva, setFaseAtiva] = useState(FASES[0].id)
   const [aberta, setAberta] = useState(null)
+
+  // Vindo do calendário (clique num evento de sessão/prazo/evento manual):
+  // abre a licitação direto, já na aba da fase certa.
+  useEffect(() => {
+    if (!abrirId) return
+    setAberta(abrirId)
+    const l = licitacoes.find(x => x.id === abrirId)
+    if (l) setFaseAtiva(normalizarFase(l.fase || 'Em analise'))
+  }, [abrirId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const porFase = {}
   FASES.forEach(f => { porFase[f.id] = [] })

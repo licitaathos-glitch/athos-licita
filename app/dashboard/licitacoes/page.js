@@ -37,7 +37,6 @@ function LicitacoesConteudo() {
   const [filtroFase, setFiltroFase] = useState('')
   const [filtroOrgao, setFiltroOrgao] = useState('')
   const [filtroData, setFiltroData] = useState('')
-  const [aberta, setAberta] = useState(null)
   const [editando, setEditando] = useState(null)
   const [modalStatus, setModalStatus] = useState(null)
   const [vista, setVista] = useState('fases')
@@ -52,14 +51,6 @@ function LicitacoesConteudo() {
   }, [])
 
   useEffect(() => { carregar() }, [carregar])
-
-  // Vindo do calendário, já abre a licitação correspondente
-  useEffect(() => {
-    if (idDaUrl && lics?.some(l => l.id === idDaUrl)) {
-      setAberta(idDaUrl)
-      setVista('lista')
-    }
-  }, [idDaUrl, lics])
 
   if (erro) return <div style={{ padding: 40, textAlign: 'center', color: '#DC2626' }}>{erro}</div>
   if (!lics) return <div style={{ padding: 40, textAlign: 'center', color: '#64748B' }}>Carregando...</div>
@@ -206,6 +197,7 @@ function LicitacoesConteudo() {
           onStatus={setModalStatus}
           onEditar={setEditando}
           onExcluir={excluir}
+          abrirId={idDaUrl}
         />
       )}
 
@@ -219,6 +211,7 @@ function LicitacoesConteudo() {
           onStatus={setModalStatus}
           onEditar={setEditando}
           onExcluir={excluir}
+          abrirId={idDaUrl}
           planas
         />
       )}

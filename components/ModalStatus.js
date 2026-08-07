@@ -95,9 +95,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
     if (tipoEvento === 'outro' && !tituloEventoCustom.trim()) { setAvisoEvento('Dê um título para o evento.'); return }
     setSalvandoEvento(true); setAvisoEvento('')
     try {
-      const [dataParte, horaParte] = dataEvento.split('T')
-      const [ano, mesN, dia] = dataParte.split('-')
-      const dataBR = `${dia}/${mesN}/${ano} ${horaParte || '00:00'}`
+      const [dataParte] = dataEvento.split('T')
       const titulo = tipoEvento === 'outro'
         ? `${info.ico} ${tituloEventoCustom.trim()}: ${lic.numeroEdital || 'licitação'}`
         : `${info.ico} ${info.nome.split('(')[0].trim()}: ${lic.numeroEdital || 'licitação'}`
@@ -111,17 +109,16 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
       }).then(x => x.json())
       if (!ev.sucesso) { setAvisoEvento(ev.erro || 'Erro ao criar o evento no calendário.'); setSalvandoEvento(false); return }
 
-      if (info.atualizaSessao) {
+      if (info.statusLic) {
         await fetch('/api/licitacoes', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             id: lic.id, empresa_id: lic.empresa_id, objeto: lic.objeto,
-            dataSessao: dataBR, ...(info.statusLic ? { status: info.statusLic } : {}),
+            status: info.statusLic,
           }),
         })
-        set('dataSessao', dataBR)
       }
-      setAvisoEvento('✅ Evento registrado e adicionado ao calendário.' + (info.atualizaSessao ? ' Data da sessão atualizada.' : ''))
+      setAvisoEvento('✅ Evento registrado e adicionado ao calendário.' + (info.statusLic ? ' Status da licitação atualizado.' : ''))
       setDataEvento(''); setObsEvento(''); setTituloEventoCustom(''); setEventoAberto(false)
     } catch {
       setAvisoEvento('Erro de conexão.')
@@ -564,7 +561,8 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                 <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 10, padding: 12, marginTop: 8 }}>
                   <p className="dica-menus" style={{ marginTop: 0 }}>
                     Registra qualquer evento que aconteça no meio do processo — suspensão, diligência, recurso, reunião etc.
-                    — e já cria um lembrete no calendário. Suspensão e remarcação também atualizam a data da sessão.
+                    — e já cria um lembrete no calendário. A data da sessão não muda sozinha; se precisar corrigir, ajuste
+                    o campo "Data da sessão" ali em cima manualmente. Suspensão marca a licitação como "Suspensa".
                   </p>
                   <label className="mini-lbl">TIPO DE EVENTO</label>
                   <select value={tipoEvento} onChange={e => setTipoEvento(e.target.value)}>
