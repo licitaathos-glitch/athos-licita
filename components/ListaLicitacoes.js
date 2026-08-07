@@ -13,6 +13,24 @@ function diasAte(v) {
   return Math.ceil((d - h) / 86400000)
 }
 
+// Transforma "dd/mm/aaaa hh:mm" em algo comparável (aaaammddhhmm); sem data
+// vai pro fim da lista em ordem crescente e pro início em decrescente.
+function chaveData(v) {
+  const m = String(v || '').match(/(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2}))?/)
+  if (!m) return null
+  return `${m[3]}${m[2]}${m[1]}${m[4] || '00'}${m[5] || '00'}`
+}
+
+function valorNumero(v) {
+  return Number(String(v || '').replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.')) || 0
+}
+
+const COLUNAS_ORDENAVEIS = {
+  sessao: { rotulo: 'Data da sessão', chave: l => chaveData(l.dataSessao || l.dataLimite || l.dataAbertura) },
+  valor: { rotulo: 'Valor estimado', chave: l => valorNumero(l.valor) },
+  itens: { rotulo: 'Itens', chave: l => l.itens?.length || 0 },
+}
+
 // Visão em abas por fase: os processos só aparecem depois de escolher a fase.
 // A visão "Lista" (todas as fases juntas) usa o mesmo componente de linha,
 // em grade fixa — colunas sempre alinhadas, sem quebra de margem.
@@ -23,6 +41,15 @@ export default function ListaLicitacoes({
 }) {
   const [faseAtiva, setFaseAtiva] = useState(FASES[0].id)
   const [aberta, setAberta] = useState(null)
+  // Ordenação estilo Excel: clica na coluna, alterna crescente/decrescente.
+  // Padrão pedido: data da sessão, da mais próxima pra mais distante.
+  const [ordenarPor, setOrdenarPor] = useState('sessao')
+  const [ordemAsc, setOrdemAsc] = useState(true)
+
+  function clicarColuna(campo) {
+    if (ordenarPor === campo) setOrdemAsc(a => !a)
+    else { setOrdenarPor(campo); setOrdemAsc(true) }
+  }
 
   // Vindo do calendário (clique num evento de sessão/prazo/evento manual):
   // abre a licitação direto, já na aba da fase certa.
@@ -40,7 +67,21 @@ export default function ListaLicitacoes({
     if (porFase[f]) porFase[f].push(l)
   })
 
-  const listaAtual = planas ? licitacoes : (porFase[faseAtiva] || [])
+  const chaveOrdem = COLUNAS_ORDENAVEIS[ordenarPor]?.chave || COLUNAS_ORDENAVEIS.sessao.chave
+  function ordenar(lista) {
+    return [...lista].sort((a, b) => {
+      const va = chaveOrdem(a), vb = chaveOrdem(b)
+      const aVazio = va === null || va === undefined || va === ''
+      const bVazio = vb === null || vb === undefined || vb === ''
+      if (aVazio && bVazio) return 0
+      if (aVazio) return 1 // sem data/valor sempre no fim, nas duas ordens
+      if (bVazio) return -1
+      const cmp = va < vb ? -1 : va > vb ? 1 : 0
+      return ordemAsc ? cmp : -cmp
+    })
+  }
+
+  const listaAtual = ordenar(planas ? licitacoes : (porFase[faseAtiva] || []))
 
   return (
     <div>
@@ -67,9 +108,12 @@ export default function ListaLicitacoes({
       {listaAtual.length > 0 && (
         <div className="lic-grid-header">
           <span>Edital / Objeto</span>
-          <span>Data da sessão</span>
-          <span>Valor estimado</span>
-          <span>Itens</span>
+          {['sessao', 'valor', 'itens'].map(campo => (
+            <span key={campo} className="lg-col-ord" onClick={() => clicarColuna(campo)} title="Ordenar">
+              {COLUNAS_ORDENAVEIS[campo].rotulo}
+              <span className="lg-ord-seta">{ordenarPor === campo ? (ordemAsc ? ' ▲' : ' ▼') : ''}</span>
+            </span>
+          ))}
           <span>Fase</span>
           <span>Status</span>
         </div>

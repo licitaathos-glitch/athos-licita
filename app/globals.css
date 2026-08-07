@@ -420,6 +420,9 @@ body{font-family:'Manrope',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-seri
 /* ══ LICITAÇÕES — grade fixa e alinhada (sem quebra de margem) ══ */
 .lic-grid-cols{grid-template-columns:minmax(0,1fr) 130px 120px 60px 150px 150px}
 .lic-grid-header{display:grid;grid-template-columns:minmax(0,1fr) 130px 120px 60px 150px 150px;gap:14px;padding:0 16px 6px;font-size:10.5px;font-weight:700;color:#94A3B8;letter-spacing:.4px;text-transform:uppercase}
+.lg-col-ord{cursor:pointer;user-select:none}
+.lg-col-ord:hover{color:#145653}
+.lg-ord-seta{color:#145653}
 .lic-grid-row{display:grid;grid-template-columns:minmax(0,1fr) 130px 120px 60px 150px 150px;gap:14px;align-items:center;background:#fff;border-radius:12px;padding:12px 16px;box-shadow:0 1px 4px rgba(0,0,0,.07);margin-bottom:8px;cursor:pointer;border-left:4px solid transparent}
 .lic-grid-row:hover{box-shadow:0 4px 14px rgba(0,0,0,.1)}
 .lg-col1{min-width:0}
