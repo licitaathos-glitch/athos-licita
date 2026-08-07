@@ -23,14 +23,25 @@ const statusRelatorio = l => {
   return 'PARTICIPAR'
 }
 
-// Valor com que efetivamente vencemos um item: o lance final registrado na
-// fase "Finalizada", ou o valor mínimo proposto (convertendo % de desconto
-// pro preço equivalente, quando for o caso).
+// Valor com que efetivamente disputamos um item (ganhando ou perdendo): o
+// lance final registrado na fase "Finalizada", ou o valor mínimo proposto
+// (convertendo % de desconto pro preço equivalente, quando for o caso).
 const valorVencidoItem = it => {
   if (it.lanceFinal) return Number(it.lanceFinal) || 0
   const estimado = Number(it.valorUnitarioRef) || 0
   const v = Number(it.meuValor) || 0
   return it.formaValor === 'desconto' ? estimado * (1 - v / 100) : v
+}
+
+// Valor da nossa proposta pra licitação inteira — soma dos itens
+// participando quando há itens cadastrados, senão o campo único de lance
+// (nossoLance), usado tanto pra vitórias quanto pra derrotas.
+const valorNossoTotal = l => {
+  const marcados = (l.itens || []).filter(it => it.participar)
+  if (marcados.length) {
+    return marcados.reduce((s, it) => s + (Number(it.quantidade) || 0) * valorVencidoItem(it), 0)
+  }
+  return Number(l.nossoLance) || 0
 }
 
 export default function RelatorioPage() {
@@ -171,27 +182,9 @@ export default function RelatorioPage() {
             </div>
           </div>
 
-          <h2 className="rel-h2">1. Resumo executivo</h2>
-          <div className="rel-kpis">
-            <div><strong>{rel.lics.length}</strong><span>oportunidades analisadas</span></div>
-            <div><strong>{rel.disputadas.length}</strong><span>processos disputados</span></div>
-            <div><strong>{rel.ganhas.length}</strong><span>vitórias</span></div>
-            <div><strong>{rel.taxa.toFixed(0)}%</strong><span>taxa de sucesso</span></div>
-          </div>
-
-          <p className="rel-texto">
-            No período de referência foram identificadas e analisadas <strong>{rel.lics.length} oportunidades</strong> aderentes
-            ao perfil da {empresa?.nome}. Dessas, participamos de <strong>{rel.disputadas.length} processo{rel.disputadas.length !== 1 ? 's' : ''}</strong>
-            {rel.ganhas.length > 0
-              ? <>, com <strong>{rel.ganhas.length} vitória{rel.ganhas.length !== 1 ? 's' : ''}</strong>.</>
-              : rel.disputadas.length > 0 ? <>, sem vitórias no período.</> : <>.</>}
-            {rel.naoParticipamos.length > 0 && <> As demais <strong>{rel.naoParticipamos.length}</strong> não foram disputadas por motivos técnicos e comerciais objetivos, detalhados abaixo.</>}
-            {rel.aguardando.length > 0 && <> Há <strong>{rel.aguardando.length}</strong> processo{rel.aguardando.length !== 1 ? 's' : ''} ainda aguardando sessão.</>}
-          </p>
-
           {(rel.faturamento > 0 || rel.receita > 0) && (
             <>
-              <h2 className="rel-h2">2. Resultado financeiro do período</h2>
+              <h2 className="rel-h2">1. Resultado financeiro do período</h2>
               <div className="rel-kpis">
                 <div><strong>{fmtBRL(rel.faturamento)}</strong><span>faturamento empenhado</span></div>
                 <div><strong>{rel.empenhos.length}</strong><span>notas de empenho</span></div>
@@ -216,16 +209,20 @@ export default function RelatorioPage() {
 
           {rel.todasNoRelatorio.length > 0 && (
             <>
-              <h2 className="rel-h2">3. Licitações do período</h2>
+              <h2 className="rel-h2">2. Licitações do período</h2>
               <table className="rel-tabela rel-tabela-larga">
                 <thead>
                   <tr>
                     <th>Data</th><th>Portal</th><th>Edital / Objeto</th><th>UF</th>
-                    <th>Status</th><th>Nº proposta</th><th>Observações</th><th>Link</th>
+                    <th>Status</th><th>Nº proposta</th>
+                    <th style={{ textAlign: 'right' }}>Valor estimado</th><th style={{ textAlign: 'right' }}>Nosso valor</th>
+                    <th>Observações</th><th>Link</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {rel.todasNoRelatorio.map(l => (
+                  {rel.todasNoRelatorio.map(l => {
+                    const nosso = valorNossoTotal(l)
+                    return (
                     <tr key={l.id} style={l.resultado === 'Ganhamos' ? { background: '#DCFCE7' } : undefined}>
                       <td style={{ whiteSpace: 'nowrap' }}>{(dataRef(l) || '').split(' ')[0] || '—'}</td>
                       <td>{l.portal || '—'}</td>
@@ -237,6 +234,8 @@ export default function RelatorioPage() {
                       <td>{l.uf || '—'}</td>
                       <td style={{ fontWeight: 700, color: corResultado(l.resultado) }}>{statusRelatorio(l)}</td>
                       <td>{l.numeroProposta || '—'}</td>
+                      <td style={{ textAlign: 'right' }}>{l.valor || '—'}</td>
+                      <td style={{ textAlign: 'right' }}>{nosso ? brl(nosso) : '—'}</td>
                       <td style={{ maxWidth: 260 }}>
                         {l.motivo && <div>{l.motivo}</div>}
                         {l.observacaoDisputa && <div>{l.observacaoDisputa}</div>}
@@ -244,7 +243,7 @@ export default function RelatorioPage() {
                       </td>
                       <td>{l.link ? <a href={l.link} target="_blank" rel="noreferrer">abrir</a> : '—'}</td>
                     </tr>
-                  ))}
+                  )})}
                 </tbody>
               </table>
             </>
@@ -252,7 +251,7 @@ export default function RelatorioPage() {
 
           {rel.ganhas.length > 0 && (
             <>
-              <h2 className="rel-h2">4. Detalhamento das vitórias</h2>
+              <h2 className="rel-h2">3. Detalhamento das vitórias</h2>
               {rel.ganhas.map(l => (
                 <div className="rel-lic" key={l.id} style={{ borderLeftColor: corResultado(l.resultado) }}>
                   <div className="rel-lic-tit">
