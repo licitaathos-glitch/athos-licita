@@ -90,7 +90,7 @@ export default function ListaLicitacoes({
                 </div>
                 <div className="lic-obj">{l.objeto}</div>
                 <div className="lic-meta">
-                  {l.empresa_nome}{l.orgao ? ' · ' + l.orgao : ''}{l.uf ? '/' + l.uf : ''}
+                  {l.empresa_nome}{l.orgao ? ' · ' + l.orgao : ''}{l.uasg ? ' · UASG ' + l.uasg : ''}{l.uf ? '/' + l.uf : ''}
                   {l.modalidade ? ' · ' + l.modalidade : ''}{l.portal ? ' · ' + l.portal : ''}
                 </div>
                 {l.observacaoDisputa && (

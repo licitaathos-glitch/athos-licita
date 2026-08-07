@@ -74,7 +74,7 @@ function LicitacoesConteudo() {
     if (filtroOrgao && l.orgao !== filtroOrgao) return false
     if (filtroData && dataDaLicISO(l) !== filtroData) return false
     const q = busca.toLowerCase()
-    if (q && ![l.objeto, l.orgao, l.numeroEdital, l.portal, l.uf].join(' ').toLowerCase().includes(q)) return false
+    if (q && ![l.objeto, l.orgao, l.uasg, l.numeroEdital, l.portal, l.uf].join(' ').toLowerCase().includes(q)) return false
     return true
   })
 
@@ -235,7 +235,7 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
   const [extraindo, setExtraindo] = useState(false)
   const [f, setF] = useState({
     objeto: lic.objeto || '', numeroEdital: lic.numeroEdital || '', numeroPNCP: lic.numeroPNCP || '',
-    modalidade: lic.modalidade || '', portal: lic.portal || '', uf: lic.uf || '', orgao: lic.orgao || '',
+    modalidade: lic.modalidade || '', portal: lic.portal || '', uf: lic.uf || '', orgao: lic.orgao || '', uasg: lic.uasg || '',
     valor: lic.valor || '', dataAbertura: brParaInput(lic.dataAbertura), dataLimite: brParaInput(lic.dataLimite),
     srp: lic.srp || 'Não', status: lic.status || 'Aberta', link: lic.link || '',
     anexoDriveId: lic.anexoDriveId || '', anexoDriveUrl: lic.anexoDriveUrl || '',
@@ -298,7 +298,7 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
           ...o,
           objeto: d.objeto || o.objeto, numeroEdital: d.numeroEdital || o.numeroEdital,
           numeroPNCP: d.numeroPNCP || o.numeroPNCP, modalidade: d.modalidade || o.modalidade,
-          portal: d.portal || o.portal, uf: d.uf || o.uf, orgao: d.orgao || o.orgao,
+          portal: d.portal || o.portal, uf: d.uf || o.uf, orgao: d.orgao || o.orgao, uasg: d.uasg || o.uasg,
           valor: d.valorEstimado ? 'R$ ' + Number(d.valorEstimado).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : o.valor,
           dataAbertura: d.dataAberturaISO || o.dataAbertura, dataLimite: d.dataLimiteISO || o.dataLimite,
           srp: d.srp || o.srp, link: d.link || o.link,
@@ -440,6 +440,7 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
               </select>
             </div>
             <div><label className="mini-lbl">ÓRGÃO</label><input value={f.orgao} onChange={e => set('orgao', e.target.value)} /></div>
+            <div><label className="mini-lbl">UASG</label><input value={f.uasg} onChange={e => set('uasg', e.target.value)} placeholder="Código da UASG" /></div>
             <div><label className="mini-lbl">VALOR ESTIMADO</label><input value={f.valor} onChange={e => set('valor', e.target.value)} placeholder="R$ 0,00" /></div>
             <div><label className="mini-lbl">ABERTURA DAS PROPOSTAS</label><input type="datetime-local" value={f.dataAbertura} onChange={e => set('dataAbertura', e.target.value)} /></div>
             <div><label className="mini-lbl">LIMITE DA PROPOSTA</label><input type="datetime-local" value={f.dataLimite} onChange={e => set('dataLimite', e.target.value)} /></div>

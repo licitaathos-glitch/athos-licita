@@ -34,6 +34,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
     colocacao: lic.colocacao || '',
     observacaoDisputa: lic.observacaoDisputa || '',
     dataSessao: lic.dataSessao || '',
+    numeroProposta: lic.numeroProposta || '',
     dataHomologacao: brParaISO(lic.dataHomologacao) || '',
   })
   const [itens, setItens] = useState(() =>
@@ -424,6 +425,18 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                   ))}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* ── Inscrição de proposta: escolher itens e preços ── */}
+          {fase === 'Inscricao' && (
+            <div className="form-sub">
+              <label>Nº DA PROPOSTA NO PORTAL</label>
+              <input value={f.numeroProposta} onChange={e => set('numeroProposta', e.target.value)}
+                placeholder="Ex: 62335" style={{ maxWidth: 200 }} />
+              <p className="dica-menus" style={{ marginTop: 4 }}>
+                Número gerado pelo portal (ComprasNet etc.) ao cadastrar a proposta — usado como referência no relatório mensal.
+              </p>
             </div>
           )}
 

@@ -131,7 +131,7 @@ export default function OportunidadesPage() {
       body: JSON.stringify({
         empresa_id: empresaSel,
         numeroPNCP: op.numeroPNCP, numeroEdital: op.numeroEdital, objeto: op.objeto,
-        orgao: op.orgao, uf: op.uf, valor: op.valor,
+        orgao: op.orgao, uasg: op.uasg, uf: op.uf, valor: op.valor,
         dataPublicacao: op.dataPublicacao, dataAbertura: op.dataAbertura, dataLimite: op.dataLimite,
         modalidade: op.modalidade, portal: op.portal, srp: op.srp,
         status: op.status, link: op.link, origem: 'pncp', ...extras,
@@ -293,7 +293,7 @@ export default function OportunidadesPage() {
                   </div>
                   <div className="op-obj">{destacar(op.objeto, termos)}</div>
                   <div className="op-meta">
-                    {op.orgao}{op.municipio ? ' · ' + op.municipio : ''}/{op.uf}
+                    {op.orgao}{op.uasg ? ' · UASG ' + op.uasg : ''}{op.municipio ? ' · ' + op.municipio : ''}/{op.uf}
                     {op.portal ? ' · ' + op.portal : ''}
                   </div>
                   <div className="op-linha">

@@ -6,15 +6,15 @@ import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu, empre
 import { novoId } from '@/lib/uuid'
 import { chunkCampo, juntarChunk, nomesChunk } from '@/lib/chunkCampo'
 
-const CAMPOS = ['numeroPNCP','numeroEdital','objeto','orgao','uf','valor','dataAbertura',
-  'dataLimite','dataSessao','modalidade','status','link','portal','srp','anexoDriveId','anexoDriveUrl','anexosJson',
+const CAMPOS = ['numeroPNCP','numeroEdital','objeto','orgao','uasg','uf','valor','dataAbertura',
+  'dataLimite','dataSessao','modalidade','status','link','portal','srp','numeroProposta','anexoDriveId','anexoDriveUrl','anexosJson',
   'itensJson','checklistJson','participar', 'fase', ...COLS_RESULTADO]
 
 // itensJson vem em várias colunas (itensJson, itensJson_2, ...) porque licitações
 // com muitos itens passam do limite de 50000 caracteres de uma única célula do Sheets
-const COLS_LIC = ['id','empresaId','empresaNome','numeroPNCP','numeroEdital','objeto','orgao','uf',
+const COLS_LIC = ['id','empresaId','empresaNome','numeroPNCP','numeroEdital','objeto','orgao','uasg','uf',
   'valor','dataPublicacao','dataAbertura','modalidade','status','link','origem','salvoEm',
-  'dataLimite','dataSessao','portal','srp','anexoDriveId','anexoDriveUrl','anexosJson',
+  'dataLimite','dataSessao','portal','srp','numeroProposta','anexoDriveId','anexoDriveUrl','anexosJson',
   ...nomesChunk('itensJson'), 'checklistJson',
   'participar', 'fase', ...COLS_RESULTADO]
 

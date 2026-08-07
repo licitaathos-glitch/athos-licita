@@ -259,6 +259,7 @@ body{font-family:'Manrope',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-seri
 .rel-kpis span{font-size:11px;color:#64748B}
 .rel-texto{font-size:13.5px;line-height:1.7;color:#374151;margin-bottom:12px}
 .rel-tabela{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px}
+.rel-tabela-larga td{font-size:11.5px;vertical-align:top}
 .rel-tabela th{background:#145653;color:#fff;padding:8px 10px;text-align:left;font-weight:700;font-size:11px}
 .rel-tabela td{padding:7px 10px;border-bottom:1px solid #F1F5F9}
 .rel-tabela tbody tr:nth-child(even){background:#FAFCFF}

@@ -46,7 +46,7 @@ export default function ModalDetalheLicitacao({
           </div>
 
           <div className="detalhe-grid">
-            {[['Órgão', l.orgao], ['UF', l.uf], ['Modalidade', l.modalidade], ['Portal', l.portal],
+            {[['Órgão', l.orgao], ['UASG', l.uasg], ['UF', l.uf], ['Modalidade', l.modalidade], ['Portal', l.portal],
               ['Nº PNCP', l.numeroPNCP], ['Valor estimado', l.valor], ['Abertura', l.dataAbertura],
               ['Limite da proposta', l.dataLimite], ['Sessão de disputa', l.dataSessao], ['SRP', l.srp]]
               .filter(x => x[1]).map(x => (

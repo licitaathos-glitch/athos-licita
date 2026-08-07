@@ -12,6 +12,17 @@ const brl = v => v ? 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFraction
 // Nunca usar dataAbertura sozinha — ela só marca o início do prazo.
 const dataRef = l => l.dataSessao || l.dataLimite || l.dataAbertura
 
+// Rótulo de status pro relatório, no mesmo espírito da planilha do Adriano
+// (VENCEDOR, PERDIDA, NÃO PARTICIPAÇÃO, PARTICIPAR...)
+const statusRelatorio = l => {
+  if (l.resultado === 'Ganhamos') return 'VENCEDOR'
+  if (['Perdemos', 'Desclassificados'].includes(l.resultado)) return 'PERDIDA'
+  if (l.resultado === 'Nao participamos') return 'NÃO PARTICIPAÇÃO'
+  if (l.resultado === 'Deserta') return 'DESERTA/FRACASSADA'
+  if (l.resultado === 'Cancelada') return 'CANCELADA/SUSPENSA'
+  return 'PARTICIPAR'
+}
+
 // Valor com que efetivamente vencemos um item: o lance final registrado na
 // fase "Finalizada", ou o valor mínimo proposto (convertendo % de desconto
 // pro preço equivalente, quando for o caso).
@@ -82,8 +93,19 @@ export default function RelatorioPage() {
 
     const taxa = disputadas.length ? (ganhas.length / disputadas.length) * 100 : 0
 
+    // Lista única pro relatório: tudo que entrou no mês (decididas + pendentes
+    // do mês) mais o que ficou em andamento de meses anteriores — sem repetir,
+    // ordenado por data (mais antiga primeiro), do jeito que vai pro cliente.
+    const porId = new Map()
+    ;[...lics, ...aguardando].forEach(l => porId.set(l.id, l))
+    const todasNoRelatorio = [...porId.values()].sort((a, b) => {
+      const da = dataRef(a).split(' ')[0].split('/').reverse().join('') || '00000000'
+      const db = dataRef(b).split(' ')[0].split('/').reverse().join('') || '00000000'
+      return da.localeCompare(db)
+    })
+
     return {
-      lics, disputadas, ganhas, perdidas, naoParticipamos, aguardando,
+      lics, disputadas, ganhas, perdidas, naoParticipamos, aguardando, todasNoRelatorio,
       taxa,
       faturamento: empenhos.reduce((s, e) => s + e.faturamento, 0),
       receita: empenhos.reduce((s, e) => s + e.receita, 0),
@@ -192,10 +214,46 @@ export default function RelatorioPage() {
             </>
           )}
 
-          {rel.disputadas.length > 0 && (
+          {rel.todasNoRelatorio.length > 0 && (
             <>
-              <h2 className="rel-h2">3. Processos disputados</h2>
-              {rel.disputadas.map(l => (
+              <h2 className="rel-h2">3. Licitações do período</h2>
+              <table className="rel-tabela rel-tabela-larga">
+                <thead>
+                  <tr>
+                    <th>Data</th><th>Portal</th><th>Edital / Objeto</th><th>UF</th>
+                    <th>Status</th><th>Nº proposta</th><th>Observações</th><th>Link</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rel.todasNoRelatorio.map(l => (
+                    <tr key={l.id} style={l.resultado === 'Ganhamos' ? { background: '#DCFCE7' } : undefined}>
+                      <td style={{ whiteSpace: 'nowrap' }}>{(dataRef(l) || '').split(' ')[0] || '—'}</td>
+                      <td>{l.portal || '—'}</td>
+                      <td style={{ maxWidth: 320 }}>
+                        <strong>{l.numeroEdital || 'Sem nº'}</strong>{l.orgao ? ' - ' + l.orgao : ''}
+                        {l.uasg ? ' (UASG ' + l.uasg + ')' : ''}
+                        {l.objeto && <div style={{ color: '#64748B', fontWeight: 400 }}>{l.objeto}</div>}
+                      </td>
+                      <td>{l.uf || '—'}</td>
+                      <td style={{ fontWeight: 700, color: corResultado(l.resultado) }}>{statusRelatorio(l)}</td>
+                      <td>{l.numeroProposta || '—'}</td>
+                      <td style={{ maxWidth: 260 }}>
+                        {l.motivo && <div>{l.motivo}</div>}
+                        {l.observacaoDisputa && <div>{l.observacaoDisputa}</div>}
+                        {!l.motivo && !l.observacaoDisputa && '—'}
+                      </td>
+                      <td>{l.link ? <a href={l.link} target="_blank" rel="noreferrer">abrir</a> : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+
+          {rel.ganhas.length > 0 && (
+            <>
+              <h2 className="rel-h2">4. Detalhamento das vitórias</h2>
+              {rel.ganhas.map(l => (
                 <div className="rel-lic" key={l.id} style={{ borderLeftColor: corResultado(l.resultado) }}>
                   <div className="rel-lic-tit">
                     {l.numeroEdital || 'Sem nº'} — {l.orgao}{l.uf ? '/' + l.uf : ''}
@@ -203,17 +261,8 @@ export default function RelatorioPage() {
                   </div>
                   <div className="rel-lic-meta">
                     {l.modalidade}{l.portal ? ' · ' + l.portal : ''}{dataRef(l) ? ' · sessão em ' + dataRef(l).split(' ')[0] : ''}
-                    {l.valor ? ' · estimado ' + l.valor : ''}
                   </div>
-                  {l.objeto && <div className="rel-lic-obj">{l.objeto}</div>}
-                  {(l.nossoLance || l.valorVencedor) && (
-                    <div className="rel-lic-disputa">
-                      {l.nossoLance && <>Nosso lance: <strong>{brl(l.nossoLance)}</strong></>}
-                      {l.valorVencedor && <> · Vencedor: <strong>{brl(l.valorVencedor)}</strong>{l.empresaVencedora ? ' (' + l.empresaVencedora + ')' : ''}</>}
-                      {l.colocacao && <> · Nossa colocação: {l.colocacao}º</>}
-                    </div>
-                  )}
-                  {l.resultado === 'Ganhamos' && l.itens?.some(it => it.participar) && (
+                  {l.itens?.some(it => it.participar) ? (
                     <table className="rel-tabela" style={{ marginTop: 6 }}>
                       <thead><tr><th>Item</th><th style={{ textAlign: 'right' }}>Vl. estimado</th><th style={{ textAlign: 'right' }}>Valor que vencemos</th></tr></thead>
                       <tbody>
@@ -226,57 +275,20 @@ export default function RelatorioPage() {
                         ))}
                       </tbody>
                     </table>
+                  ) : (l.nossoLance || l.valorVencedor) && (
+                    <div className="rel-lic-disputa">
+                      {l.nossoLance && <>Nosso lance: <strong>{brl(l.nossoLance)}</strong></>}
+                      {l.valorVencedor && <> · Vencedor: <strong>{brl(l.valorVencedor)}</strong>{l.empresaVencedora ? ' (' + l.empresaVencedora + ')' : ''}</>}
+                      {l.colocacao && <> · Nossa colocação: {l.colocacao}º</>}
+                    </div>
                   )}
-                  {l.motivo && <div className="rel-lic-motivo">Motivo: {l.motivo}</div>}
                   {l.observacaoDisputa && <div className="rel-lic-obs">{l.observacaoDisputa}</div>}
                 </div>
               ))}
             </>
           )}
 
-          {rel.naoParticipamos.length > 0 && (
-            <>
-              <h2 className="rel-h2">4. Oportunidades analisadas e não disputadas</h2>
-              <table className="rel-tabela">
-                <thead><tr><th>Edital</th><th>Órgão</th><th>UF</th><th style={{ textAlign: 'right' }}>Estimado</th><th>Motivo</th><th>Observações</th></tr></thead>
-                <tbody>
-                  {rel.naoParticipamos.map(l => (
-                    <tr key={l.id}>
-                      <td>{l.numeroEdital || '—'}</td>
-                      <td style={{ maxWidth: 220 }}>{l.orgao}</td>
-                      <td>{l.uf}</td>
-                      <td style={{ textAlign: 'right' }}>{l.valor || '—'}</td>
-                      <td>{l.motivo || '—'}</td>
-                      <td>{l.observacaoDisputa || '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </>
-          )}
-
-          {rel.aguardando.length > 0 && (
-            <>
-              <h2 className="rel-h2">5. Em andamento (até {rotuloMes})</h2>
-              <table className="rel-tabela">
-                <thead><tr><th>Edital</th><th>Órgão</th><th>Objeto</th><th>Sessão</th><th style={{ textAlign: 'right' }}>Estimado</th><th>Observações</th></tr></thead>
-                <tbody>
-                  {rel.aguardando.map(l => (
-                    <tr key={l.id}>
-                      <td>{l.numeroEdital || '—'}</td>
-                      <td style={{ maxWidth: 260 }}>{l.orgao}</td>
-                      <td style={{ maxWidth: 280 }}>{l.objeto || '—'}</td>
-                      <td>{(dataRef(l) || '').split(' ')[0] || '—'}</td>
-                      <td style={{ textAlign: 'right' }}>{l.valor || '—'}</td>
-                      <td>{l.observacaoDisputa || '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </>
-          )}
-
-          {rel.lics.length === 0 && rel.empenhos.length === 0 && (
+          {rel.todasNoRelatorio.length === 0 && rel.empenhos.length === 0 && (
             <p className="rel-texto">Não há registros para {empresa?.nome} em {rotuloMes}.</p>
           )}
 
