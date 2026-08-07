@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useApp } from '@/lib/AppContext'
 import { nomeResultado, corResultado, mesDe } from '@/lib/resultado'
+import { faseDe } from '@/lib/fases'
 import { fmtBRL } from '@/lib/comercial'
 
 const MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro']
@@ -42,6 +43,16 @@ const valorNossoTotal = l => {
     return marcados.reduce((s, it) => s + (Number(it.quantidade) || 0) * valorVencidoItem(it), 0)
   }
   return Number(l.nossoLance) || 0
+}
+
+// Valor estimado só dos itens em que vamos/fomos participar — quando há
+// itens cadastrados. Sem itens, usa o campo único "valor" da licitação.
+const valorEstimadoTotal = l => {
+  const marcados = (l.itens || []).filter(it => it.participar)
+  if (marcados.length) {
+    return marcados.reduce((s, it) => s + (Number(it.quantidade) || 0) * (Number(it.valorUnitarioRef) || 0), 0)
+  }
+  return Number(String(l.valor || '').replace(/[^\d,.-]/g, '').replace(',', '.')) || 0
 }
 
 export default function RelatorioPage() {
@@ -214,7 +225,7 @@ export default function RelatorioPage() {
                 <thead>
                   <tr>
                     <th>Data</th><th>Portal</th><th>Edital / Objeto</th><th>UF</th>
-                    <th>Status</th><th>Nº proposta</th>
+                    <th>Fase</th><th>Status</th><th>Nº proposta</th>
                     <th style={{ textAlign: 'right' }}>Valor estimado</th><th style={{ textAlign: 'right' }}>Nosso valor</th>
                     <th>Observações</th><th>Link</th>
                   </tr>
@@ -222,6 +233,8 @@ export default function RelatorioPage() {
                 <tbody>
                   {rel.todasNoRelatorio.map(l => {
                     const nosso = valorNossoTotal(l)
+                    const estimado = valorEstimadoTotal(l)
+                    const fx = faseDe(l.fase || 'Em analise')
                     return (
                     <tr key={l.id} style={l.resultado === 'Ganhamos' ? { background: '#DCFCE7' } : undefined}>
                       <td style={{ whiteSpace: 'nowrap' }}>{(dataRef(l) || '').split(' ')[0] || '—'}</td>
@@ -232,9 +245,10 @@ export default function RelatorioPage() {
                         {l.objeto && <div style={{ color: '#64748B', fontWeight: 400 }}>{l.objeto}</div>}
                       </td>
                       <td>{l.uf || '—'}</td>
+                      <td>{fx.nome}</td>
                       <td style={{ fontWeight: 700, color: corResultado(l.resultado) }}>{statusRelatorio(l)}</td>
                       <td>{l.numeroProposta || '—'}</td>
-                      <td style={{ textAlign: 'right' }}>{l.valor || '—'}</td>
+                      <td style={{ textAlign: 'right' }}>{estimado ? brl(estimado) : '—'}</td>
                       <td style={{ textAlign: 'right' }}>{nosso ? brl(nosso) : '—'}</td>
                       <td style={{ maxWidth: 260 }}>
                         {l.motivo && <div>{l.motivo}</div>}
@@ -252,7 +266,9 @@ export default function RelatorioPage() {
           {rel.ganhas.length > 0 && (
             <>
               <h2 className="rel-h2">3. Detalhamento das vitórias</h2>
-              {rel.ganhas.map(l => (
+              {rel.ganhas.map(l => {
+                const itensParticipando = (l.itens || []).filter(it => it.participar)
+                return (
                 <div className="rel-lic" key={l.id} style={{ borderLeftColor: corResultado(l.resultado) }}>
                   <div className="rel-lic-tit">
                     {l.numeroEdital || 'Sem nº'} — {l.orgao}{l.uf ? '/' + l.uf : ''}
@@ -261,11 +277,11 @@ export default function RelatorioPage() {
                   <div className="rel-lic-meta">
                     {l.modalidade}{l.portal ? ' · ' + l.portal : ''}{dataRef(l) ? ' · sessão em ' + dataRef(l).split(' ')[0] : ''}
                   </div>
-                  {l.itens?.some(it => it.participar) ? (
+                  {itensParticipando.length > 0 ? (
                     <table className="rel-tabela" style={{ marginTop: 6 }}>
                       <thead><tr><th>Item</th><th style={{ textAlign: 'right' }}>Vl. estimado</th><th style={{ textAlign: 'right' }}>Valor que vencemos</th></tr></thead>
                       <tbody>
-                        {l.itens.filter(it => it.participar).map((it, i) => (
+                        {itensParticipando.map((it, i) => (
                           <tr key={i}>
                             <td style={{ maxWidth: 320 }}>{it.descricao}</td>
                             <td style={{ textAlign: 'right' }}>{it.valorUnitarioRef ? brl(it.valorUnitarioRef) : 'Sigiloso'}</td>
@@ -274,16 +290,20 @@ export default function RelatorioPage() {
                         ))}
                       </tbody>
                     </table>
-                  ) : (l.nossoLance || l.valorVencedor) && (
+                  ) : (
                     <div className="rel-lic-disputa">
-                      {l.nossoLance && <>Nosso lance: <strong>{brl(l.nossoLance)}</strong></>}
+                      {l.valor && <>Valor estimado: <strong>{l.valor}</strong></>}
+                      {l.nossoLance && <> · Nosso lance: <strong>{brl(l.nossoLance)}</strong></>}
                       {l.valorVencedor && <> · Vencedor: <strong>{brl(l.valorVencedor)}</strong>{l.empresaVencedora ? ' (' + l.empresaVencedora + ')' : ''}</>}
                       {l.colocacao && <> · Nossa colocação: {l.colocacao}º</>}
+                      {!l.valor && !l.nossoLance && !l.valorVencedor && !l.colocacao && (
+                        <span style={{ color: '#94A3B8' }}>Sem itens marcados como participando nem valores de lance registrados nesta licitação — confira a fase "Inscrição de proposta" no Andamento.</span>
+                      )}
                     </div>
                   )}
                   {l.observacaoDisputa && <div className="rel-lic-obs">{l.observacaoDisputa}</div>}
                 </div>
-              ))}
+              )})}
             </>
           )}
 
