@@ -277,7 +277,10 @@ body{font-family:'Manrope',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-seri
   .sidebar,.topbar,.nao-imprimir{display:none !important}
   .shell,.shell-content,.main{display:block !important;margin:0 !important;padding:0 !important;background:#fff !important}
   .relatorio{box-shadow:none;border-radius:0;padding:0;margin:0}
-  .rel-lic,.rel-tabela{break-inside:avoid}
+  .rel-lic{break-inside:avoid}
+  .rel-tabela:not(.rel-tabela-larga){break-inside:avoid}
+  .rel-tabela-larga tr{break-inside:avoid}
+  .rel-tabela-larga thead{display:table-header-group}
   .rel-h2{break-after:avoid}
   @page{margin:14mm}
 }
