@@ -147,6 +147,7 @@ export default function ModalDetalheLicitacao({
 
         <div className="modal-foot" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
           {l.link && <a href={l.link} target="_blank" rel="noreferrer" className="iBtn">↗ Edital</a>}
+          <a href={`/dashboard/licitacoes/resumo?id=${l.id}`} target="_blank" rel="noreferrer" className="iBtn">📄 Resumo (PDF)</a>
           {(l.anexos?.length ? l.anexos : (l.anexoDriveUrl ? [{ nome: 'Anexo', url: l.anexoDriveUrl }] : []))
             .map((a, i) => <a key={i} href={a.url} target="_blank" rel="noreferrer" className="iBtn">📎 {a.nome}</a>)}
 
