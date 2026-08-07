@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { gerarResumoTexto } from '@/lib/checklist'
 
 const moeda = n => (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -15,6 +16,12 @@ export default function PainelCotacao({ lic, itens, setItens, marcados }) {
   const [enviando, setEnviando] = useState(false)
   const [linkGerado, setLinkGerado] = useState('')
   const [copiado, setCopiado] = useState(null)
+
+  let chkDados = {}
+  try { chkDados = JSON.parse(lic.checklistJson || '{}') } catch {}
+  const resumoTexto = gerarResumoTexto(chkDados)
+  const [incluirEdital, setIncluirEdital] = useState(true)
+  const [incluirResumo, setIncluirResumo] = useState(true)
 
   function carregar() {
     fetch(`/api/licitacoes/cotacao?licitacaoId=${lic.id}`).then(r => r.json())
@@ -34,6 +41,8 @@ export default function PainelCotacao({ lic, itens, setItens, marcados }) {
           licitacaoId: lic.id, empresaId: lic.empresa_id, numeroEdital: lic.numeroEdital, objeto: lic.objeto,
           itens: marcados.map(it => ({ descricao: it.descricao, quantidade: it.quantidade, unidade: it.unidade })),
           destinatarioEmail: email.trim(), mensagem,
+          editalAnexoUrl: (incluirEdital && lic.anexoDriveUrl) ? lic.anexoDriveUrl : '',
+          resumoTexto: (incluirResumo && resumoTexto) ? resumoTexto : '',
         }),
       }).then(x => x.json())
       if (r.sucesso) {
@@ -110,6 +119,18 @@ export default function PainelCotacao({ lic, itens, setItens, marcados }) {
           <div className="form-sub">
             <label>MENSAGEM (OPCIONAL)</label>
             <textarea rows={2} value={mensagem} onChange={e => setMensagem(e.target.value)} placeholder="Preciso do menor preço até amanhã, prazo apertado..." />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: '#374151', cursor: lic.anexoDriveUrl ? 'pointer' : 'not-allowed' }}>
+              <input type="checkbox" checked={incluirEdital && !!lic.anexoDriveUrl} disabled={!lic.anexoDriveUrl}
+                onChange={e => setIncluirEdital(e.target.checked)} />
+              📎 Incluir o edital anexado{!lic.anexoDriveUrl && ' (nenhum edital anexado ainda — anexe na fase Em análise)'}
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: '#374151', cursor: resumoTexto ? 'pointer' : 'not-allowed' }}>
+              <input type="checkbox" checked={incluirResumo && !!resumoTexto} disabled={!resumoTexto}
+                onChange={e => setIncluirResumo(e.target.checked)} />
+              📄 Incluir o resumo da análise{!resumoTexto && ' (nenhuma análise registrada ainda — preencha o checklist em Em análise)'}
+            </label>
           </div>
           {linkGerado && (
             <div className="l-ok" style={{ marginBottom: 10, wordBreak: 'break-all' }}>

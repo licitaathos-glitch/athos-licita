@@ -38,7 +38,7 @@ export async function POST(req) {
   if (!podeEditar(usuario)) return NextResponse.json({ sucesso: false, erro: 'Seu perfil é somente consulta.' }, { status: 403 })
 
   try {
-    const { licitacaoId, empresaId, numeroEdital, objeto, itens, destinatarioEmail, mensagem } = await req.json()
+    const { licitacaoId, empresaId, numeroEdital, objeto, itens, destinatarioEmail, mensagem, editalAnexoUrl, resumoTexto } = await req.json()
     if (!licitacaoId || !empresaId || !destinatarioEmail) {
       return NextResponse.json({ sucesso: false, erro: 'Faltam dados obrigatórios.' })
     }
@@ -58,6 +58,7 @@ export async function POST(req) {
       id, licitacaoId, empresaId, empresaNome: empresa.nome,
       numeroEdital: numeroEdital || '', objeto: objeto || '',
       itensJson: JSON.stringify(itens), destinatarioEmail, mensagem: mensagem || '',
+      editalAnexoUrl: editalAnexoUrl || '', resumoTexto: resumoTexto || '',
       token, status: 'Pendente', respostaItensJson: '[]',
       numeroCotacaoFornecedor: '', anexoDriveId: '', anexoDriveUrl: '',
       respondidoPor: '', respondidoEm: '', criadoEm: new Date().toISOString(),
@@ -67,7 +68,7 @@ export async function POST(req) {
     const link = `${SITE}/cotacao/${token}`
     let avisoEmail = null
     try {
-      const html = montarEmailPedido({ empresa: empresa.nome, numeroEdital, objeto, itens, mensagem, link })
+      const html = montarEmailPedido({ empresa: empresa.nome, numeroEdital, objeto, itens, mensagem, link, editalAnexoUrl, resumoTexto })
       const env = await chamarGAS({
         action: 'enviarEmailGenerico', para: destinatarioEmail,
         assunto: `Pedido de cotação — ${numeroEdital || 'licitação'} (${empresa.nome})`,
@@ -84,7 +85,7 @@ export async function POST(req) {
   }
 }
 
-function montarEmailPedido({ empresa, numeroEdital, objeto, itens, mensagem, link }) {
+function montarEmailPedido({ empresa, numeroEdital, objeto, itens, mensagem, link, editalAnexoUrl, resumoTexto }) {
   const linhas = itens.map(it => `<tr>
     <td style="padding:7px 10px;border-bottom:1px solid #F1F5F9;font-size:13px">${it.descricao || ''}</td>
     <td style="padding:7px 10px;border-bottom:1px solid #F1F5F9;font-size:13px;text-align:center">${it.quantidade || ''}</td>
@@ -105,6 +106,8 @@ function montarEmailPedido({ empresa, numeroEdital, objeto, itens, mensagem, lin
       </p>
       ${objeto ? `<p style="font-size:12.5px;color:#6B7280;margin:0 0 14px">${objeto}</p>` : ''}
       ${mensagem ? `<p style="font-size:13px;color:#2E2D2F;background:#F8FAFC;padding:10px 14px;border-radius:8px;margin:0 0 14px">${mensagem}</p>` : ''}
+      ${resumoTexto ? `<p style="font-size:12.5px;color:#2E2D2F;background:#F8FAFC;padding:10px 14px;border-radius:8px;margin:0 0 14px;white-space:pre-wrap">${resumoTexto}</p>` : ''}
+      ${editalAnexoUrl ? `<p style="font-size:13px;margin:0 0 14px"><a href="${editalAnexoUrl}" style="color:#145653;font-weight:700">📎 Edital completo (anexo)</a></p>` : ''}
       <table width="100%" style="border-collapse:collapse;margin-bottom:20px">
         <thead><tr style="background:#F8FAFC">
           <th style="padding:8px 10px;font-size:11px;color:#64748B;text-align:left">DESCRIÇÃO</th>

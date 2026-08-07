@@ -98,6 +98,18 @@ export default function CotacaoPublicaPage() {
         </p>
         {dados.objeto && <p className="cot-objeto">{dados.objeto}</p>}
         {dados.mensagem && <div className="cot-msg">{dados.mensagem}</div>}
+        {dados.resumoTexto && (
+          <div className="cot-msg" style={{ whiteSpace: 'pre-wrap' }}>
+            <strong>Resumo do edital:</strong><br />{dados.resumoTexto}
+          </div>
+        )}
+        {dados.editalAnexoUrl && (
+          <p style={{ margin: '0 0 16px' }}>
+            <a href={dados.editalAnexoUrl} target="_blank" rel="noreferrer" className="cot-btn-ghost" style={{ display: 'inline-block', textDecoration: 'none' }}>
+              📎 Baixar edital completo
+            </a>
+          </p>
+        )}
 
         <table className="cot-tbl">
           <thead><tr><th>Descrição</th><th>Qtd</th><th>Un</th><th>Seu preço (R$)</th></tr></thead>

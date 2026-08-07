@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { FASES, FORMAS_VALOR, normalizarFase } from '@/lib/fases'
 import { RESULTADOS, MOTIVOS_NAO_PARTICIPACAO, MOTIVOS_PERDA } from '@/lib/resultado'
-import { CHECKLIST, TODOS_ITENS, avaliar } from '@/lib/checklist'
+import { CHECKLIST, TODOS_ITENS, avaliar, gerarResumoTexto } from '@/lib/checklist'
 import { TIPOS_EVENTO, tipoEventoInfo } from '@/lib/tiposEvento'
 import PainelCotacao from '@/components/PainelCotacao'
 import Toggle from '@/components/Toggle'
@@ -381,42 +381,17 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
 
               {/* ── Resumo em texto, com o essencial pra ler rápido sem abrir cada pergunta ── */}
               {(() => {
-                const linha = k => {
-                  const it = TODOS_ITENS.find(i => i.k === k)
-                  const d = chkDados[k]
-                  if (!d?.resposta) return null
-                  const resp = d.resposta === 'S' ? 'Sim' : d.resposta === 'N' ? 'Não' : 'N/A'
-                  return { k, label: it?.label, resp, detalhe: d.detalhe }
-                }
-                const linhaJsx = (k, rotulo) => {
-                  const t = linha(k)
-                  if (!t) return null
-                  return <div key={k}><strong>{rotulo || t.label}:</strong> {t.resp}{t.detalhe ? ' — ' + t.detalhe : ''}</div>
-                }
-                const habilitacao = ['certidoes', 'qualTecnica', 'qualEconFin', 'declaracoes'].map(k => linhaJsx(k)).filter(Boolean)
-                const outras = ['especTecnica', 'prazoEntrega', 'frete', 'garantia', 'penalidades', 'preco', 'orgao'].map(k => linhaJsx(k)).filter(Boolean)
-                const nada = !Object.values(chkDados).some(d => d?.resposta)
+                const texto = gerarResumoTexto(chkDados)
                 return (
                   <div className="ia-resumo-box" style={{ marginTop: 10 }}>
-                    <strong style={{ color: '#145653' }}>📄 Resumo em texto</strong>
-                    <div style={{ fontSize: 12.5, marginTop: 6, lineHeight: 1.7, color: '#374151' }}>
-                      {nada && <span style={{ color: '#94A3B8' }}>Ainda sem respostas no checklist abaixo (ou use "🤖 Resumir com IA" acima).</span>}
-                      {linhaJsx('meepp', 'Exclusivo ME/EPP')}
-                      {linhaJsx('objeto', 'Objeto')}
-                      {habilitacao.length > 0 && (
-                        <div style={{ marginTop: 6 }}>
-                          <strong>Documentos de habilitação:</strong>
-                          <div style={{ marginLeft: 14 }}>{habilitacao}</div>
-                        </div>
-                      )}
-                      {linhaJsx('pagamento', 'Prazo de pagamento')}
-                      {linhaJsx('amostra', 'Amostra / prova de conceito')}
-                      {outras.length > 0 && (
-                        <div style={{ marginTop: 6 }}>
-                          <strong>Outras informações:</strong>
-                          <div style={{ marginLeft: 14 }}>{outras}</div>
-                        </div>
-                      )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                      <strong style={{ color: '#145653' }}>📄 Resumo em texto</strong>
+                      <a className="iBtn" href={`/dashboard/licitacoes/resumo?id=${lic.id}`} target="_blank" rel="noreferrer">
+                        📄 Resumo completo (PDF)
+                      </a>
+                    </div>
+                    <div style={{ fontSize: 12.5, marginTop: 6, lineHeight: 1.7, color: '#374151', whiteSpace: 'pre-wrap' }}>
+                      {texto || <span style={{ color: '#94A3B8' }}>Ainda sem respostas no checklist abaixo (ou use "🤖 Resumir com IA" acima).</span>}
                     </div>
                   </div>
                 )

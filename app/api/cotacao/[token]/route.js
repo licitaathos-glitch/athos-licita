@@ -21,6 +21,7 @@ export async function GET(req, { params }) {
       cotacao: {
         empresaNome: c.empresaNome, numeroEdital: c.numeroEdital, objeto: c.objeto,
         mensagem: c.mensagem, status: c.status || 'Pendente',
+        editalAnexoUrl: c.editalAnexoUrl || '', resumoTexto: c.resumoTexto || '',
         itens: parseItensCotacao(c.itensJson),
         respostaItens: parseItensCotacao(c.respostaItensJson),
         numeroCotacaoFornecedor: c.numeroCotacaoFornecedor || '',
