@@ -19,39 +19,6 @@ export default function ModalDetalheLicitacao({
   // licitações com dezenas de itens, ver todos de uma vez atrapalha
   const temParticipacaoDefinida = (l.itens || []).some(it => it.participar !== undefined)
   const [somenteParticipando, setSomenteParticipando] = useState(temParticipacaoDefinida)
-  const [avisoAberto, setAvisoAberto] = useState(false)
-  const [avisoEmail, setAvisoEmail] = useState('')
-  const [avisoEnviando, setAvisoEnviando] = useState(false)
-  const [avisoMsg, setAvisoMsg] = useState('')
-
-  function abrirAviso() {
-    setAvisoAberto(true)
-    setAvisoMsg('')
-    if (!avisoEmail) {
-      fetch('/api/empresas').then(r => r.json()).then(r => {
-        const emp = r.sucesso && r.empresas?.find(e => e.id === l.empresa_id)
-        if (emp?.email) setAvisoEmail(emp.email)
-      }).catch(() => {})
-    }
-  }
-
-  async function enviarAviso() {
-    if (!avisoEmail.trim()) { setAvisoMsg('Informe o e-mail de destino.'); return }
-    setAvisoEnviando(true); setAvisoMsg('')
-    try {
-      const r = await fetch('/api/licitacoes/avisar', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          empresaNome: l.empresa_nome, numeroEdital: l.numeroEdital, objeto: l.objeto,
-          link: l.link, dataSessao: l.dataSessao || l.dataLimite || l.dataAbertura, srp: l.srp,
-          destinatarioEmail: avisoEmail.trim(),
-        }),
-      })
-      const res = await r.json()
-      setAvisoMsg(res.sucesso ? '✅ E-mail enviado.' : '❌ ' + (res.erro || 'Erro ao enviar.'))
-    } catch { setAvisoMsg('❌ Erro de conexão.') }
-    setAvisoEnviando(false)
-  }
 
   return (
     <div className="overlay" onClick={e => { if (e.target === e.currentTarget) onFechar() }}>
@@ -183,7 +150,6 @@ export default function ModalDetalheLicitacao({
           <a href={`/dashboard/licitacoes/resumo?id=${l.id}`} target="_blank" rel="noreferrer" className="iBtn">📄 Resumo (PDF)</a>
           {(l.anexos?.length ? l.anexos : (l.anexoDriveUrl ? [{ nome: 'Anexo', url: l.anexoDriveUrl }] : []))
             .map((a, i) => <a key={i} href={a.url} target="_blank" rel="noreferrer" className="iBtn">📎 {a.nome}</a>)}
-          {!somenteConsulta && <button className="iBtn" onClick={() => (avisoAberto ? setAvisoAberto(false) : abrirAviso())}>📧 Avisar empresa</button>}
 
           {!somenteConsulta && <>
             <select className="mover-fase-sel" value={fx.id} title="Mover para outra fase"
@@ -196,22 +162,6 @@ export default function ModalDetalheLicitacao({
             <button className="iBtn iBtn-del" onClick={() => onExcluir(l)}>🗑 Excluir</button>
           </>}
         </div>
-
-        {avisoAberto && (
-          <div className="modal-foot" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8, paddingTop: 0 }}>
-            <p style={{ fontSize: 12, color: '#64748B', margin: 0 }}>
-              Manda um e-mail avisando sobre esta oportunidade, com objeto, link, data da sessão e prazo pra proposta (2 dias antes da sessão) — pro cliente avaliar se quer participar.
-            </p>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input type="email" value={avisoEmail} onChange={e => setAvisoEmail(e.target.value)}
-                placeholder="email@empresa.com.br" style={{ flex: 1 }} />
-              <button className="iBtn" disabled={avisoEnviando} onClick={enviarAviso}>
-                {avisoEnviando ? 'Enviando...' : 'Enviar'}
-              </button>
-            </div>
-            {avisoMsg && <p style={{ fontSize: 12, margin: 0 }}>{avisoMsg}</p>}
-          </div>
-        )}
       </div>
     </div>
   )

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { lerAba, adicionarLinha, garantirAba } from '@/lib/google'
+import { lerAba, adicionarLinha, garantirAba, excluirLinha } from '@/lib/google'
 import { getUsuarioFromReq, podeEditar, podeAcessarMenu, empresasVisiveis } from '@/lib/auth'
 import { chamarGAS } from '@/lib/gas'
 import { novoId } from '@/lib/uuid'
@@ -38,7 +38,8 @@ export async function POST(req) {
   if (!podeEditar(usuario)) return NextResponse.json({ sucesso: false, erro: 'Seu perfil é somente consulta.' }, { status: 403 })
 
   try {
-    const { licitacaoId, empresaId, numeroEdital, objeto, itens, destinatarioEmail, mensagem, editalAnexoUrl, resumoTexto } = await req.json()
+    const { licitacaoId, empresaId, numeroEdital, objeto, itens, destinatarioEmail, mensagem,
+      editalAnexoUrl, resumoTexto, linkLicitacao, dataSessao, srp } = await req.json()
     if (!licitacaoId || !empresaId || !destinatarioEmail) {
       return NextResponse.json({ sucesso: false, erro: 'Faltam dados obrigatórios.' })
     }
@@ -59,6 +60,7 @@ export async function POST(req) {
       numeroEdital: numeroEdital || '', objeto: objeto || '',
       itensJson: JSON.stringify(itens), destinatarioEmail, mensagem: mensagem || '',
       editalAnexoUrl: editalAnexoUrl || '', resumoTexto: resumoTexto || '',
+      linkLicitacao: linkLicitacao || '', dataSessao: dataSessao || '', srp: srp || '',
       token, status: 'Pendente', respostaItensJson: '[]',
       numeroCotacaoFornecedor: '', anexoDriveId: '', anexoDriveUrl: '',
       respondidoPor: '', respondidoEm: '', criadoEm: new Date().toISOString(),
@@ -68,7 +70,10 @@ export async function POST(req) {
     const link = `${SITE}/cotacao/${token}`
     let avisoEmail = null
     try {
-      const html = montarEmailPedido({ empresa: empresa.nome, numeroEdital, objeto, itens, mensagem, link, editalAnexoUrl, resumoTexto })
+      const html = montarEmailPedido({
+        empresa: empresa.nome, numeroEdital, objeto, itens, mensagem, link, editalAnexoUrl, resumoTexto,
+        linkLicitacao, dataSessao, srp,
+      })
       const env = await chamarGAS({
         action: 'enviarEmailGenerico', para: destinatarioEmail,
         assunto: `Pedido de cotação — ${numeroEdital || 'licitação'} (${empresa.nome})`,
@@ -85,12 +90,47 @@ export async function POST(req) {
   }
 }
 
-function montarEmailPedido({ empresa, numeroEdital, objeto, itens, mensagem, link, editalAnexoUrl, resumoTexto }) {
+export async function DELETE(req) {
+  const usuario = await getUsuarioFromReq(req)
+  if (!usuario) return NextResponse.json({ sucesso: false, erro: 'Não autenticado.' }, { status: 401 })
+  if (!podeAcessarMenu(usuario, 'licitacoes')) return NextResponse.json({ sucesso: false, erro: 'Sem acesso.' }, { status: 403 })
+  if (!podeEditar(usuario)) return NextResponse.json({ sucesso: false, erro: 'Seu perfil é somente consulta.' }, { status: 403 })
+
+  const { searchParams } = new URL(req.url)
+  const id = searchParams.get('id')
+  if (!id) return NextResponse.json({ sucesso: false, erro: 'Informe o pedido de cotação.' })
+
+  try {
+    const r = await excluirLinha('Cotacoes', 'id', id)
+    if (!r.ok) return NextResponse.json({ sucesso: false, erro: r.erro || 'Pedido não encontrado.' })
+    return NextResponse.json({ sucesso: true })
+  } catch (e) {
+    return NextResponse.json({ sucesso: false, erro: e.message }, { status: 500 })
+  }
+}
+
+// Calcula "2 dias antes" de uma data BR "DD/MM/AAAA HH:MM" (ou só a parte da data)
+function doisDiasAntes(dataBR) {
+  const m = String(dataBR || '').match(/(\d{2})\/(\d{2})\/(\d{4})/)
+  if (!m) return ''
+  const d = new Date(+m[3], +m[2] - 1, +m[1])
+  d.setDate(d.getDate() - 2)
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  return `${dd}/${mm}/${d.getFullYear()}`
+}
+
+function montarEmailPedido({ empresa, numeroEdital, objeto, itens, mensagem, link, editalAnexoUrl, resumoTexto, linkLicitacao, dataSessao, srp }) {
   const linhas = itens.map(it => `<tr>
     <td style="padding:7px 10px;border-bottom:1px solid #F1F5F9;font-size:13px">${it.descricao || ''}</td>
     <td style="padding:7px 10px;border-bottom:1px solid #F1F5F9;font-size:13px;text-align:center">${it.quantidade || ''}</td>
     <td style="padding:7px 10px;border-bottom:1px solid #F1F5F9;font-size:13px;text-align:center">${it.unidade || ''}</td>
   </tr>`).join('')
+
+  const dataProposta = doisDiasAntes(dataSessao)
+  const linhaSRP = srp === 'Sim'
+    ? 'Trata-se de Sistema de Registro de Preços (SRP).'
+    : 'Não se trata de registro de preços.'
 
   return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F3EFE7;font-family:-apple-system,sans-serif">
   <table width="100%"><tr><td align="center" style="padding:28px 14px">
@@ -101,10 +141,20 @@ function montarEmailPedido({ empresa, numeroEdital, objeto, itens, mensagem, lin
     </td></tr>
     <tr><td style="padding:24px 26px">
       <p style="font-size:14px;color:#2E2D2F;margin:0 0 14px">
-        Olá! Estamos participando da licitação <strong>${numeroEdital || ''}</strong> em nome de <strong>${empresa}</strong>
-        e precisamos do seu melhor preço para os itens abaixo.
+        Prezados,<br /><br />
+        Identifiquei uma licitação na qual há possibilidade de participação pela <strong>${empresa}</strong>. ${linhaSRP}
+        Encaminho o edital para que possam avaliar a viabilidade de participação, e precisamos do seu melhor preço
+        para os itens abaixo.
       </p>
-      ${objeto ? `<p style="font-size:12.5px;color:#6B7280;margin:0 0 14px">${objeto}</p>` : ''}
+      <table width="100%" style="border-collapse:collapse;margin-bottom:14px">
+        <tbody>
+          <tr><td style="padding:6px 0;font-size:13px;color:#6B7280;width:170px">Licitação</td><td style="padding:6px 0;font-size:13px;color:#2E2D2F;font-weight:700">${numeroEdital || '—'}</td></tr>
+          ${linkLicitacao ? `<tr><td style="padding:6px 0;font-size:13px;color:#6B7280">Link da licitação</td><td style="padding:6px 0;font-size:13px"><a href="${linkLicitacao}" style="color:#145653;font-weight:700">Acessar edital</a></td></tr>` : ''}
+          ${objeto ? `<tr><td style="padding:6px 0;font-size:13px;color:#6B7280;vertical-align:top">Objeto</td><td style="padding:6px 0;font-size:12.5px;color:#6B7280">${objeto}</td></tr>` : ''}
+          ${dataSessao ? `<tr><td style="padding:6px 0;font-size:13px;color:#6B7280">Data da sessão</td><td style="padding:6px 0;font-size:13px;color:#2E2D2F;font-weight:700">${dataSessao}</td></tr>` : ''}
+          ${dataProposta ? `<tr><td style="padding:6px 0;font-size:13px;color:#6B7280">Data para apresentar proposta</td><td style="padding:6px 0;font-size:13px;color:#2E2D2F;font-weight:700">${dataProposta}</td></tr>` : ''}
+        </tbody>
+      </table>
       ${mensagem ? `<p style="font-size:13px;color:#2E2D2F;background:#F8FAFC;padding:10px 14px;border-radius:8px;margin:0 0 14px">${mensagem}</p>` : ''}
       ${resumoTexto ? `<p style="font-size:12.5px;color:#2E2D2F;background:#F8FAFC;padding:10px 14px;border-radius:8px;margin:0 0 14px;white-space:pre-wrap">${resumoTexto}</p>` : ''}
       ${editalAnexoUrl ? `<p style="font-size:13px;margin:0 0 14px"><a href="${editalAnexoUrl}" style="color:#145653;font-weight:700">📎 Edital completo (anexo)</a></p>` : ''}

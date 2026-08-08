@@ -43,6 +43,7 @@ export default function PainelCotacao({ lic, itens, setItens, marcados }) {
           destinatarioEmail: email.trim(), mensagem,
           editalAnexoUrl: (incluirEdital && lic.anexoDriveUrl) ? lic.anexoDriveUrl : '',
           resumoTexto: (incluirResumo && resumoTexto) ? resumoTexto : '',
+          linkLicitacao: lic.link || '', dataSessao: lic.dataSessao || lic.dataLimite || lic.dataAbertura || '', srp: lic.srp || '',
         }),
       }).then(x => x.json())
       if (r.sucesso) {
@@ -64,6 +65,15 @@ export default function PainelCotacao({ lic, itens, setItens, marcados }) {
     }))
   }
 
+  async function excluirPedido(cotacao) {
+    if (!confirm(`Excluir o pedido de cotação enviado para ${cotacao.destinatarioEmail}? Essa ação não pode ser desfeita.`)) return
+    try {
+      const r = await fetch(`/api/licitacoes/cotacao?id=${cotacao.id}`, { method: 'DELETE' }).then(x => x.json())
+      if (r.sucesso) carregar()
+      else setErro(r.erro || 'Erro ao excluir.')
+    } catch { setErro('Erro de conexão.') }
+  }
+
   return (
     <div className="form-sub" style={{ marginTop: 18 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -79,7 +89,10 @@ export default function PainelCotacao({ lic, itens, setItens, marcados }) {
               <div className="cotacao-item" key={c.id}>
                 <div className="cotacao-item-hdr">
                   <span><strong>{c.destinatarioEmail}</strong> · {c.itens.length} item{c.itens.length > 1 ? 's' : ''}</span>
-                  <span className={'pill ' + (c.status === 'Respondida' ? 'pill-green' : 'pill-amber')}>{c.status}</span>
+                  <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <span className={'pill ' + (c.status === 'Respondida' ? 'pill-green' : 'pill-amber')}>{c.status}</span>
+                    <button className="iBtn iBtn-del" title="Excluir este pedido" onClick={() => excluirPedido(c)}>🗑</button>
+                  </span>
                 </div>
                 <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                   <input readOnly value={link} onClick={e => e.target.select()}
