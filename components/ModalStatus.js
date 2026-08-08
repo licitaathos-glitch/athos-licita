@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { FASES, FORMAS_VALOR, normalizarFase } from '@/lib/fases'
 import { RESULTADOS, MOTIVOS_NAO_PARTICIPACAO, MOTIVOS_PERDA } from '@/lib/resultado'
-import { CHECKLIST, TODOS_ITENS, avaliar, gerarResumoTexto } from '@/lib/checklist'
+import { avaliar, gerarResumoTexto } from '@/lib/checklist'
 import { TIPOS_EVENTO, tipoEventoInfo } from '@/lib/tiposEvento'
 import PainelCotacao from '@/components/PainelCotacao'
 import Toggle from '@/components/Toggle'
@@ -25,6 +25,34 @@ const CORES_VEREDITO = {
 
 export default function ModalStatus({ lic, onFechar, onSalvo }) {
   const [fase, setFase] = useState(normalizarFase(lic.fase || 'Em analise'))
+  const [resumoEmail, setResumoEmail] = useState('')
+  const [resumoEmailAberto, setResumoEmailAberto] = useState(false)
+  const [resumoEmailEnviando, setResumoEmailEnviando] = useState(false)
+  const [resumoEmailMsg, setResumoEmailMsg] = useState('')
+
+  function abrirResumoEmail() {
+    setResumoEmailAberto(true); setResumoEmailMsg('')
+    if (!resumoEmail) {
+      fetch('/api/empresas').then(r => r.json()).then(r => {
+        const emp = r.sucesso && r.empresas?.find(e => e.id === lic.empresa_id)
+        if (emp?.email) setResumoEmail(emp.email)
+      }).catch(() => {})
+    }
+  }
+
+  async function enviarResumoEmail() {
+    if (!resumoEmail.trim()) { setResumoEmailMsg('Informe o e-mail de destino.'); return }
+    setResumoEmailEnviando(true); setResumoEmailMsg('')
+    try {
+      const r = await fetch('/api/licitacoes/resumo-email', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ licitacaoId: lic.id, destinatarioEmail: resumoEmail.trim() }),
+      }).then(x => x.json())
+      setResumoEmailMsg(r.sucesso ? '✅ Resumo enviado.' : '❌ ' + (r.erro || 'Erro ao enviar.'))
+    } catch { setResumoEmailMsg('❌ Erro de conexão.') }
+    setResumoEmailEnviando(false)
+  }
+
   const [f, setF] = useState({
     resultado: lic.resultado || 'Aguardando',
     motivo: lic.motivo || '',
@@ -379,56 +407,52 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                 </div>
               )}
 
-              {/* ── Resumo em texto, com o essencial pra ler rápido sem abrir cada pergunta ── */}
+              {/* ── Resumo em texto — é o principal conteúdo desta fase agora ── */}
               {(() => {
                 const texto = gerarResumoTexto(chkDados)
+                const anexos = (lic.anexos?.length ? lic.anexos : (lic.anexoDriveUrl ? [{ nome: 'Edital', url: lic.anexoDriveUrl }] : []))
                 return (
                   <div className="ia-resumo-box" style={{ marginTop: 10 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                      <strong style={{ color: '#145653' }}>📄 Resumo em texto</strong>
-                      <a className="iBtn" href={`/dashboard/licitacoes/resumo?id=${lic.id}`} target="_blank" rel="noreferrer">
-                        📄 Resumo completo (PDF)
-                      </a>
+                      <strong style={{ color: '#145653' }}>📄 Resumo do edital</strong>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <a className="iBtn" href={`/dashboard/licitacoes/resumo?id=${lic.id}`} target="_blank" rel="noreferrer">
+                          📄 Ver em PDF
+                        </a>
+                        <button className="iBtn" onClick={() => (resumoEmailAberto ? setResumoEmailAberto(false) : abrirResumoEmail())}>
+                          📧 Enviar por e-mail
+                        </button>
+                      </div>
                     </div>
                     <div style={{ fontSize: 12.5, marginTop: 6, lineHeight: 1.7, color: '#374151', whiteSpace: 'pre-wrap' }}>
-                      {texto || <span style={{ color: '#94A3B8' }}>Ainda sem respostas no checklist abaixo (ou use "🤖 Resumir com IA" acima).</span>}
+                      {texto || <span style={{ color: '#94A3B8' }}>Ainda sem dados — use "🤖 Resumir com IA" acima, ou preencha manualmente.</span>}
                     </div>
+                    {anexos.length > 0 && (
+                      <div style={{ marginTop: 10, borderTop: '1px solid #E2E8F0', paddingTop: 8 }}>
+                        <strong style={{ fontSize: 12, color: '#145653' }}>Anexos</strong>
+                        {anexos.map((a, i) => (
+                          <div key={i}><a href={a.url} target="_blank" rel="noreferrer" style={{ fontSize: 12.5 }}>📎 {a.nome || 'Anexo'}</a></div>
+                        ))}
+                      </div>
+                    )}
+                    {resumoEmailAberto && (
+                      <div style={{ marginTop: 10, borderTop: '1px solid #E2E8F0', paddingTop: 10 }}>
+                        <p style={{ fontSize: 11.5, color: '#6B7280', margin: '0 0 6px' }}>
+                          Manda este mesmo resumo por e-mail — pra empresa decidir se vale a pena participar.
+                        </p>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <input type="email" value={resumoEmail} onChange={e => setResumoEmail(e.target.value)}
+                            placeholder="email@empresa.com.br" style={{ flex: 1 }} />
+                          <button className="iBtn" disabled={resumoEmailEnviando} onClick={enviarResumoEmail}>
+                            {resumoEmailEnviando ? 'Enviando...' : 'Enviar'}
+                          </button>
+                        </div>
+                        {resumoEmailMsg && <p style={{ fontSize: 12, margin: '6px 0 0' }}>{resumoEmailMsg}</p>}
+                      </div>
+                    )}
                   </div>
                 )
               })()}
-
-              {CHECKLIST.map(sec => (
-                <div key={sec.secao} style={{ marginTop: 16 }}>
-                  <div className="chk-secao">
-                    {sec.secao}
-                    <span>{sec.desc}</span>
-                  </div>
-                  {sec.itens.map(it => {
-                    const r = chkDados[it.k]?.resposta || ''
-                    const reprovado = chkResultado.reprovados.includes(it.k)
-                    return (
-                      <div className={'chk-item' + (reprovado ? ' reprovado' : '')} key={it.k}>
-                        <div style={{ flex: 1, minWidth: 200 }}>
-                          <div className="chk-titulo">
-                            {it.label}
-                            {it.eliminatorio && <span className="tag-elim">eliminatório</span>}
-                          </div>
-                          <div className="chk-pergunta">{it.pergunta}</div>
-                          <div className="chk-ajuda">{it.ajuda}</div>
-                          <input className="chk-detalhe-input" placeholder="Anotação (o que o edital diz, nº da cláusula...)"
-                            value={chkDados[it.k]?.detalhe || ''} onChange={e => chkDetalhar(it.k, e.target.value)} />
-                        </div>
-                        <div className="chk-sn">
-                          {[['S', 'Sim'], ['N', 'Não'], ['NA', 'N/A']].map(([v, l]) => (
-                            <button key={v} className={'chk-btn' + (r === v ? ' ' + (v === 'N' ? 'n' : 's') : '')}
-                              onClick={() => chkResponder(it.k, v)}>{l}</button>
-                          ))}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              ))}
 
               <div className="form-sub" style={{ marginTop: 14 }}>
                 <label>OBSERVAÇÕES DO CHECKLIST</label>

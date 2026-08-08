@@ -30,6 +30,7 @@ function ResumoConteudo() {
   const resumoTexto = gerarResumoTexto(chkDados)
   const obs = chkDados._obs || ''
   const marcados = (lic.itens || []).filter(it => it.participar)
+  const anexos = (lic.anexos?.length ? lic.anexos : (lic.anexoDriveUrl ? [{ nome: 'Edital', url: lic.anexoDriveUrl }] : []))
 
   return (
     <div>
@@ -79,7 +80,7 @@ function ResumoConteudo() {
 
         {resumoTexto && (
           <>
-            <h2 className="rel-h2">Análise de viabilidade</h2>
+            <h2 className="rel-h2">Qualificação, prazos e condições</h2>
             <p className="rel-texto" style={{ whiteSpace: 'pre-wrap' }}>{resumoTexto}</p>
           </>
         )}
@@ -88,6 +89,15 @@ function ResumoConteudo() {
           <>
             <h2 className="rel-h2">Observações</h2>
             <p className="rel-texto">{obs}</p>
+          </>
+        )}
+
+        {anexos.length > 0 && (
+          <>
+            <h2 className="rel-h2">Anexos</h2>
+            {anexos.map((a, i) => (
+              <p className="rel-texto" key={i}><a href={a.url} target="_blank" rel="noreferrer">📎 {a.nome || 'Anexo'}</a></p>
+            ))}
           </>
         )}
 
