@@ -361,14 +361,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                 )}
                 {avisoIA && <p style={{ fontSize: 12, marginTop: 8, marginBottom: 0, color: avisoIA.startsWith('✅') ? '#166534' : '#B45309' }}>{avisoIA}</p>}
 
-                {resumoRiscos && (
-                  <div className="ia-riscos-box" style={{ marginTop: 10 }}>
-                    <strong>⚠️ Pontos de atenção (segundo a IA)</strong>
-                    <p style={{ margin: '4px 0 0' }}>{resumoRiscos}</p>
-                  </div>
-                )}
-
-                {/* ── Resumo em texto — é o principal conteúdo desta fase ── */}
+                {/* ── Resumo em texto — análise geral + itens, é o principal conteúdo desta fase ── */}
                 {(() => {
                   const texto = gerarResumoTexto(chkDados)
                   const anexos = (lic.anexos?.length ? lic.anexos : (lic.anexoDriveUrl ? [{ nome: 'Edital', url: lic.anexoDriveUrl }] : []))
@@ -385,7 +378,10 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                           </button>
                         </div>
                       </div>
-                      <div style={{ fontSize: 12.5, marginTop: 6, lineHeight: 1.7, color: '#374151', whiteSpace: 'pre-wrap' }}>
+                      {resumoRiscos && (
+                        <p style={{ fontSize: 12.5, marginTop: 8, marginBottom: 0, color: '#2E2D2F', lineHeight: 1.6 }}>{resumoRiscos}</p>
+                      )}
+                      <div style={{ fontSize: 12.5, marginTop: resumoRiscos ? 10 : 6, lineHeight: 1.7, color: '#374151', whiteSpace: 'pre-wrap' }}>
                         {texto || <span style={{ color: '#94A3B8' }}>Ainda sem dados — use "🤖 Resumir com IA" acima.</span>}
                       </div>
                       {anexos.length > 0 && (

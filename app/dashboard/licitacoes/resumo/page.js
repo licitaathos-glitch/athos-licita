@@ -28,6 +28,7 @@ function ResumoConteudo() {
   let chkDados = {}
   try { chkDados = JSON.parse(lic.checklistJson || '{}') } catch {}
   const resumoTexto = gerarResumoTexto(chkDados)
+  const analiseGeral = chkDados._riscos || ''
   const obs = lic.observacaoDisputa || ''
   const marcados = (lic.itens || []).filter(it => it.participar)
   const anexos = (lic.anexos?.length ? lic.anexos : (lic.anexoDriveUrl ? [{ nome: 'Edital', url: lic.anexoDriveUrl }] : []))
@@ -78,10 +79,11 @@ function ResumoConteudo() {
         <h2 className="rel-h2">Objeto</h2>
         <p className="rel-texto">{lic.objeto || '—'}</p>
 
-        {resumoTexto && (
+        {(analiseGeral || resumoTexto) && (
           <>
             <h2 className="rel-h2">Qualificação, prazos e condições</h2>
-            <p className="rel-texto" style={{ whiteSpace: 'pre-wrap' }}>{resumoTexto}</p>
+            {analiseGeral && <p className="rel-texto" style={{ fontWeight: 600 }}>{analiseGeral}</p>}
+            {resumoTexto && <p className="rel-texto" style={{ whiteSpace: 'pre-wrap' }}>{resumoTexto}</p>}
           </>
         )}
 
