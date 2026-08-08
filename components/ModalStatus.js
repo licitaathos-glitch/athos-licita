@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { FASES, FORMAS_VALOR, normalizarFase } from '@/lib/fases'
 import { RESULTADOS, MOTIVOS_NAO_PARTICIPACAO, MOTIVOS_PERDA } from '@/lib/resultado'
-import { avaliar, gerarResumoTexto } from '@/lib/checklist'
+import { gerarResumoTexto } from '@/lib/checklist'
 import { TIPOS_EVENTO, tipoEventoInfo } from '@/lib/tiposEvento'
 import PainelCotacao from '@/components/PainelCotacao'
 import Toggle from '@/components/Toggle'
@@ -14,13 +14,6 @@ const brParaISO = v => { const m = String(v || '').match(/(\d{2})\/(\d{2})\/(\d{
 const itemVisivel = (it, busca, somenteSel) => {
   if (somenteSel && !it.participar) return false
   return !busca || String(it.descricao || '').toLowerCase().includes(busca.toLowerCase())
-}
-
-const CORES_VEREDITO = {
-  descartar:  { bg: '#FEF2F2', bd: '#FECACA', cor: '#991B1B', ico: '⛔' },
-  atencao:    { bg: '#FFFBEB', bd: '#FCD34D', cor: '#92400E', ico: '⚠️' },
-  participar: { bg: '#F0FDF4', bd: '#BBF7D0', cor: '#166534', ico: '✅' },
-  incompleto: { bg: '#F8FAFC', bd: '#E2E8F0', cor: '#64748B', ico: '📋' },
 }
 
 export default function ModalStatus({ lic, onFechar, onSalvo }) {
@@ -79,9 +72,6 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
   const [chkDados, setChkDados] = useState(() => {
     try { return JSON.parse(lic.checklistJson || '{}') } catch { return {} }
   })
-  const [chkObs, setChkObs] = useState(() => {
-    try { return (JSON.parse(lic.checklistJson || '{}')._obs) || '' } catch { return '' }
-  })
   const [certAlerta, setCertAlerta] = useState(null)
   const [analisandoIA, setAnalisandoIA] = useState(false)
   const [resumoRiscos, setResumoRiscos] = useState(() => {
@@ -101,9 +91,6 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
     }).catch(() => {})
   }, [fase, lic.empresa_id])
 
-  const chkResultado = avaliar(chkDados)
-  const chkResponder = (k, v) => setChkDados(d => ({ ...d, [k]: { ...(d[k] || {}), resposta: v } }))
-  const chkDetalhar = (k, v) => setChkDados(d => ({ ...d, [k]: { ...(d[k] || {}), detalhe: v } }))
   // A decisão de participar já move a licitação para a fase correspondente
   const chkDecidir = v => setFase(v === 'Sim' ? 'Inscricao' : v === 'Não' ? 'Descartado' : 'Em analise')
   const chkDecisaoAtual = fase === 'Inscricao' ? 'Sim' : fase === 'Descartado' ? 'Não' : 'Pendente'
@@ -278,7 +265,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
         fase: destino, ...f,
         dataHomologacao: isoParaBR(f.dataHomologacao),
         itensJson: JSON.stringify(itens),
-        checklistJson: JSON.stringify({ ...chkDados, _obs: chkObs, _veredito: chkResultado.veredito, _riscos: resumoRiscos }),
+        checklistJson: JSON.stringify({ ...chkDados, _riscos: resumoRiscos }),
       }
       if (destino === 'Descartado') corpo.participar = 'Não'
       // Reabrir uma licitação encerrada: limpa o desfecho para não voltar sozinha
@@ -332,71 +319,101 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
             </div>
           </div>
 
-          {/* ── Em análise: checklist de viabilidade embutido aqui ── */}
+          {/* ── Em análise: resumo do edital embutido aqui, num cartão só ── */}
           {fase === 'Em analise' && (
             <div className="form-sub">
-              {!temAnexo && (
-                <div className="ia-resumo-box" style={{ marginBottom: 10 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                    <div style={{ fontSize: 12.5, color: '#145653' }}>
-                      <strong>📎 Anexar edital do PNCP</strong>
-                      <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
-                        Busca os documentos publicados no PNCP para esta licitação, sem precisar sair desta tela.
+              <div className="ia-resumo-box">
+                {!temAnexo ? (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                      <div style={{ fontSize: 12.5, color: '#145653' }}>
+                        <strong>📎 Anexar edital do PNCP</strong>
+                        <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
+                          Busca os documentos publicados no PNCP para esta licitação, sem precisar sair desta tela.
+                        </div>
                       </div>
+                      <button className="iBtn iBtn-up" onClick={buscarArquivosEdital} disabled={buscandoArquivos}>
+                        {buscandoArquivos ? 'Buscando...' : '📎 Extrair arquivos do edital'}
+                      </button>
                     </div>
-                    <button className="iBtn iBtn-up" onClick={buscarArquivosEdital} disabled={buscandoArquivos}>
-                      {buscandoArquivos ? 'Buscando...' : '📎 Extrair arquivos do edital'}
+                    {arquivosEdital && (
+                      <div style={{ marginTop: 10 }}>
+                        {arquivosEdital.map((a, i) => (
+                          <div className="anexo-item" key={i}>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📄 {a.titulo}</span>
+                            <button className="iBtn" disabled={anexandoArquivo === a.url} onClick={() => anexarArquivoEdital(a)}>
+                              {anexandoArquivo === a.url ? 'Anexando...' : '⬇ Anexar'}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <p className="dica-menus" style={{ margin: 0 }}>
+                      📎 Edital anexado{anexoLocal.nome ? ': ' + anexoLocal.nome : ''} — <a href={anexoLocal.url} target="_blank" rel="noreferrer">abrir</a>
+                    </p>
+                    <button className="iBtn iBtn-up" onClick={resumirComIA} disabled={analisandoIA}>
+                      {analisandoIA ? '🤖 Lendo o edital... (15–40s)' : '🤖 Resumir com IA'}
                     </button>
                   </div>
-                  {arquivosEdital && (
-                    <div style={{ marginTop: 10 }}>
-                      {arquivosEdital.map((a, i) => (
-                        <div className="anexo-item" key={i}>
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📄 {a.titulo}</span>
-                          <button className="iBtn" disabled={anexandoArquivo === a.url} onClick={() => anexarArquivoEdital(a)}>
-                            {anexandoArquivo === a.url ? 'Anexando...' : '⬇ Anexar'}
+                )}
+                {avisoIA && <p style={{ fontSize: 12, marginTop: 8, marginBottom: 0, color: avisoIA.startsWith('✅') ? '#166534' : '#B45309' }}>{avisoIA}</p>}
+
+                {resumoRiscos && (
+                  <div className="ia-riscos-box" style={{ marginTop: 10 }}>
+                    <strong>⚠️ Pontos de atenção (segundo a IA)</strong>
+                    <p style={{ margin: '4px 0 0' }}>{resumoRiscos}</p>
+                  </div>
+                )}
+
+                {/* ── Resumo em texto — é o principal conteúdo desta fase ── */}
+                {(() => {
+                  const texto = gerarResumoTexto(chkDados)
+                  const anexos = (lic.anexos?.length ? lic.anexos : (lic.anexoDriveUrl ? [{ nome: 'Edital', url: lic.anexoDriveUrl }] : []))
+                  return (
+                    <div style={{ marginTop: 10, borderTop: '1px solid #E2E8F0', paddingTop: 10 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                        <strong style={{ color: '#145653' }}>📄 Resumo do edital</strong>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <a className="iBtn" href={`/dashboard/licitacoes/resumo?id=${lic.id}`} target="_blank" rel="noreferrer">
+                            📄 Ver em PDF
+                          </a>
+                          <button className="iBtn" onClick={() => (resumoEmailAberto ? setResumoEmailAberto(false) : abrirResumoEmail())}>
+                            📧 Enviar por e-mail
                           </button>
                         </div>
-                      ))}
+                      </div>
+                      <div style={{ fontSize: 12.5, marginTop: 6, lineHeight: 1.7, color: '#374151', whiteSpace: 'pre-wrap' }}>
+                        {texto || <span style={{ color: '#94A3B8' }}>Ainda sem dados — use "🤖 Resumir com IA" acima.</span>}
+                      </div>
+                      {anexos.length > 0 && (
+                        <div style={{ marginTop: 10, borderTop: '1px solid #E2E8F0', paddingTop: 8 }}>
+                          <strong style={{ fontSize: 12, color: '#145653' }}>Anexos</strong>
+                          {anexos.map((a, i) => (
+                            <div key={i}><a href={a.url} target="_blank" rel="noreferrer" style={{ fontSize: 12.5 }}>📎 {a.nome || 'Anexo'}</a></div>
+                          ))}
+                        </div>
+                      )}
+                      {resumoEmailAberto && (
+                        <div style={{ marginTop: 10, borderTop: '1px solid #E2E8F0', paddingTop: 10 }}>
+                          <p style={{ fontSize: 11.5, color: '#6B7280', margin: '0 0 6px' }}>
+                            Manda este mesmo resumo por e-mail — pra empresa decidir se vale a pena participar.
+                          </p>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <input type="email" value={resumoEmail} onChange={e => setResumoEmail(e.target.value)}
+                              placeholder="email@empresa.com.br" style={{ flex: 1 }} />
+                            <button className="iBtn" disabled={resumoEmailEnviando} onClick={enviarResumoEmail}>
+                              {resumoEmailEnviando ? 'Enviando...' : 'Enviar'}
+                            </button>
+                          </div>
+                          {resumoEmailMsg && <p style={{ fontSize: 12, margin: '6px 0 0' }}>{resumoEmailMsg}</p>}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              )}
-              {temAnexo && anexoLocal.url && (
-                <p className="dica-menus" style={{ marginTop: 0 }}>
-                  📎 Edital anexado{anexoLocal.nome ? ': ' + anexoLocal.nome : ''} — <a href={anexoLocal.url} target="_blank" rel="noreferrer">abrir</a>
-                </p>
-              )}
-
-              <div className="ia-resumo-box">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                  <div style={{ fontSize: 12.5, color: '#145653' }}>
-                    <strong>🤖 Resumo do edital por IA</strong>
-                    <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
-                      {temAnexo ? 'Lê o PDF anexado e preenche o checklist abaixo automaticamente.' : 'Anexe o edital acima para habilitar.'}
-                    </div>
-                  </div>
-                  <button className="iBtn iBtn-up" onClick={resumirComIA} disabled={analisandoIA || !temAnexo}>
-                    {analisandoIA ? '🤖 Lendo o edital... (15–40s)' : '🤖 Resumir com IA'}
-                  </button>
-                </div>
-                {avisoIA && <p style={{ fontSize: 12, marginTop: 8, marginBottom: 0, color: avisoIA.startsWith('✅') ? '#166534' : '#B45309' }}>{avisoIA}</p>}
-              </div>
-
-              {resumoRiscos && (
-                <div className="ia-riscos-box">
-                  <strong>⚠️ Pontos de atenção (segundo a IA)</strong>
-                  <p style={{ margin: '4px 0 0' }}>{resumoRiscos}</p>
-                </div>
-              )}
-
-              <div className="veredito" style={{ background: CORES_VEREDITO[chkResultado.veredito].bg, borderColor: CORES_VEREDITO[chkResultado.veredito].bd, color: CORES_VEREDITO[chkResultado.veredito].cor }}>
-                <div style={{ fontSize: 22 }}>{CORES_VEREDITO[chkResultado.veredito].ico}</div>
-                <div>
-                  <strong>{chkResultado.titulo}</strong>
-                  <div style={{ fontSize: 12, marginTop: 2 }}>{chkResultado.motivo}</div>
-                  <div className="progresso"><span style={{ width: (chkResultado.respondidos / chkResultado.total * 100) + '%' }} /></div>
-                </div>
+                  )
+                })()}
               </div>
 
               {certAlerta && (certAlerta.vencidas.length > 0 || certAlerta.alerta.length > 0) && (
@@ -406,58 +423,6 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                   {certAlerta.alerta.length > 0 && <div>⚠️ {certAlerta.alerta.length} vence(m) em até 7 dias: {certAlerta.alerta.map(c => c.tipo).join(', ')}</div>}
                 </div>
               )}
-
-              {/* ── Resumo em texto — é o principal conteúdo desta fase agora ── */}
-              {(() => {
-                const texto = gerarResumoTexto(chkDados)
-                const anexos = (lic.anexos?.length ? lic.anexos : (lic.anexoDriveUrl ? [{ nome: 'Edital', url: lic.anexoDriveUrl }] : []))
-                return (
-                  <div className="ia-resumo-box" style={{ marginTop: 10 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                      <strong style={{ color: '#145653' }}>📄 Resumo do edital</strong>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <a className="iBtn" href={`/dashboard/licitacoes/resumo?id=${lic.id}`} target="_blank" rel="noreferrer">
-                          📄 Ver em PDF
-                        </a>
-                        <button className="iBtn" onClick={() => (resumoEmailAberto ? setResumoEmailAberto(false) : abrirResumoEmail())}>
-                          📧 Enviar por e-mail
-                        </button>
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 12.5, marginTop: 6, lineHeight: 1.7, color: '#374151', whiteSpace: 'pre-wrap' }}>
-                      {texto || <span style={{ color: '#94A3B8' }}>Ainda sem dados — use "🤖 Resumir com IA" acima, ou preencha manualmente.</span>}
-                    </div>
-                    {anexos.length > 0 && (
-                      <div style={{ marginTop: 10, borderTop: '1px solid #E2E8F0', paddingTop: 8 }}>
-                        <strong style={{ fontSize: 12, color: '#145653' }}>Anexos</strong>
-                        {anexos.map((a, i) => (
-                          <div key={i}><a href={a.url} target="_blank" rel="noreferrer" style={{ fontSize: 12.5 }}>📎 {a.nome || 'Anexo'}</a></div>
-                        ))}
-                      </div>
-                    )}
-                    {resumoEmailAberto && (
-                      <div style={{ marginTop: 10, borderTop: '1px solid #E2E8F0', paddingTop: 10 }}>
-                        <p style={{ fontSize: 11.5, color: '#6B7280', margin: '0 0 6px' }}>
-                          Manda este mesmo resumo por e-mail — pra empresa decidir se vale a pena participar.
-                        </p>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <input type="email" value={resumoEmail} onChange={e => setResumoEmail(e.target.value)}
-                            placeholder="email@empresa.com.br" style={{ flex: 1 }} />
-                          <button className="iBtn" disabled={resumoEmailEnviando} onClick={enviarResumoEmail}>
-                            {resumoEmailEnviando ? 'Enviando...' : 'Enviar'}
-                          </button>
-                        </div>
-                        {resumoEmailMsg && <p style={{ fontSize: 12, margin: '6px 0 0' }}>{resumoEmailMsg}</p>}
-                      </div>
-                    )}
-                  </div>
-                )
-              })()}
-
-              <div className="form-sub" style={{ marginTop: 14 }}>
-                <label>OBSERVAÇÕES DO CHECKLIST</label>
-                <textarea rows={2} value={chkObs} onChange={e => setChkObs(e.target.value)} placeholder="Estratégia de lance, preço-alvo, riscos..." />
-              </div>
 
               <div className="form-sub">
                 <label>DECISÃO DE PARTICIPAÇÃO</label>

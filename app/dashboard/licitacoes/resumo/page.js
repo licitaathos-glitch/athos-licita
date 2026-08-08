@@ -28,7 +28,7 @@ function ResumoConteudo() {
   let chkDados = {}
   try { chkDados = JSON.parse(lic.checklistJson || '{}') } catch {}
   const resumoTexto = gerarResumoTexto(chkDados)
-  const obs = chkDados._obs || ''
+  const obs = lic.observacaoDisputa || ''
   const marcados = (lic.itens || []).filter(it => it.participar)
   const anexos = (lic.anexos?.length ? lic.anexos : (lic.anexoDriveUrl ? [{ nome: 'Edital', url: lic.anexoDriveUrl }] : []))
 

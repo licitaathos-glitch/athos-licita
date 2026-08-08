@@ -28,7 +28,7 @@ export async function POST(req) {
     const html = montarEmailResumo({
       numeroEdital: l.numeroEdital, orgao: l.orgao, uf: l.uf, objeto: l.objeto,
       valor: l.valor, link: l.link, dataSessao: l.dataSessao || l.dataLimite || l.dataAbertura,
-      resumoTexto, anexos,
+      resumoTexto, anexos, observacao: l.observacaoDisputa || '',
     })
 
     const env = await chamarGAS({
@@ -45,7 +45,7 @@ export async function POST(req) {
   }
 }
 
-function montarEmailResumo({ numeroEdital, orgao, uf, objeto, valor, link, dataSessao, resumoTexto, anexos }) {
+function montarEmailResumo({ numeroEdital, orgao, uf, objeto, valor, link, dataSessao, resumoTexto, anexos, observacao }) {
   return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F3EFE7;font-family:-apple-system,sans-serif">
   <table width="100%"><tr><td align="center" style="padding:28px 14px">
   <table width="560" style="max-width:560px;width:100%;background:#fff;border-radius:14px;overflow:hidden">
@@ -65,6 +65,8 @@ function montarEmailResumo({ numeroEdital, orgao, uf, objeto, valor, link, dataS
         </tbody>
       </table>
       ${resumoTexto ? `<div style="font-size:12.5px;color:#2E2D2F;background:#F8FAFC;padding:12px 14px;border-radius:8px;margin:0 0 14px;white-space:pre-wrap;line-height:1.6">${resumoTexto}</div>` : ''}
+      ${observacao ? `<p style="font-size:13px;margin:0 0 6px;color:#374151;font-weight:700">Observações</p>
+        <p style="font-size:12.5px;color:#2E2D2F;margin:0 0 14px">${observacao}</p>` : ''}
       ${anexos.length ? `<p style="font-size:13px;margin:0 0 6px;color:#374151;font-weight:700">Anexos</p>
         ${anexos.map(a => `<p style="margin:0 0 6px"><a href="${a.url}" style="color:#145653;font-weight:700;font-size:13px">📎 ${a.nome || 'Anexo'}</a></p>`).join('')}` : ''}
       <p style="margin:20px 0 0;font-size:12px;color:#9CA3AF;text-align:center">Consultoria Athos Licita</p>
