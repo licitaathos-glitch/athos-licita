@@ -209,16 +209,28 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
         setAvisoIA((r && r.erro) || 'Não foi possível ler o edital agora. Tente novamente em instantes.')
       } else {
         const g = r.checklist || {}
-        setChkDados(d => {
-          const novo = { ...d }
-          Object.keys(g).forEach(k => {
-            if (k.startsWith('_')) return
-            novo[k] = { resposta: g[k].resposta || '', detalhe: g[k].detalhe || '' }
-          })
-          return novo
+        const novoChkDados = { ...chkDados }
+        Object.keys(g).forEach(k => {
+          if (k.startsWith('_')) return
+          novoChkDados[k] = { resposta: g[k].resposta || '', detalhe: g[k].detalhe || '' }
         })
+        setChkDados(novoChkDados)
         if (g._riscos) setResumoRiscos(g._riscos)
-        setAvisoIA('✅ Edital lido e checklist preenchido pela IA — revise as respostas antes de decidir.')
+
+        // Salva na hora — sem isso, o resumo só existia na tela e sumia do
+        // PDF/e-mail/detalhe até alguém lembrar de clicar em "Salvar status".
+        try {
+          await fetch('/api/licitacoes', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: lic.id, empresa_id: lic.empresa_id, objeto: lic.objeto,
+              checklistJson: JSON.stringify({ ...novoChkDados, _riscos: g._riscos || resumoRiscos }),
+            }),
+          })
+          setAvisoIA('✅ Edital lido e resumo salvo — já aparece no PDF, no detalhe e no e-mail.')
+        } catch {
+          setAvisoIA('⚠️ Edital lido, mas houve um erro ao salvar automaticamente — clique em "Salvar status" antes de sair.')
+        }
       }
     } catch (e) {
       setAvisoIA('Erro: ' + e.message)
