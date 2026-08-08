@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { FASES } from '@/lib/fases'
 import { nomeResultado, corResultado } from '@/lib/resultado'
 import { nomeStatus } from '@/lib/statusLicitacao'
+import { gerarResumoTexto } from '@/lib/checklist'
 import Toggle from '@/components/Toggle'
 
 // Janela com os detalhes completos de uma licitação — antes isso expandia
@@ -12,13 +13,16 @@ export default function ModalDetalheLicitacao({
 }) {
   const l = lic
   const st = l.status || 'Aberta'
-  // O checklist só faz sentido enquanto a decisão de participar ainda está em
-  // aberto — da análise até a montagem da proposta. Depois disso, já foi usado.
-  const mostrarChecklist = ['Em analise', 'Inscricao'].includes(fx.id)
   // Por padrão só mostra os itens marcados como "vou participar" — em
   // licitações com dezenas de itens, ver todos de uma vez atrapalha
   const temParticipacaoDefinida = (l.itens || []).some(it => it.participar !== undefined)
   const [somenteParticipando, setSomenteParticipando] = useState(temParticipacaoDefinida)
+
+  let chkDados = {}
+  try { chkDados = JSON.parse(l.checklistJson || '{}') } catch {}
+  const resumoTexto = gerarResumoTexto(chkDados)
+  const analiseGeral = chkDados._riscos || ''
+  const anexosResumo = (l.anexos?.length ? l.anexos : (l.anexoDriveUrl ? [{ nome: 'Edital', url: l.anexoDriveUrl }] : []))
 
   return (
     <div className="overlay" onClick={e => { if (e.target === e.currentTarget) onFechar() }}>
@@ -54,6 +58,28 @@ export default function ModalDetalheLicitacao({
               ))}
           </div>
           {l.objeto && <p style={{ marginTop: 10 }}><strong>Objeto:</strong> {l.objeto}</p>}
+
+          {(analiseGeral || resumoTexto || anexosResumo.length > 0) && (
+            <div className="ia-resumo-box" style={{ marginTop: 12 }}>
+              <strong style={{ color: '#145653' }}>📄 Resumo do edital</strong>
+              {analiseGeral && (
+                <p style={{ fontSize: 12.5, marginTop: 8, marginBottom: 0, color: '#2E2D2F', lineHeight: 1.6 }}>{analiseGeral}</p>
+              )}
+              {resumoTexto && (
+                <div style={{ fontSize: 12.5, marginTop: analiseGeral ? 10 : 6, lineHeight: 1.7, color: '#374151', whiteSpace: 'pre-wrap' }}>
+                  {resumoTexto}
+                </div>
+              )}
+              {anexosResumo.length > 0 && (
+                <div style={{ marginTop: 10, borderTop: '1px solid #E2E8F0', paddingTop: 8 }}>
+                  <strong style={{ fontSize: 12, color: '#145653' }}>Anexos</strong>
+                  {anexosResumo.map((a, i) => (
+                    <div key={i}><a href={a.url} target="_blank" rel="noreferrer" style={{ fontSize: 12.5 }}>📎 {a.nome || 'Anexo'}</a></div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {l.resultado && l.resultado !== 'Aguardando' && (
             <div className="bloco-disputa" style={{ borderColor: corResultado(l.resultado) }}>
@@ -156,7 +182,6 @@ export default function ModalDetalheLicitacao({
               onChange={e => { if (e.target.value !== fx.id) onMover(l, e.target.value) }}>
               {FASES.map(x => <option key={x.id} value={x.id}>{x.nome}</option>)}
             </select>
-            {mostrarChecklist && <span className="dica-menus" style={{ margin: 0 }}>📋 checklist dentro de "Andamento"</span>}
             <button className="iBtn" onClick={() => onStatus(l)}>📈 Andamento</button>
             <button className="iBtn" onClick={() => onEditar(l)}>✏️ Editar</button>
             <button className="iBtn iBtn-del" onClick={() => onExcluir(l)}>🗑 Excluir</button>
