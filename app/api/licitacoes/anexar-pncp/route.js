@@ -24,8 +24,8 @@ export async function POST(req) {
     }
 
     // Nunca deixa o download do PNCP ficar pendurado sem resposta.
-    // Tenta 2 vezes — falha de rede nesse tipo de download costuma ser
-    // transitória (conexão instável, não o link em si).
+    // Tenta 3 vezes com uma pequena pausa — Connect Timeout costuma ser
+    // instabilidade momentânea de rede, não o link em si.
     async function baixar() {
       const controlador = new AbortController()
       const timer = setTimeout(() => controlador.abort(), 15000)
@@ -41,14 +41,17 @@ export async function POST(req) {
         clearTimeout(timer)
       }
     }
-    let r
-    try {
-      try { r = await baixar() } catch { r = await baixar() } // 1 nova tentativa
-    } catch (e) {
-      const causa = e.cause?.message || e.cause?.code || ''
-      return NextResponse.json({ sucesso: false, erro: e.name === 'AbortError'
-        ? 'O PNCP não respondeu a tempo ao baixar o arquivo.'
-        : 'Erro ao baixar: ' + e.message + (causa ? ' (' + causa + ')' : '') })
+    const espera = ms => new Promise(res => setTimeout(res, ms))
+    let r, ultimoErro
+    for (let tentativa = 1; tentativa <= 3; tentativa++) {
+      try { r = await baixar(); break }
+      catch (e) { ultimoErro = e; if (tentativa < 3) await espera(800) }
+    }
+    if (!r) {
+      const causa = ultimoErro.cause?.message || ultimoErro.cause?.code || ''
+      return NextResponse.json({ sucesso: false, erro: ultimoErro.name === 'AbortError'
+        ? 'O PNCP não respondeu a tempo ao baixar o arquivo, depois de 3 tentativas.'
+        : 'Erro ao baixar (3 tentativas): ' + ultimoErro.message + (causa ? ' (' + causa + ')' : '') })
     }
     if (!r.ok) return NextResponse.json({ sucesso: false, erro: `O PNCP respondeu HTTP ${r.status} ao baixar o arquivo.` })
 
