@@ -23,19 +23,32 @@ export async function POST(req) {
       return NextResponse.json({ sucesso: false, erro: 'Só é possível baixar documentos do próprio PNCP.' })
     }
 
-    // Nunca deixa o download do PNCP ficar pendurado sem resposta
-    const controlador = new AbortController()
-    const timer = setTimeout(() => controlador.abort(), 15000)
+    // Nunca deixa o download do PNCP ficar pendurado sem resposta.
+    // Tenta 2 vezes — falha de rede nesse tipo de download costuma ser
+    // transitória (conexão instável, não o link em si).
+    async function baixar() {
+      const controlador = new AbortController()
+      const timer = setTimeout(() => controlador.abort(), 15000)
+      try {
+        return await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; AthosLicita/1.0)',
+            'Accept': '*/*', 'Referer': 'https://pncp.gov.br/',
+          },
+          redirect: 'follow', cache: 'no-store', signal: controlador.signal,
+        })
+      } finally {
+        clearTimeout(timer)
+      }
+    }
     let r
     try {
-      r = await fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AthosLicita/1.0)' },
-        redirect: 'follow', cache: 'no-store', signal: controlador.signal,
-      })
+      try { r = await baixar() } catch { r = await baixar() } // 1 nova tentativa
     } catch (e) {
-      return NextResponse.json({ sucesso: false, erro: e.name === 'AbortError' ? 'O PNCP não respondeu a tempo ao baixar o arquivo.' : 'Erro ao baixar: ' + e.message })
-    } finally {
-      clearTimeout(timer)
+      const causa = e.cause?.message || e.cause?.code || ''
+      return NextResponse.json({ sucesso: false, erro: e.name === 'AbortError'
+        ? 'O PNCP não respondeu a tempo ao baixar o arquivo.'
+        : 'Erro ao baixar: ' + e.message + (causa ? ' (' + causa + ')' : '') })
     }
     if (!r.ok) return NextResponse.json({ sucesso: false, erro: `O PNCP respondeu HTTP ${r.status} ao baixar o arquivo.` })
 
