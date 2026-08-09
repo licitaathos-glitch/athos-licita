@@ -15,7 +15,11 @@ export async function POST(req) {
 
     const { url, nomeArquivo, empresaNome } = await req.json()
     if (!url) return NextResponse.json({ sucesso: false, erro: 'URL do documento não informada.' })
-    if (!/^https:\/\/pncp\.gov\.br\//.test(url)) {
+    let host = ''
+    try { host = new URL(url).hostname.toLowerCase() } catch {
+      return NextResponse.json({ sucesso: false, erro: 'URL do documento inválida.' })
+    }
+    if (host !== 'pncp.gov.br' && !host.endsWith('.pncp.gov.br')) {
       return NextResponse.json({ sucesso: false, erro: 'Só é possível baixar documentos do próprio PNCP.' })
     }
 
