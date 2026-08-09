@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { lerAba } from '@/lib/google'
 import { getUsuarioFromReq, podeAcessarMenu } from '@/lib/auth'
 import { chamarGAS } from '@/lib/gas'
-import { gerarResumoTexto } from '@/lib/checklist'
+import { gerarResumoItens } from '@/lib/checklist'
 
 export async function POST(req) {
   const usuario = await getUsuarioFromReq(req)
@@ -19,7 +19,7 @@ export async function POST(req) {
 
     let chkDados = {}
     try { chkDados = JSON.parse(l.checklistJson || '{}') } catch {}
-    const resumoTexto = gerarResumoTexto(chkDados)
+    const resumoItens = gerarResumoItens(chkDados)
     const analiseGeral = chkDados._riscos || ''
 
     let anexos = []
@@ -29,7 +29,7 @@ export async function POST(req) {
     const html = montarEmailResumo({
       numeroEdital: l.numeroEdital, orgao: l.orgao, uf: l.uf, objeto: l.objeto,
       valor: l.valor, link: l.link, dataSessao: l.dataSessao || l.dataLimite || l.dataAbertura,
-      resumoTexto, analiseGeral, anexos, observacao: l.observacaoDisputa || '',
+      resumoItens, analiseGeral, anexos, observacao: l.observacaoDisputa || '',
     })
 
     const env = await chamarGAS({
@@ -46,7 +46,13 @@ export async function POST(req) {
   }
 }
 
-function montarEmailResumo({ numeroEdital, orgao, uf, objeto, valor, link, dataSessao, resumoTexto, analiseGeral, anexos, observacao }) {
+function montarEmailResumo({ numeroEdital, orgao, uf, objeto, valor, link, dataSessao, resumoItens, analiseGeral, anexos, observacao }) {
+  const itensHtml = resumoItens.map(it => `
+    <p style="margin:0 0 10px">
+      <strong style="text-transform:uppercase;display:block;font-size:11.5px;color:#145653;letter-spacing:.03em">${it.label}</strong>
+      <span style="font-size:12.5px;color:#2E2D2F">${it.resposta}${it.detalhe ? ' — ' + it.detalhe : ''}</span>
+    </p>`).join('')
+
   return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F3EFE7;font-family:-apple-system,sans-serif">
   <table width="100%"><tr><td align="center" style="padding:28px 14px">
   <table width="560" style="max-width:560px;width:100%;background:#fff;border-radius:14px;overflow:hidden">
@@ -65,8 +71,8 @@ function montarEmailResumo({ numeroEdital, orgao, uf, objeto, valor, link, dataS
           ${link ? `<tr><td style="padding:6px 0;font-size:13px;color:#6B7280">Link da licitação</td><td style="padding:6px 0;font-size:13px"><a href="${link}" style="color:#145653;font-weight:700">Acessar edital</a></td></tr>` : ''}
         </tbody>
       </table>
-      ${analiseGeral ? `<p style="font-size:13px;color:#2E2D2F;font-weight:700;margin:0 0 10px;line-height:1.6">${analiseGeral}</p>` : ''}
-      ${resumoTexto ? `<div style="font-size:12.5px;color:#2E2D2F;background:#F8FAFC;padding:12px 14px;border-radius:8px;margin:0 0 14px;white-space:pre-wrap;line-height:1.6">${resumoTexto}</div>` : ''}
+      ${analiseGeral ? `<p style="font-size:13px;color:#2E2D2F;font-weight:700;margin:0 0 14px;line-height:1.6">${analiseGeral}</p>` : ''}
+      ${itensHtml ? `<div style="background:#F8FAFC;padding:14px;border-radius:8px;margin:0 0 14px">${itensHtml}</div>` : ''}
       ${observacao ? `<p style="font-size:13px;margin:0 0 6px;color:#374151;font-weight:700">Observações</p>
         <p style="font-size:12.5px;color:#2E2D2F;margin:0 0 14px">${observacao}</p>` : ''}
       ${anexos.length ? `<p style="font-size:13px;margin:0 0 6px;color:#374151;font-weight:700">Anexos</p>

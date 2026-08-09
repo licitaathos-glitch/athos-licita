@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { FASES, FORMAS_VALOR, normalizarFase } from '@/lib/fases'
 import { RESULTADOS, MOTIVOS_NAO_PARTICIPACAO, MOTIVOS_PERDA } from '@/lib/resultado'
-import { gerarResumoTexto } from '@/lib/checklist'
+import { gerarResumoItens } from '@/lib/checklist'
 import { TIPOS_EVENTO, tipoEventoInfo } from '@/lib/tiposEvento'
 import PainelCotacao from '@/components/PainelCotacao'
 import Toggle from '@/components/Toggle'
@@ -375,7 +375,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
 
                 {/* ── Resumo em texto — análise geral + itens, é o principal conteúdo desta fase ── */}
                 {(() => {
-                  const texto = gerarResumoTexto(chkDados)
+                  const itensResumo = gerarResumoItens(chkDados)
                   const anexos = (lic.anexos?.length ? lic.anexos : (lic.anexoDriveUrl ? [{ nome: 'Edital', url: lic.anexoDriveUrl }] : []))
                   return (
                     <div style={{ marginTop: 10, borderTop: '1px solid #E2E8F0', paddingTop: 10 }}>
@@ -393,8 +393,13 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                       {resumoRiscos && (
                         <p style={{ fontSize: 12.5, marginTop: 8, marginBottom: 0, color: '#2E2D2F', lineHeight: 1.6 }}>{resumoRiscos}</p>
                       )}
-                      <div style={{ fontSize: 12.5, marginTop: resumoRiscos ? 10 : 6, lineHeight: 1.7, color: '#374151', whiteSpace: 'pre-wrap' }}>
-                        {texto || <span style={{ color: '#94A3B8' }}>Ainda sem dados — use "🤖 Resumir com IA" acima.</span>}
+                      <div style={{ marginTop: resumoRiscos ? 10 : 6 }}>
+                        {itensResumo.length > 0 ? itensResumo.map((it, i) => (
+                          <p key={i} style={{ fontSize: 12.5, marginBottom: 8, lineHeight: 1.5 }}>
+                            <strong style={{ textTransform: 'uppercase', display: 'block', color: '#145653', fontSize: 11.5 }}>{it.label}</strong>
+                            <span style={{ color: '#374151' }}>{it.resposta}{it.detalhe ? ' — ' + it.detalhe : ''}</span>
+                          </p>
+                        )) : <span style={{ color: '#94A3B8', fontSize: 12.5 }}>Ainda sem dados — use "🤖 Resumir com IA" acima.</span>}
                       </div>
                       {anexos.length > 0 && (
                         <div style={{ marginTop: 10, borderTop: '1px solid #E2E8F0', paddingTop: 8 }}>

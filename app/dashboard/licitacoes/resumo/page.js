@@ -1,7 +1,7 @@
 'use client'
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { gerarResumoTexto } from '@/lib/checklist'
+import { gerarResumoItens } from '@/lib/checklist'
 
 const brl = v => (v || v === 0) ? Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : null
 
@@ -27,7 +27,7 @@ function ResumoConteudo() {
 
   let chkDados = {}
   try { chkDados = JSON.parse(lic.checklistJson || '{}') } catch {}
-  const resumoTexto = gerarResumoTexto(chkDados)
+  const resumoItens = gerarResumoItens(chkDados)
   const analiseGeral = chkDados._riscos || ''
   const obs = lic.observacaoDisputa || ''
   const marcados = (lic.itens || []).filter(it => it.participar)
@@ -79,11 +79,16 @@ function ResumoConteudo() {
         <h2 className="rel-h2">Objeto</h2>
         <p className="rel-texto">{lic.objeto || '—'}</p>
 
-        {(analiseGeral || resumoTexto) && (
+        {(analiseGeral || resumoItens.length > 0) && (
           <>
             <h2 className="rel-h2">Qualificação, prazos e condições</h2>
             {analiseGeral && <p className="rel-texto" style={{ fontWeight: 600 }}>{analiseGeral}</p>}
-            {resumoTexto && <p className="rel-texto" style={{ whiteSpace: 'pre-wrap' }}>{resumoTexto}</p>}
+            {resumoItens.map((it, i) => (
+              <p className="rel-texto" key={i} style={{ marginBottom: 10 }}>
+                <strong style={{ textTransform: 'uppercase', display: 'block' }}>{it.label}</strong>
+                {it.resposta}{it.detalhe ? ' — ' + it.detalhe : ''}
+              </p>
+            ))}
           </>
         )}
 
