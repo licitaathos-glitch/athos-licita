@@ -83,6 +83,12 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
   })
   const [avisoIA, setAvisoIA] = useState('')
 
+  // Descartado só faz sentido como "não participamos" — nunca chegou a
+  // disputar, então marca sozinho pra já mostrar a lista de motivos.
+  useEffect(() => {
+    if (fase === 'Descartado' && f.resultado !== 'Nao participamos') set('resultado', 'Nao participamos')
+  }, [fase]) // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (fase !== 'Em analise') return
     fetch('/api/certidoes').then(r => r.json()).then(r => {
@@ -705,7 +711,10 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
               <div className="form-sub">
                 <label>COMO TERMINOU?</label>
                 <div className="chip-group">
-                  {RESULTADOS.map(r => (
+                  {(fase === 'Descartado'
+                    ? RESULTADOS.filter(r => r.id === 'Nao participamos')
+                    : RESULTADOS.filter(r => !['Aguardando', 'Nao participamos'].includes(r.id))
+                  ).map(r => (
                     <button key={r.id}
                       className={'chip-opt' + (f.resultado === r.id ? ' on' : '')}
                       onClick={() => set('resultado', r.id)}>{r.nome}</button>
