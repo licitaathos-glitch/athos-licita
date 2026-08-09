@@ -59,7 +59,7 @@ export default function ModalDetalheLicitacao({
           </div>
           {l.objeto && <p style={{ marginTop: 10 }}><strong>Objeto:</strong> {l.objeto}</p>}
 
-          {(analiseGeral || resumoTexto || anexosResumo.length > 0) && (
+          {(analiseGeral || resumoTexto) && (
             <div className="ia-resumo-box" style={{ marginTop: 12 }}>
               <strong style={{ color: '#145653' }}>📄 Resumo do edital</strong>
               {analiseGeral && (
