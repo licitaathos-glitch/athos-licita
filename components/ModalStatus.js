@@ -197,22 +197,18 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
           }),
         })
         const ehZip = /\.zip$/i.test(r.nome || '')
-        if (ehZip) {
-          setAvisoIA('⚠️ ' + a.titulo + ' anexado, mas é um arquivo .zip — a IA não consegue ler dentro de um zip. Abra o arquivo, extraia o PDF do edital e anexe ele direto (em "Editar").')
-        } else {
-          setAvisoIA('✅ ' + a.titulo + ' anexado. Lendo com a IA...')
-          resumirComIA({ url: r.url, nome: r.nome })
-        }
+        setAvisoIA(ehZip
+          ? '⚠️ ' + a.titulo + ' anexado, mas é um arquivo .zip — a IA não consegue ler dentro de um zip. Abra o arquivo, extraia o PDF do edital e anexe ele direto (em "Editar").'
+          : '✅ ' + a.titulo + ' anexado.')
       } else setAvisoIA('Falha em ' + a.titulo + ': ' + (r.erro || 'erro desconhecido'))
     } catch {
       setAvisoIA('Erro de conexão ao anexar ' + a.titulo + '.')
     }
     setAnexandoArquivo('')
   }
-  async function resumirComIA(anexoOverride) {
-    const anexoAtual = anexoOverride || anexoLocal
-    if (!anexoAtual?.url) { setAvisoIA('Anexe o PDF do edital em "Editar" antes de usar a IA.'); return }
-    if (/\.zip$/i.test(anexoAtual.nome || '')) {
+  async function resumirComIA() {
+    if (!temAnexo) { setAvisoIA('Anexe o PDF do edital em "Editar" antes de usar a IA.'); return }
+    if (/\.zip$/i.test(anexoLocal.nome || '')) {
       setAvisoIA('O anexo atual é um .zip — a IA só lê PDF/imagem diretamente. Extraia o PDF do edital de dentro do zip e anexe ele (em "Editar").')
       return
     }
