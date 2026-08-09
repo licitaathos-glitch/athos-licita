@@ -22,6 +22,9 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
   const [resumoEmailAberto, setResumoEmailAberto] = useState(false)
   const [resumoEmailEnviando, setResumoEmailEnviando] = useState(false)
   const [resumoEmailMsg, setResumoEmailMsg] = useState('')
+  const [resumoEmailHistorico, setResumoEmailHistorico] = useState(() => {
+    try { return JSON.parse(lic.resumoEmailsJson || '[]') } catch { return [] }
+  })
 
   function abrirResumoEmail() {
     setResumoEmailAberto(true); setResumoEmailMsg('')
@@ -42,6 +45,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
         body: JSON.stringify({ licitacaoId: lic.id, destinatarioEmail: resumoEmail.trim() }),
       }).then(x => x.json())
       setResumoEmailMsg(r.sucesso ? '✅ Resumo enviado.' : '❌ ' + (r.erro || 'Erro ao enviar.'))
+      if (r.sucesso && r.historico) setResumoEmailHistorico(r.historico)
     } catch { setResumoEmailMsg('❌ Erro de conexão.') }
     setResumoEmailEnviando(false)
   }
@@ -390,6 +394,15 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                           </button>
                         </div>
                       </div>
+                      {resumoEmailHistorico.length > 0 && (
+                        <div style={{ marginTop: 8 }}>
+                          {resumoEmailHistorico.slice().reverse().map((h, i) => (
+                            <p key={i} style={{ fontSize: 11.5, color: '#6B7280', margin: '2px 0' }}>
+                              ✅ Enviado para <strong>{h.para}</strong> em {new Date(h.enviadoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
+                            </p>
+                          ))}
+                        </div>
+                      )}
                       {resumoRiscos && (
                         <p style={{ fontSize: 12.5, marginTop: 8, marginBottom: 0, color: '#2E2D2F', lineHeight: 1.6 }}>{resumoRiscos}</p>
                       )}

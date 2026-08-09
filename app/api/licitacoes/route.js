@@ -8,14 +8,14 @@ import { chunkCampo, juntarChunk, nomesChunk } from '@/lib/chunkCampo'
 
 const CAMPOS = ['numeroPNCP','numeroEdital','objeto','orgao','uasg','uf','valor','dataAbertura',
   'dataLimite','dataSessao','modalidade','status','link','portal','srp','numeroProposta','anexoDriveId','anexoDriveUrl','anexosJson',
-  'itensJson','checklistJson','participar', 'fase', ...COLS_RESULTADO]
+  'itensJson','checklistJson','resumoEmailsJson','participar', 'fase', ...COLS_RESULTADO]
 
 // itensJson vem em várias colunas (itensJson, itensJson_2, ...) porque licitações
 // com muitos itens passam do limite de 50000 caracteres de uma única célula do Sheets
 const COLS_LIC = ['id','empresaId','empresaNome','numeroPNCP','numeroEdital','objeto','orgao','uasg','uf',
   'valor','dataPublicacao','dataAbertura','modalidade','status','link','origem','salvoEm',
   'dataLimite','dataSessao','portal','srp','numeroProposta','anexoDriveId','anexoDriveUrl','anexosJson',
-  ...nomesChunk('itensJson'), 'checklistJson',
+  ...nomesChunk('itensJson'), 'checklistJson', 'resumoEmailsJson',
   'participar', 'fase', ...COLS_RESULTADO]
 
 function parseItens(json) {
@@ -50,6 +50,7 @@ export async function GET(req) {
         anexoDriveUrl: l.anexoDriveUrl || '', anexoDriveId: l.anexoDriveId || '',
         anexos: parseItens(l.anexosJson),
         itens: parseItens(juntarChunk(l, 'itensJson')), checklistJson: l.checklistJson || '',
+        resumoEmailsJson: l.resumoEmailsJson || '',
         participar: l.participar || 'Pendente',
         fase: faseAutomatica({
           fase: faseInferida({ fase: l.fase, resultado: l.resultado, participar: l.participar, status: l.status }),

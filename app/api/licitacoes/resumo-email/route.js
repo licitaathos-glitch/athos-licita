@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { lerAba } from '@/lib/google'
+import { lerAba, atualizarLinha } from '@/lib/google'
 import { getUsuarioFromReq, podeAcessarMenu } from '@/lib/auth'
 import { chamarGAS } from '@/lib/gas'
 import { gerarResumoItens } from '@/lib/checklist'
@@ -40,7 +40,14 @@ export async function POST(req) {
     if (!env || env.sucesso === false || env.erro) {
       return NextResponse.json({ sucesso: false, erro: (env && env.erro) || 'Não foi possível enviar o e-mail.' })
     }
-    return NextResponse.json({ sucesso: true })
+
+    // Guarda quando e pra quem foi enviado — pra não perder o rastro depois
+    let historico = []
+    try { historico = JSON.parse(l.resumoEmailsJson || '[]') } catch {}
+    historico.push({ para: destinatarioEmail, enviadoEm: new Date().toISOString(), por: usuario.nome || usuario.email })
+    await atualizarLinha('Licitacoes', 'id', licitacaoId, { resumoEmailsJson: JSON.stringify(historico) })
+
+    return NextResponse.json({ sucesso: true, historico })
   } catch (e) {
     return NextResponse.json({ sucesso: false, erro: e.message }, { status: 500 })
   }

@@ -35,6 +35,15 @@ export default function EmpresasPage() {
     if (r.sucesso) carregar(); else alert(r.erro || 'Erro ao salvar.')
   }
 
+  async function salvarDados(empresaId, dados) {
+    const r = await fetch('/api/empresas', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: empresaId, ...dados }),
+    }).then(x => x.json())
+    if (r.sucesso) { carregar(); recarregarEmpresas() }
+    return r
+  }
+
   useEffect(() => { if (perfil === 'adm') carregar() }, [perfil])
 
   async function salvar() {
@@ -86,20 +95,28 @@ export default function EmpresasPage() {
         Empresas cadastradas ({lista.length})
       </div>
       {lista.map(e => (
-        <CardEmpresa key={e.id} empresa={e} config={configs[String(e.id)]} onSalvar={salvarConfig} />
+        <CardEmpresa key={e.id} empresa={e} config={configs[String(e.id)]} onSalvar={salvarConfig} onSalvarDados={salvarDados} />
       ))}
     </div>
   )
 }
 
 
-function CardEmpresa({ empresa, config, onSalvar }) {
+function CardEmpresa({ empresa, config, onSalvar, onSalvarDados }) {
   const [aberto, setAberto] = useState(false)
   const atual = config || { modelo: 'revenda', percentualComissao: '', observacao: '' }
   const [modelo, setModelo] = useState(atual.modelo)
   const [perc, setPerc] = useState(atual.percentualComissao)
   const [obs, setObs] = useState(atual.observacao)
   const [salvando, setSalvando] = useState(false)
+
+  const [dNome, setDNome] = useState(empresa.nome || '')
+  const [dCnpj, setDCnpj] = useState(empresa.cnpj || '')
+  const [dResponsavel, setDResponsavel] = useState(empresa.responsavel || '')
+  const [dEmail, setDEmail] = useState(empresa.email || '')
+  const [dTelefone, setDTelefone] = useState(empresa.telefone || '')
+  const [salvandoDados, setSalvandoDados] = useState(false)
+  const [msgDados, setMsgDados] = useState('')
 
   const rotulo = MODELOS.find(m => m.id === atual.modelo)?.nome || 'Revenda'
 
@@ -109,13 +126,23 @@ function CardEmpresa({ empresa, config, onSalvar }) {
     setSalvando(false); setAberto(false)
   }
 
+  async function salvarDados() {
+    if (!dNome.trim()) { setMsgDados('Informe o nome da empresa.'); return }
+    setSalvandoDados(true); setMsgDados('')
+    const r = await onSalvarDados(empresa.id, {
+      nome: dNome, cnpj: dCnpj, responsavel: dResponsavel, email: dEmail, telefone: dTelefone,
+    })
+    setMsgDados(r.sucesso ? '✅ Dados atualizados.' : '❌ ' + (r.erro || 'Erro ao salvar.'))
+    setSalvandoDados(false)
+  }
+
   return (
     <div>
       <div className="emp-card" style={{ cursor: 'pointer' }} onClick={() => setAberto(a => !a)}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, color: '#145653' }}>{empresa.nome}</div>
           <div style={{ fontSize: 11, color: '#94A3B8' }}>
-            {empresa.cnpj}{empresa.responsavel ? ' · ' + empresa.responsavel : ''}
+            {empresa.cnpj}{empresa.responsavel ? ' · ' + empresa.responsavel : ''}{empresa.email ? ' · ' + empresa.email : ''}
           </div>
         </div>
         <span className="pill pill-gray">
@@ -126,6 +153,21 @@ function CardEmpresa({ empresa, config, onSalvar }) {
       {aberto && (
         <div className="detalhe-card">
           <div style={{ fontSize: 12.5, fontWeight: 700, color: '#145653', marginBottom: 10 }}>
+            ✏️ Dados cadastrais
+          </div>
+          <div className="form-grid">
+            <input placeholder="Nome da empresa" value={dNome} onChange={e => setDNome(e.target.value)} />
+            <input placeholder="CNPJ" value={dCnpj} onChange={e => setDCnpj(e.target.value)} />
+            <input placeholder="Responsável" value={dResponsavel} onChange={e => setDResponsavel(e.target.value)} />
+            <input placeholder="E-mail (separe por vírgula se houver mais de um)" value={dEmail} onChange={e => setDEmail(e.target.value)} />
+            <input placeholder="Telefone" value={dTelefone} onChange={e => setDTelefone(e.target.value)} />
+          </div>
+          {msgDados && <p style={{ fontSize: 12, margin: '8px 0 0' }}>{msgDados}</p>}
+          <button className="btn-primary" onClick={salvarDados} disabled={salvandoDados}>
+            {salvandoDados ? 'Salvando...' : 'Salvar dados cadastrais'}
+          </button>
+
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: '#145653', margin: '18px 0 10px' }}>
             💼 Modelo comercial — define como a receita é calculada no Financeiro
           </div>
           {MODELOS.map(m => (
