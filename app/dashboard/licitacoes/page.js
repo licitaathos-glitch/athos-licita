@@ -246,6 +246,7 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
   const [portais, setPortais] = useState([])
   const [novoPortal, setNovoPortal] = useState('')
   const [buscandoItens, setBuscandoItens] = useState(false)
+  const [buscandoAnexosPNCP, setBuscandoAnexosPNCP] = useState(false)
   const [anexos, setAnexos] = useState(() => {
     if (Array.isArray(lic.anexos) && lic.anexos.length) return lic.anexos
     return lic.anexoDriveUrl ? [{ nome: 'Edital', url: lic.anexoDriveUrl, id: lic.anexoDriveId || '' }] : []
@@ -307,10 +308,52 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
         if (!d.itens?.length && d.diagItens?.length) {
           setErro('Dados carregados, mas o PNCP não devolveu itens. [' + d.diagItens.slice(0, 2).join(' · ') + ']')
         }
-        setOk('Dados extraídos do PNCP — confira antes de salvar. Os documentos ficam para anexar na fase "Em análise", no Andamento.')
+        setOk('Dados extraídos do PNCP — confira antes de salvar. Buscando os arquivos do edital...')
+        buscarEAnexarPNCP(linkPncp.trim())
       }
     } catch (e) { setErro('Erro de conexão: ' + (e && e.message ? e.message : 'desconhecido')) }
     setExtraindo(false)
+  }
+
+  // Depois de extrair os dados, tenta já trazer e anexar os documentos
+  // publicados no PNCP sozinho — sem precisar esperar até o Andamento.
+  async function buscarEAnexarPNCP(link) {
+    setBuscandoAnexosPNCP(true)
+    try {
+      const r = await fetch('/api/licitacoes/arquivos-pncp', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ link }),
+      }).then(x => x.json())
+      if (!r.sucesso || !r.arquivos?.length) {
+        setOk('Dados extraídos do PNCP — confira antes de salvar. Não encontrei documentos publicados para anexar sozinho; anexe manualmente se precisar.')
+        setBuscandoAnexosPNCP(false)
+        return
+      }
+      const enviados = []
+      for (const a of r.arquivos) {
+        try {
+          const up = await fetch('/api/licitacoes/anexar-pncp', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: a.url, nomeArquivo: a.nomeArquivo || a.titulo, empresaNome }),
+          }).then(x => x.json())
+          if (up.sucesso) enviados.push({ nome: up.nome || a.titulo, url: up.url, id: up.id })
+        } catch {}
+      }
+      if (enviados.length) {
+        setAnexos(l => {
+          const todos = [...l, ...enviados]
+          set('anexoDriveId', todos[0].id || '')
+          set('anexoDriveUrl', todos[0].url || '')
+          return todos
+        })
+        setOk(`Dados extraídos do PNCP — confira antes de salvar. ${enviados.length} arquivo(s) do edital já anexado(s) automaticamente.`)
+      } else {
+        setOk('Dados extraídos do PNCP — confira antes de salvar. Encontrei documentos, mas não consegui anexar sozinho; anexe manualmente se precisar.')
+      }
+    } catch {
+      setOk('Dados extraídos do PNCP — confira antes de salvar. Não consegui buscar os arquivos automaticamente; anexe manualmente se precisar.')
+    }
+    setBuscandoAnexosPNCP(false)
   }
 
   async function onAnexo(e) {
@@ -454,11 +497,14 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
 
           <div className="form-sub"><label>LINK DO EDITAL</label><input value={f.link} onChange={e => set('link', e.target.value)} /></div>
           <p className="dica-menus" style={{ marginTop: -6 }}>
-            📎 Documentos do PNCP ficam para anexar na fase "Em análise", dentro do Andamento — depois de salvar esta licitação.
+            📎 Depois de "Extrair", os documentos publicados no PNCP são buscados e anexados aqui automaticamente. Se não encontrar, anexe manualmente abaixo.
           </p>
 
           <div className="form-sub">
             <label>📎 ARQUIVOS (edital, termo de referência, anexos...)</label>
+            {buscandoAnexosPNCP && (
+              <p className="dica-menus" style={{ margin: '0 0 8px' }}>🔎 Buscando arquivos do edital no PNCP...</p>
+            )}
             {anexos.map((a, i) => (
               <div className="anexo-item" key={i}>
                 <a href={a.url} target="_blank" rel="noreferrer">📄 {a.nome}</a>
