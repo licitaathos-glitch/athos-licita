@@ -257,14 +257,41 @@ function ModalAta({ ata, empresaId, onFechar, onSalvo }) {
     vigencia: ata.vigencia || '', vencimento: brParaISO(ata.vencimento), adesao: ata.adesao || '',
     condPagamento: ata.condPagamento || '', contato: ata.contato || '', observacoes: ata.observacoes || '',
     emailOrgao: ata.emailOrgao || '', telefoneOrgao: ata.telefoneOrgao || '',
+    licitacaoId: ata.licitacaoId || '',
   })
   const [itens, setItens] = useState(ata.itens || [])
   const [erro, setErro] = useState('')
   const [salvando, setSalvando] = useState(false)
   const [lendoPdf, setLendoPdf] = useState(false)
   const [pdfNome, setPdfNome] = useState('')
+  const [ganhas, setGanhas] = useState(null)
 
   const set = (k, v) => setF(o => ({ ...o, [k]: v }))
+
+  useEffect(() => {
+    fetch('/api/licitacoes').then(r => r.json()).then(r => {
+      if (!r.sucesso) { setGanhas([]); return }
+      setGanhas(r.licitacoes.filter(l =>
+        String(l.empresa_id) === String(empresaId) &&
+        (l.fase === 'Finalizada' || l.fase === 'Finalizado') && l.resultado === 'Ganhamos'
+      ))
+    }).catch(() => setGanhas([]))
+  }, [empresaId])
+
+  function vincularLicitacao(id) {
+    if (!id) { set('licitacaoId', ''); return }
+    const l = ganhas.find(x => x.id === id)
+    if (!l) return
+    setF(o => ({
+      ...o,
+      licitacaoId: id,
+      licitacao: [l.modalidade, l.srp === 'Sim' ? 'SRP' : '', l.numeroEdital ? 'nº ' + l.numeroEdital : ''].filter(Boolean).join(' ') || o.licitacao,
+      processo: l.numeroPNCP || o.processo,
+      objeto: l.objeto || o.objeto,
+      orgao: l.orgao || o.orgao,
+      uf: l.uf || o.uf,
+    }))
+  }
 
   async function onPdf(e) {
     const file = e.target.files?.[0]
@@ -351,6 +378,19 @@ function ModalAta({ ata, empresaId, onFechar, onSalvo }) {
                 ? <div>✅ {pdfNome}<div style={{ fontSize: 12, marginTop: 4 }}>dados preenchidos — confira antes de salvar</div></div>
                 : <div>🤖 Preenchimento automático — envie o PDF da ata<div style={{ fontSize: 12, color: '#94A3B8', marginTop: 4 }}>o Gemini extrai todos os campos e itens · até 25 MB</div></div>}
           </label>
+
+          <div className="form-sub">
+            <label className="mini-lbl">VINCULAR A UM PREGÃO VENCIDO (OPCIONAL)</label>
+            <select value={f.licitacaoId} onChange={e => vincularLicitacao(e.target.value)} disabled={!ganhas}>
+              <option value="">{ganhas === null ? 'Carregando...' : ganhas.length === 0 ? 'Nenhum pregão finalizado como vencedor nesta empresa' : 'Selecione...'}</option>
+              {ganhas?.map(l => (
+                <option key={l.id} value={l.id}>{l.numeroEdital || 'Sem nº'} — {l.orgao}{l.uf ? '/' + l.uf : ''}</option>
+              ))}
+            </select>
+            <p className="dica-menus" style={{ marginTop: 4 }}>
+              Preenche órgão, UF, objeto e licitação de origem a partir do pregão escolhido — ajuste o que precisar depois.
+            </p>
+          </div>
 
           <div className="form-grid">
             <div><label className="mini-lbl">Nº DA ATA *</label><input value={f.numeroAta} onChange={e => set('numeroAta', e.target.value)} placeholder="17/2026" /></div>

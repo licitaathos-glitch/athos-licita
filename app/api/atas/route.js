@@ -7,7 +7,7 @@ import { novoId } from '@/lib/uuid'
 // Campos gravados na aba Atas (a aba usa empresaId em camelCase)
 const CAMPOS = ['numeroAta','orgao','cnpjOrgao','uf','licitacao','processo','objeto',
   'representante','dataAssinatura','vigencia','vencimento','adesao','condPagamento',
-  'contato','emailOrgao','telefoneOrgao','observacoes','itensJson']
+  'contato','emailOrgao','telefoneOrgao','observacoes','itensJson','licitacaoId']
 
 function contarItens(json) {
   try { const a = JSON.parse(json || '[]'); return Array.isArray(a) ? a : [] } catch { return [] }
@@ -44,7 +44,7 @@ export async function GET(req) {
           vencimento: a.vencimento || '', adesao: a.adesao || '',
           condPagamento: a.condPagamento || '', contato: a.contato || '',
           emailOrgao: a.emailOrgao || '', telefoneOrgao: a.telefoneOrgao || '',
-          observacoes: a.observacoes || '',
+          observacoes: a.observacoes || '', licitacaoId: a.licitacaoId || '',
           itens, valorTotal,
           dias: dd, status: statusPorDias(dd),
         }
