@@ -22,6 +22,8 @@ export default function CertidoesPage() {
   const [erro, setErro] = useState('')
   const [catAtiva, setCatAtiva] = useState('fiscal')
   const [modal, setModal] = useState(null)
+  const [baixandoZip, setBaixandoZip] = useState(false)
+  const [erroZip, setErroZip] = useState('')
 
   const carregar = useCallback(() => {
     fetch('/api/certidoes')
@@ -47,6 +49,30 @@ export default function CertidoesPage() {
     return daEmpresa.find(c => c.tipo_slug === slug)
   }
 
+  async function baixarTodos() {
+    if (!empresaSel) return
+    setBaixandoZip(true); setErroZip('')
+    try {
+      const r = await fetch('/api/certidoes/zip', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empresaId: empresaSel }),
+      }).then(x => x.json())
+      if (!r.sucesso) { setErroZip(r.erro || 'Não foi possível gerar o zip.'); setBaixandoZip(false); return }
+      const bytes = atob(r.base64)
+      const buffer = new Uint8Array(bytes.length)
+      for (let i = 0; i < bytes.length; i++) buffer[i] = bytes.charCodeAt(i)
+      const blob = new Blob([buffer], { type: 'application/zip' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = r.nomeArquivo || `Documentos_${empresaNome}.zip`
+      document.body.appendChild(a); a.click(); a.remove()
+      URL.revokeObjectURL(url)
+    } catch {
+      setErroZip('Erro de conexão ao gerar o zip.')
+    }
+    setBaixandoZip(false)
+  }
+
   return (
     <div>
       <h2 className="sec-title">Certidões e Documentos</h2>
@@ -57,6 +83,15 @@ export default function CertidoesPage() {
         <div className="kpi"><div className="kpi-val kv-red">{vencidas}</div><div className="kpi-label">Vencidas</div></div>
         <div className="kpi"><div className="kpi-val kv-amber">{alerta}</div><div className="kpi-label">Vencem em 7 dias</div></div>
       </div>
+
+      {empresaSel && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          <button className="iBtn iBtn-up" onClick={baixarTodos} disabled={baixandoZip || daEmpresa.length === 0}>
+            {baixandoZip ? 'Gerando zip...' : '⬇ Baixar todos os documentos (.zip)'}
+          </button>
+          {erroZip && <span style={{ fontSize: 12, color: '#DC2626' }}>{erroZip}</span>}
+        </div>
+      )}
 
       {!empresaSel && (
         <div className="aviso-box">
