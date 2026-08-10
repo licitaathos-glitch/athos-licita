@@ -157,6 +157,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
   const [arquivosEdital, setArquivosEdital] = useState(null)
   const [buscandoArquivos, setBuscandoArquivos] = useState(false)
   const [anexandoArquivo, setAnexandoArquivo] = useState('')
+  const [statusArquivos, setStatusArquivos] = useState({}) // url -> 'ok' | 'erro: ...'
 
   async function buscarArquivosEdital() {
     // Prioriza o número de controle PNCP (estável) em vez do "Link do edital"
@@ -164,22 +165,37 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
     // do portal de origem (Comprasnet, BLL...), não mais o link do PNCP.
     const referencia = lic.numeroPNCP || lic.link
     if (!referencia) { setAvisoIA('Esta licitação não tem nº de controle PNCP nem "Link do edital" cadastrado — inclua em "Editar".'); return }
-    setAvisoIA(''); setBuscandoArquivos(true); setArquivosEdital(null)
+    setAvisoIA(''); setBuscandoArquivos(true); setArquivosEdital(null); setStatusArquivos({})
     try {
       const r = await fetch('/api/licitacoes/arquivos-pncp', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ link: referencia }),
       }).then(x => x.json())
-      if (r.sucesso && r.arquivos?.length) setArquivosEdital(r.arquivos)
-      else setAvisoIA(r.erro || 'Não achei documentos no PNCP para esta licitação.')
+      if (r.sucesso && r.arquivos?.length) {
+        setArquivosEdital(r.arquivos)
+        setBuscandoArquivos(false)
+        anexarTodos(r.arquivos)
+        return
+      } else setAvisoIA(r.erro || 'Não achei documentos no PNCP para esta licitação.')
     } catch {
       setAvisoIA('Erro de conexão ao buscar documentos.')
     }
     setBuscandoArquivos(false)
   }
 
-  async function anexarArquivoEdital(a) {
-    setAnexandoArquivo(a.url); setAvisoIA('')
+  // Anexa todos os documentos encontrados, um de cada vez (sem sobrecarregar
+  // o PNCP com várias chamadas simultâneas). O que falhar continua com o
+  // botão "Anexar" individual disponível, pra tentar de novo na mão.
+  async function anexarTodos(lista) {
+    for (const a of lista) {
+      await anexarArquivoEdital(a, true)
+    }
+  }
+
+  async function anexarArquivoEdital(a, emLote = false) {
+    setAnexandoArquivo(a.url)
+    setStatusArquivos(s => ({ ...s, [a.url]: 'anexando' }))
+    if (!emLote) setAvisoIA('')
     try {
       const r = await fetch('/api/licitacoes/anexar-pncp', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -187,8 +203,9 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
       }).then(x => x.json())
       if (r.sucesso) {
         // Grava na hora, sem esperar o "Salvar status" — assim o resumo por
-        // IA já pode ser usado em seguida, na mesma tela.
-        setAnexoLocal({ id: r.id, url: r.url, nome: r.nome })
+        // IA já pode ser usado em seguida, na mesma tela. Só o primeiro
+        // documento anexado (normalmente o edital) vira o anexo "oficial".
+        setAnexoLocal(atual => atual.id ? atual : { id: r.id, url: r.url, nome: r.nome })
         await fetch('/api/licitacoes', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -197,12 +214,19 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
           }),
         })
         const ehZip = /\.zip$/i.test(r.nome || '')
-        setAvisoIA(ehZip
-          ? '⚠️ ' + a.titulo + ' anexado, mas é um arquivo .zip — a IA não consegue ler dentro de um zip. Abra o arquivo, extraia o PDF do edital e anexe ele direto (em "Editar").'
-          : '✅ ' + a.titulo + ' anexado.')
-      } else setAvisoIA('Falha em ' + a.titulo + ': ' + (r.erro || 'erro desconhecido'))
+        setStatusArquivos(s => ({ ...s, [a.url]: ehZip ? 'zip' : 'ok' }))
+        if (!emLote) {
+          setAvisoIA(ehZip
+            ? '⚠️ ' + a.titulo + ' anexado, mas é um arquivo .zip — a IA não consegue ler dentro de um zip. Abra o arquivo, extraia o PDF do edital e anexe ele direto (em "Editar").'
+            : '✅ ' + a.titulo + ' anexado.')
+        }
+      } else {
+        setStatusArquivos(s => ({ ...s, [a.url]: 'erro: ' + (r.erro || 'erro desconhecido') }))
+        if (!emLote) setAvisoIA('Falha em ' + a.titulo + ': ' + (r.erro || 'erro desconhecido'))
+      }
     } catch {
-      setAvisoIA('Erro de conexão ao anexar ' + a.titulo + '.')
+      setStatusArquivos(s => ({ ...s, [a.url]: 'erro: conexão' }))
+      if (!emLote) setAvisoIA('Erro de conexão ao anexar ' + a.titulo + '.')
     }
     setAnexandoArquivo('')
   }
@@ -345,40 +369,51 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
           {fase === 'Em analise' && (
             <div className="form-sub">
               <div className="ia-resumo-box">
-                {!temAnexo ? (
-                  <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                      <div style={{ fontSize: 12.5, color: '#145653' }}>
-                        <strong>📎 Anexar edital do PNCP</strong>
-                        <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
-                          Busca os documentos publicados no PNCP para esta licitação, sem precisar sair desta tela.
-                        </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  {!temAnexo ? (
+                    <div style={{ fontSize: 12.5, color: '#145653' }}>
+                      <strong>📎 Anexar edital do PNCP</strong>
+                      <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
+                        Busca os documentos publicados no PNCP e já anexa tudo sozinho, sem precisar sair desta tela.
                       </div>
-                      <button className="iBtn iBtn-up" onClick={buscarArquivosEdital} disabled={buscandoArquivos}>
-                        {buscandoArquivos ? 'Buscando...' : '📎 Extrair arquivos do edital'}
-                      </button>
                     </div>
-                    {arquivosEdital && (
-                      <div style={{ marginTop: 10 }}>
-                        {arquivosEdital.map((a, i) => (
-                          <div className="anexo-item" key={i}>
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📄 {a.titulo}</span>
-                            <button className="iBtn" disabled={anexandoArquivo === a.url} onClick={() => anexarArquivoEdital(a)}>
-                              {anexandoArquivo === a.url ? 'Anexando...' : '⬇ Anexar'}
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  ) : (
                     <p className="dica-menus" style={{ margin: 0 }}>
                       📎 Edital anexado{anexoLocal.nome ? ': ' + anexoLocal.nome : ''} — <a href={anexoLocal.url} target="_blank" rel="noreferrer">abrir</a>
                     </p>
-                    <button className="iBtn iBtn-up" onClick={resumirComIA} disabled={analisandoIA}>
-                      {analisandoIA ? '🤖 Lendo o edital... (15–40s)' : '🤖 Resumir com IA'}
+                  )}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="iBtn iBtn-up" onClick={buscarArquivosEdital} disabled={buscandoArquivos}>
+                      {buscandoArquivos ? 'Buscando...' : (arquivosEdital ? '📎 Buscar de novo' : '📎 Extrair arquivos do edital')}
                     </button>
+                    {temAnexo && (
+                      <button className="iBtn iBtn-up" onClick={resumirComIA} disabled={analisandoIA}>
+                        {analisandoIA ? '🤖 Lendo o edital... (15–40s)' : '🤖 Resumir com IA'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {arquivosEdital && (
+                  <div style={{ marginTop: 10 }}>
+                    {arquivosEdital.map((a, i) => {
+                      const st = statusArquivos[a.url]
+                      return (
+                        <div className="anexo-item" key={i}>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📄 {a.titulo}</span>
+                          {st === 'ok' && <span style={{ fontSize: 12, color: '#166534' }}>✅ Anexado</span>}
+                          {st === 'zip' && <span style={{ fontSize: 12, color: '#B45309' }}>⚠️ Anexado (.zip — IA não lê)</span>}
+                          {st === 'anexando' && <span style={{ fontSize: 12, color: '#6B7280' }}>Anexando...</span>}
+                          {(!st || st.startsWith('erro')) && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              {st?.startsWith('erro') && <span style={{ fontSize: 11.5, color: '#B91C1C' }}>{st.replace('erro: ', '')}</span>}
+                              <button className="iBtn" disabled={anexandoArquivo === a.url} onClick={() => anexarArquivoEdital(a)}>
+                                {anexandoArquivo === a.url ? 'Anexando...' : (st?.startsWith('erro') ? '↻ Tentar de novo' : '⬇ Anexar')}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
                 {avisoIA && <p style={{ fontSize: 12, marginTop: 8, marginBottom: 0, color: avisoIA.startsWith('✅') ? '#166534' : '#B45309' }}>{avisoIA}</p>}
