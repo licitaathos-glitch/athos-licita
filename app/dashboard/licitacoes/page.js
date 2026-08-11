@@ -1,5 +1,6 @@
 'use client'
 import { Suspense, useCallback, useEffect, useState } from 'react'
+import { anexarArquivoPNCP } from '@/lib/anexoPncpClient'
 import { useSearchParams } from 'next/navigation'
 import { useApp } from '@/lib/AppContext'
 import { UFS } from '@/lib/pncpComum'
@@ -332,10 +333,9 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
       const enviados = []
       for (const a of r.arquivos) {
         try {
-          const up = await fetch('/api/licitacoes/anexar-pncp', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: a.url, nomeArquivo: a.nomeArquivo || a.titulo, empresaNome }),
-          }).then(x => x.json())
+          const up = await anexarArquivoPNCP({
+            url: a.url, nomeArquivo: a.nomeArquivo || a.titulo, empresaNome,
+          })
           if (up.sucesso) enviados.push({ nome: up.nome || a.titulo, url: up.url, id: up.id })
         } catch {}
       }

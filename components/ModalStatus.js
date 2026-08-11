@@ -7,6 +7,7 @@ import { TIPOS_EVENTO, tipoEventoInfo } from '@/lib/tiposEvento'
 import PainelCotacao from '@/components/PainelCotacao'
 import Toggle from '@/components/Toggle'
 import { enviarAoGAS } from '@/lib/gasClient'
+import { anexarArquivoPNCP } from '@/lib/anexoPncpClient'
 
 const moeda = n => (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 const isoParaBR = v => { const p = String(v || '').split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : v }
@@ -197,10 +198,11 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
     setStatusArquivos(s => ({ ...s, [a.url]: 'anexando' }))
     if (!emLote) setAvisoIA('')
     try {
-      const r = await fetch('/api/licitacoes/anexar-pncp', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: a.url, nomeArquivo: a.nomeArquivo || a.titulo, empresaNome: lic.empresa_nome }),
-      }).then(x => x.json())
+      // Tenta pelo servidor; se a Vercel não alcançar o PNCP, o próprio
+      // navegador baixa o arquivo e manda pro Drive (IP diferente).
+      const r = await anexarArquivoPNCP({
+        url: a.url, nomeArquivo: a.nomeArquivo || a.titulo, empresaNome: lic.empresa_nome,
+      })
       if (r.sucesso) {
         // Grava na hora, sem esperar o "Salvar status" — assim o resumo por
         // IA já pode ser usado em seguida, na mesma tela. Só o primeiro
