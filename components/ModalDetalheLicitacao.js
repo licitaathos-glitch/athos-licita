@@ -10,6 +10,9 @@ import Toggle from '@/components/Toggle'
 // dentro da própria lista; agora abre à parte, sem empurrar as outras linhas.
 export default function ModalDetalheLicitacao({
   lic, fx, somenteConsulta, onMover, onStatus, onEditar, onExcluir, onFechar,
+  // Quando a ficha é aberta de fora do módulo de Licitações (ex: Dashboard),
+  // este botão leva para a tela de Licitações já na licitação certa.
+  onIrPara,
 }) {
   const l = lic
   const st = l.status || 'Aberta'
@@ -145,6 +148,9 @@ export default function ModalDetalheLicitacao({
         </div>
 
         <div className="modal-foot" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+          {onIrPara && (
+            <button className="iBtn iBtn-up" onClick={() => onIrPara(l)}>➡️ Ir para a licitação</button>
+          )}
           {l.link && <a href={l.link} target="_blank" rel="noreferrer" className="iBtn">↗ Edital</a>}
           <a href={`/dashboard/licitacoes/resumo?id=${l.id}`} target="_blank" rel="noreferrer" className="iBtn">📄 Resumo (PDF)</a>
           {(l.anexos?.length ? l.anexos : (l.anexoDriveUrl ? [{ nome: 'Anexo', url: l.anexoDriveUrl }] : []))

@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useApp } from '@/lib/AppContext'
 import { Cartao, Janela, LinhaJanela } from '@/components/CartoesDashboard'
 import ModalDetalheLicitacao from '@/components/ModalDetalheLicitacao'
@@ -16,7 +17,8 @@ const hora = d => d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-di
 const dataCurta = d => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
 
 export default function DashboardPage() {
-  const { usuario, empresaAtual } = useApp()
+  const router = useRouter()
+  const { usuario, empresaAtual, setEmpresaAtual } = useApp()
   const [dados, setDados] = useState(null)
   const [agenda, setAgenda] = useState(null)
   const [tarefas, setTarefas] = useState([])
@@ -233,7 +235,13 @@ export default function DashboardPage() {
       {licAberta && (
         <ModalDetalheLicitacao
           lic={licAberta} fx={faseDe(licAberta.fase)} somenteConsulta
-          onFechar={() => setLicAberta(null)} />
+          onFechar={() => setLicAberta(null)}
+          onIrPara={l => {
+            // Troca a empresa selecionada junto: chegar na tela de Licitações
+            // com outra empresa em foco faria a licitação sumir da lista.
+            if (l.empresa_id) setEmpresaAtual(String(l.empresa_id))
+            router.push(`/dashboard/licitacoes?id=${l.id}`)
+          }} />
       )}
 
       {novaTarefa && (
