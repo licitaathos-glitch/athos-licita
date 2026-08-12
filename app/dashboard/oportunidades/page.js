@@ -78,25 +78,34 @@ export default function OportunidadesPage() {
 
   async function buscar() {
     setErro(''); setDiag([]); setBuscando(true); setRes(null); setSalvos({})
+    // Busca dirigida: informando a UASG (ou o CNPJ do órgão), o PNCP devolve as
+    // contratações daquela unidade, sem varrer estado por estado. Serve para
+    // achar licitação cuja disputa acontece em Licitar Digital, Portal de
+    // Compras Públicas etc. — a publicação continua sendo no PNCP.
+    const dirigida = !!(f.uasg?.trim() || f.cnpjOrgao?.trim())
+    const consulta = {
+      dias: f.dias, ufs: ufsSel, modalidades: modsSel, termo: '',
+      uasg: f.uasg?.trim() || '', cnpjOrgao: f.cnpjOrgao?.trim() || '',
+    }
     try {
-      setEtapa('Consultando o PNCP...')
+      setEtapa(dirigida ? 'Consultando o PNCP pela unidade...' : 'Consultando o PNCP...')
       const r = await fetch('/api/oportunidades', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dias: f.dias, ufs: ufsSel, modalidades: modsSel, termo: '' }),
+        body: JSON.stringify(consulta),
       }).then(x => x.json())
 
       let brutos = null
       if (r.sucesso) brutos = r.oportunidades
       else if (r.limitado) {
         setEtapa('Servidor bloqueado pelo PNCP. Buscando pela sua conexão...')
-        const b = await buscarNoNavegador({ dias: f.dias, ufs: ufsSel, modalidades: modsSel, termo: '' })
+        const b = await buscarNoNavegador(consulta)
         if (b.bloqueioCORS && !b.resultados.length) {
           setErro('O PNCP recusou a consulta pelo servidor e pelo navegador.')
           setDiag([...(r.diagnostico || []), ...(b.diagnostico || [])])
         } else brutos = b.resultados
       } else { setErro(r.erro || 'Erro na busca.'); setDiag(r.diagnostico || []) }
 
-      if (brutos) setRes(aplicarPerfil(brutos, f))
+      if (brutos) setRes(dirigida ? brutos : aplicarPerfil(brutos, f))
     } catch (ex) { setErro('Erro de conexão: ' + (ex.message || '')) }
     setBuscando(false); setEtapa('')
   }
@@ -208,6 +217,25 @@ export default function OportunidadesPage() {
             </div>
           </div>
 
+          {/* Busca dirigida — para achar um edital específico de qualquer portal */}
+          <div className="filtro-linha" style={{ marginTop: 10 }}>
+            <div style={{ minWidth: 160 }}>
+              <label className="mini-lbl">UASG / UNIDADE</label>
+              <input value={f.uasg} onChange={e => set('uasg', e.target.value)} placeholder="Ex: 925998" />
+            </div>
+            <div style={{ minWidth: 190 }}>
+              <label className="mini-lbl">CNPJ DO ÓRGÃO</label>
+              <input value={f.cnpjOrgao} onChange={e => set('cnpjOrgao', e.target.value)} placeholder="Só números" />
+            </div>
+            <div style={{ flex: 1, minWidth: 220, alignSelf: 'flex-end' }}>
+              <p className="dica-menus" style={{ margin: 0 }}>
+                Preenchendo UASG ou CNPJ, a busca vai direto naquela unidade — em qualquer estado e
+                sem filtrar por palavra-chave. É assim que se acha um edital do Licitar Digital ou do
+                Portal de Compras Públicas: a disputa é lá, mas a publicação é no PNCP.
+              </p>
+            </div>
+          </div>
+
           <div className="form-sub">
             <label>MODALIDADES</label>
             <div className="chip-group">
@@ -232,7 +260,8 @@ export default function OportunidadesPage() {
           </div>
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 12 }}>
-            <button className="btn-primary" style={{ marginTop: 0 }} onClick={buscar} disabled={buscando || !ufsSel.length || !modsSel.length}>
+            <button className="btn-primary" style={{ marginTop: 0 }} onClick={buscar}
+              disabled={buscando || !modsSel.length || (!ufsSel.length && !f.uasg?.trim() && !f.cnpjOrgao?.trim())}>
               {buscando ? 'Consultando...' : '🔎 Buscar'}
             </button>
             {empresaSel && !somenteConsulta && (

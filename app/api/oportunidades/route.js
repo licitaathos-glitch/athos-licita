@@ -10,12 +10,13 @@ export async function POST(req) {
   if (!podeAcessarMenu(usuario, 'oportunidades')) return NextResponse.json({ sucesso: false, erro: 'Seu usuário não tem acesso a este módulo.' }, { status: 403 })
 
   try {
-    const { dias, ufs, modalidades, termo } = await req.json()
+    const { dias, ufs, modalidades, termo, uasg, cnpjOrgao } = await req.json()
     const r = await buscarPNCP({
       dias: dias || 3,
       ufs: (ufs && ufs.length) ? ufs : ['RJ'],
       modalidades: (modalidades && modalidades.length) ? modalidades : [6, 8],
       termo: termo || '',
+      uasg: uasg || '', cnpjOrgao: cnpjOrgao || '',
     })
 
     if (!r.resultados.length && r.houve429) {
