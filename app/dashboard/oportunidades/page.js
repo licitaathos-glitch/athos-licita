@@ -82,7 +82,7 @@ export default function OportunidadesPage() {
     // contratações daquela unidade, sem varrer estado por estado. Serve para
     // achar licitação cuja disputa acontece em Licitar Digital, Portal de
     // Compras Públicas etc. — a publicação continua sendo no PNCP.
-    const dirigida = !!(f.uasg?.trim() || f.cnpjOrgao?.trim())
+    const dirigida = !!(f.uasg?.trim() || f.cnpjOrgao?.trim() || f.orgaoNome?.trim() || f.portalNome?.trim())
     const consulta = {
       dias: f.dias, ufs: ufsSel, modalidades: modsSel, termo: '',
       uasg: f.uasg?.trim() || '', cnpjOrgao: f.cnpjOrgao?.trim() || '',
@@ -105,7 +105,18 @@ export default function OportunidadesPage() {
         } else brutos = b.resultados
       } else { setErro(r.erro || 'Erro na busca.'); setDiag(r.diagnostico || []) }
 
-      if (brutos) setRes(dirigida ? brutos : aplicarPerfil(brutos, f))
+      // Órgão e portal não são filtros da API do PNCP — são aplicados sobre o
+      // resultado, comparando sem acento e sem diferença de maiúscula.
+      const semAcento = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+      const filtrarTexto = lista => {
+        const alvoOrgao = semAcento(f.orgaoNome).trim()
+        const alvoPortal = semAcento(f.portalNome).trim()
+        if (!alvoOrgao && !alvoPortal) return lista
+        return lista.filter(o =>
+          (!alvoOrgao || semAcento(o.orgao).includes(alvoOrgao)) &&
+          (!alvoPortal || semAcento(o.portal + ' ' + o.link).includes(alvoPortal)))
+      }
+      if (brutos) setRes(filtrarTexto(dirigida ? brutos : aplicarPerfil(brutos, f)))
     } catch (ex) { setErro('Erro de conexão: ' + (ex.message || '')) }
     setBuscando(false); setEtapa('')
   }
@@ -227,14 +238,23 @@ export default function OportunidadesPage() {
               <label className="mini-lbl">CNPJ DO ÓRGÃO</label>
               <input value={f.cnpjOrgao} onChange={e => set('cnpjOrgao', e.target.value)} placeholder="Só números" />
             </div>
-            <div style={{ flex: 1, minWidth: 220, alignSelf: 'flex-end' }}>
-              <p className="dica-menus" style={{ margin: 0 }}>
-                Preenchendo UASG ou CNPJ, a busca vai direto naquela unidade — em qualquer estado e
-                sem filtrar por palavra-chave. É assim que se acha um edital do Licitar Digital ou do
-                Portal de Compras Públicas: a disputa é lá, mas a publicação é no PNCP.
-              </p>
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <label className="mini-lbl">ÓRGÃO (nome contém)</label>
+              <input value={f.orgaoNome} onChange={e => set('orgaoNome', e.target.value)}
+                placeholder="Ex: marinha, prefeitura de niterói" />
+            </div>
+            <div style={{ minWidth: 170 }}>
+              <label className="mini-lbl">PORTAL DA DISPUTA</label>
+              <input value={f.portalNome} onChange={e => set('portalNome', e.target.value)}
+                placeholder="Ex: licitar, compraspublicas, bll" />
             </div>
           </div>
+          <p className="dica-menus" style={{ marginTop: 6 }}>
+            UASG e CNPJ vão direto na unidade dentro do PNCP, em qualquer estado e sem filtrar por
+            palavra-chave — é assim que se acha um edital cuja disputa acontece no Licitar Digital ou
+            no Portal de Compras Públicas. Órgão e portal são peneirados depois, sobre o que voltou,
+            então continuam dependendo do estado e do período escolhidos abaixo.
+          </p>
 
           <div className="form-sub">
             <label>MODALIDADES</label>

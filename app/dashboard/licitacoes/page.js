@@ -265,10 +265,16 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
       .catch(() => {})
   }, [])
 
-  // Busca os itens no PNCP a partir do link já preenchido
+  // Referência do processo no PNCP. O campo "Link do edital" é sobrescrito pelo
+  // link do portal de origem (Comprasnet, BLL...) depois da extração, e uma
+  // licitação salva pelas Oportunidades já nasce assim — por isso o nº de
+  // controle PNCP vem antes dele.
+  const refPNCP = () => (linkPncp.trim() || f.numeroPNCP?.trim() || f.link?.trim() || '')
+
+  // Busca os itens no PNCP a partir da referência disponível
   async function importarItens() {
-    const alvo = (linkPncp || f.link || '').trim()
-    if (!alvo) { setErro('Informe o link do PNCP para importar os itens.'); return }
+    const alvo = refPNCP()
+    if (!alvo) { setErro('Informe o link do PNCP (ou o nº de controle PNCP) para importar os itens.'); return }
     setErro(''); setBuscandoItens(true)
     try {
       const r = await fetch('/api/licitacoes/extrair', {
@@ -286,12 +292,13 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
   }
 
   async function extrair() {
-    if (!linkPncp.trim()) { setErro('Cole o link do PNCP.'); return }
+    const alvo = refPNCP()
+    if (!alvo) { setErro('Cole o link do PNCP (ou preencha o nº de controle PNCP).'); return }
     setErro(''); setOk(''); setExtraindo(true)
     try {
       const r = await fetch('/api/licitacoes/extrair', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ link: linkPncp.trim() }),
+        body: JSON.stringify({ link: alvo }),
       }).then(x => x.json())
       if (!r.sucesso) setErro((r.erro || 'Não foi possível extrair.') + (r.detalhe?.length ? ' [' + r.detalhe.join(' · ') + ']' : ''))
       else {
@@ -310,7 +317,7 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
           setErro('Dados carregados, mas o PNCP não devolveu itens. [' + d.diagItens.slice(0, 2).join(' · ') + ']')
         }
         setOk('Dados extraídos do PNCP — confira antes de salvar. Buscando os arquivos do edital...')
-        buscarEAnexarPNCP(linkPncp.trim())
+        buscarEAnexarPNCP(alvo)
       }
     } catch (e) { setErro('Erro de conexão: ' + (e && e.message ? e.message : 'desconhecido')) }
     setExtraindo(false)
@@ -438,7 +445,8 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
           <div className="pncp-box">
             <label className="mini-lbl" style={{ color: '#1E40AF' }}>🔗 PREENCHIMENTO AUTOMÁTICO — LINK DO PNCP</label>
             <div style={{ display: 'flex', gap: 8 }}>
-              <input value={linkPncp} onChange={e => setLinkPncp(e.target.value)} placeholder="https://pncp.gov.br/app/editais/..." />
+              <input value={linkPncp} onChange={e => setLinkPncp(e.target.value)}
+                placeholder={f.numeroPNCP ? 'Vazio = usa o nº PNCP ' + f.numeroPNCP : 'https://pncp.gov.br/app/editais/...'} />
               <button className="iBtn iBtn-up" style={{ flexShrink: 0, height: 36 }} onClick={extrair} disabled={extraindo}>
                 {extraindo ? '...' : '🔍 Extrair'}
               </button>
@@ -507,7 +515,7 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
                   para trazer o edital do PNCP ou subir o arquivo manualmente. */}
               <button className="iBtn iBtn-up" disabled={buscandoAnexosPNCP}
                 onClick={() => {
-                  const ref = (linkPncp || f.numeroPNCP || f.link || '').trim()
+                  const ref = refPNCP()
                   if (!ref) { setErro('Cole o link do PNCP acima (ou preencha o nº PNCP) para buscar os arquivos.'); return }
                   setErro(''); buscarEAnexarPNCP(ref)
                 }}>
