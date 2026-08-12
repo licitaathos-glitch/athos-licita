@@ -18,6 +18,8 @@ export default function PainelAgenda() {
   const [lista, setLista] = useState(null)
   const [erro, setErro] = useState('')
   const [agora, setAgora] = useState(() => new Date())
+  // Seção aberta em tela cheia ({ titulo, itens }) quando a lista é longa
+  const [verTodas, setVerTodas] = useState(null)
 
   useEffect(() => {
     fetch('/api/agenda').then(r => r.json())
@@ -31,8 +33,8 @@ export default function PainelAgenda() {
     return () => clearInterval(t)
   }, [])
 
-  const { hoje, semana, atrasadas } = useMemo(() => {
-    const vazio = { hoje: [], semana: [], atrasadas: [] }
+  const { hoje, semana, emAndamento } = useMemo(() => {
+    const vazio = { hoje: [], semana: [], emAndamento: [] }
     if (!lista) return vazio
     const empresaSel = empresaAtual !== 'todas' ? String(empresaAtual) : ''
     const inicioHoje = zerar(agora)
@@ -45,9 +47,9 @@ export default function PainelAgenda() {
       .sort((a, b) => a.data - b.data)
 
     return {
-      // Passou da hora e a licitação continua em aberto — normalmente é registro
-      // que ficou para trás, então vale mostrar em vez de esconder.
-      atrasadas: comData.filter(l => l.data < inicioHoje),
+      // Sessão já começou e a licitação continua em aberto: ou está rolando de
+      // fato, ou é registro que ficou para trás esperando desfecho.
+      emAndamento: comData.filter(l => l.data < inicioHoje),
       hoje: comData.filter(l => l.data >= inicioHoje && l.data < new Date(inicioHoje.getTime() + DIA)),
       semana: comData.filter(l => l.data >= new Date(inicioHoje.getTime() + DIA) && l.data < fimSemana),
     }
@@ -61,7 +63,7 @@ export default function PainelAgenda() {
     const faltaMin = (l.data - agora) / 60000
     const iminente = faltaMin > 0 && faltaMin <= 60
     return (
-      <div onClick={() => router.push(`/dashboard/licitacoes?id=${l.id}`)}
+      <div onClick={() => { setVerTodas(null); router.push(`/dashboard/licitacoes?id=${l.id}`) }}
         style={{
           display: 'flex', gap: 10, alignItems: 'flex-start', padding: '9px 10px', cursor: 'pointer',
           borderRadius: 8, borderLeft: `3px solid ${f.cor}`,
@@ -100,14 +102,16 @@ export default function PainelAgenda() {
 
   return (
     <div className="form-card">
-      {atrasadas.length > 0 && (
+      {emAndamento.length > 0 && (
         <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 12.5, fontWeight: 800, color: '#B91C1C', marginBottom: 6 }}>
-            ⚠️ Passou da hora e continua em aberto ({atrasadas.length})
+          <div style={{ fontSize: 12.5, fontWeight: 800, color: '#B45309', marginBottom: 6 }}>
+            ▶️ Em andamento ({emAndamento.length})
           </div>
-          {atrasadas.slice(0, 5).map(l => <Linha key={l.id} l={l} mostrarDia />)}
-          {atrasadas.length > 5 && (
-            <p style={{ fontSize: 11, color: '#94A3B8', margin: 0 }}>e mais {atrasadas.length - 5}...</p>
+          {emAndamento.slice(0, 5).map(l => <Linha key={l.id} l={l} mostrarDia />)}
+          {emAndamento.length > 5 && (
+            <button className="iBtn" onClick={() => setVerTodas({ titulo: 'Em andamento', itens: emAndamento })}>
+              ver todas as {emAndamento.length} →
+            </button>
           )}
         </div>
       )}
@@ -117,19 +121,55 @@ export default function PainelAgenda() {
       </div>
       {hoje.length === 0
         ? <p style={{ fontSize: 12.5, color: '#94A3B8', margin: '0 0 14px' }}>Nenhuma sessão hoje.</p>
-        : <div style={{ marginBottom: 14 }}>{hoje.map(l => <Linha key={l.id} l={l} />)}</div>}
+        : (
+          <div style={{ marginBottom: 14 }}>
+            {hoje.slice(0, 8).map(l => <Linha key={l.id} l={l} />)}
+            {hoje.length > 8 && (
+              <button className="iBtn" onClick={() => setVerTodas({ titulo: 'Sessões de hoje', itens: hoje })}>
+                ver todas as {hoje.length} →
+              </button>
+            )}
+          </div>
+        )}
 
       <div style={{ fontSize: 12.5, fontWeight: 800, color: '#145653', marginBottom: 6 }}>
         📆 Próximos 7 dias ({semana.length})
       </div>
       {semana.length === 0
         ? <p style={{ fontSize: 12.5, color: '#94A3B8', margin: 0 }}>Nada marcado para a semana.</p>
-        : porDia.map(g => (
-          <div key={g.chave} style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 11, color: '#94A3B8', textTransform: 'capitalize', marginBottom: 4 }}>{rotuloDia(g.data)}</div>
-            {g.itens.map(l => <Linha key={l.id} l={l} />)}
+        : (
+          <>
+            {porDia.map(g => (
+              <div key={g.chave} style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 11, color: '#94A3B8', textTransform: 'capitalize', marginBottom: 4 }}>{rotuloDia(g.data)}</div>
+                {g.itens.map(l => <Linha key={l.id} l={l} />)}
+              </div>
+            ))}
+            <button className="iBtn" onClick={() => setVerTodas({ titulo: 'Próximos 7 dias', itens: semana })}>
+              ver em lista única →
+            </button>
+          </>
+        )}
+
+      {verTodas && (
+        <div className="overlay" onClick={e => { if (e.target === e.currentTarget) setVerTodas(null) }}>
+          <div className="modal modal-lg">
+            <div className="modal-hdr">
+              <div>
+                <div className="modal-hdr-sub">AGENDA</div>
+                <div className="modal-hdr-title">{verTodas.titulo}</div>
+                <div style={{ color: 'rgba(255,255,255,.55)', fontSize: 12, marginTop: 2 }}>
+                  {verTodas.itens.length} licitação(ões)
+                </div>
+              </div>
+              <button className="modal-x" onClick={() => setVerTodas(null)}>×</button>
+            </div>
+            <div className="modal-body">
+              {verTodas.itens.map(l => <Linha key={l.id} l={l} mostrarDia />)}
+            </div>
           </div>
-        ))}
+        </div>
+      )}
     </div>
   )
 }
