@@ -10,7 +10,7 @@ const zerar = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x }
 // Pendências do dia a dia — tarefas e eventos na mesma lista, no mesmo visual
 // das linhas da agenda: barra colorida à esquerda, hora em destaque e a
 // observação logo abaixo. Aqui também se exclui o que não vale mais.
-export default function PainelPendencias({ aoMudar }) {
+export default function PainelPendencias({ aoMudar, onAbrirLicitacao }) {
   const { usuario, empresaAtual } = useApp()
   const somenteConsulta = String(usuario?.perfil || '').toLowerCase() === 'empresa'
   const empresaSel = empresaAtual !== 'todas' ? String(empresaAtual) : ''
@@ -61,6 +61,7 @@ export default function PainelPendencias({ aoMudar }) {
       icone: t.status === 'Concluída' ? '✅' : '✔️',
       titulo: t.titulo, obs: t.descricao || '',
       quando: paraData(t.prazo), empresaNome: t.empresaNome,
+      licitacaoId: t.licitacaoId || '', licitacaoEdital: t.licitacaoEdital || '',
       marca: t.status === 'Concluída' ? '#94A3B8' : '#0F766E',
       etiqueta: t.prioridade, feita: t.status === 'Concluída',
     })),
@@ -72,6 +73,7 @@ export default function PainelPendencias({ aoMudar }) {
         icone: info.ico, titulo: e.titulo || info.nome, obs: e.descricao || '',
         quando: paraData(e.hora ? `${e.data}T${e.hora}` : e.data),
         empresaNome: e.empresaNome,
+        licitacaoId: e.licitacaoId || '', licitacaoEdital: e.licitacaoEdital || '',
         marca: remarca ? '#B45309' : '#9333EA',
         etiqueta: 'evento', feita: false,
       }
@@ -113,7 +115,16 @@ export default function PainelPendencias({ aoMudar }) {
           <div style={{ fontSize: 11.5, color: i.obs ? '#475569' : '#94A3B8', marginTop: 2 }}>
             <strong style={{ color: '#94A3B8' }}>Observação:</strong> {i.obs || 'sem observação'}
           </div>
-          {i.empresaNome && <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 1 }}>{i.empresaNome}</div>}
+          <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 1, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            {i.empresaNome && <span>{i.empresaNome}</span>}
+            {/* A pendência quase sempre se resolve dentro da licitação — o
+                atalho evita ter que ir procurá-la na lista. */}
+            {i.licitacaoId && onAbrirLicitacao && (
+              <button className="iBtn" onClick={() => onAbrirLicitacao(i.licitacaoId)}>
+                ➡️ abrir licitação{i.licitacaoEdital ? ' ' + i.licitacaoEdital : ''}
+              </button>
+            )}
+          </div>
         </div>
 
         {!somenteConsulta && (
@@ -124,14 +135,15 @@ export default function PainelPendencias({ aoMudar }) {
   }
 
   return (
-    <div className="form-card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-        <div style={{ fontSize: 12.5, fontWeight: 800, color: '#145653' }}>
-          ✔️ Pendências ({pendentes.length})
-        </div>
-        {!somenteConsulta && <button className="iBtn iBtn-up" onClick={() => setNovo(true)}>+ Nova tarefa ou evento</button>}
+    <div className="janela-dash">
+      <div className="janela-dash-hdr">
+        <span>✔️ Pendências</span>
+        <span className="janela-dash-cont">{pendentes.length}</span>
+        {!somenteConsulta && (
+          <button className="iBtn" style={{ marginLeft: 'auto' }} onClick={() => setNovo(true)}>+ Nova</button>
+        )}
       </div>
-
+      <div className="janela-dash-corpo">
       {pendentes.length === 0
         ? <p style={{ fontSize: 12.5, color: '#94A3B8', margin: 0 }}>Nada pendente.</p>
         : pendentes.map(i => <Linha key={i.tipo + i.id} i={i} />)}
@@ -144,6 +156,8 @@ export default function PainelPendencias({ aoMudar }) {
           {verFeitas && <div style={{ marginTop: 8 }}>{arquivadas.map(i => <Linha key={i.tipo + i.id} i={i} />)}</div>}
         </>
       )}
+
+      </div>
 
       {novo && (
         <ModalNovoRegistro

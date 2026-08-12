@@ -507,3 +507,11 @@ body{font-family:'Manrope',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-seri
 .lic-registro-top strong{font-weight:700}
 .lic-registro-obs{font-size:11px;color:#64748B;margin-top:1px}
 .lic-registro-obs span{font-weight:700;color:#94A3B8}
+
+/* Dashboard em janelas independentes: cada assunto na sua caixa, com rolagem própria */
+.dash-janelas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:20px}
+@media(max-width:900px){.dash-janelas{grid-template-columns:1fr}}
+.janela-dash{background:#fff;border:1px solid #E7E1D5;border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.janela-dash-hdr{display:flex;align-items:center;gap:8px;padding:10px 12px;background:#F3EFE7;border-bottom:1px solid #E7E1D5;font-size:12.5px;font-weight:800;color:#145653}
+.janela-dash-cont{background:#145653;color:#fff;border-radius:99px;font-size:11px;padding:1px 7px}
+.janela-dash-corpo{padding:10px 12px;overflow-y:auto;max-height:330px}

@@ -65,86 +65,85 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* O que acontece hoje, o que está rolando e o que vem — o motivo de
-          abrir o sistema de manhã, no mesmo visual da agenda. */}
-      <div style={{ marginTop: 20 }}>
-        <h3 className="sec-title" style={{ fontSize: 16 }}>⚖️ Licitações — hoje, em andamento e futuras</h3>
-        <PainelAgenda />
-      </div>
+      {/* Cada assunto na sua janela, no visual da agenda. Duas colunas no
+          desktop, uma no celular — a página quebra em objetos independentes. */}
+      <div className="dash-janelas">
+        <PainelAgenda apenas="hoje" onAbrirLicitacao={abrirLicitacao} />
+        <PainelAgenda apenas="andamento" onAbrirLicitacao={abrirLicitacao} />
+        <PainelAgenda apenas="futuras" onAbrirLicitacao={abrirLicitacao} />
+        <PainelPendencias onAbrirLicitacao={abrirLicitacao} />
 
-      <div style={{ marginTop: 26 }}>
-        <h3 className="sec-title" style={{ fontSize: 16 }}>✔️ Pendências</h3>
-        <p className="sec-sub">Tarefas e eventos — marque como feita ou exclua o que não vale mais</p>
-        <PainelPendencias />
-      </div>
-
-      {cotacoes.length > 0 && (
-        <div style={{ marginTop: 26 }}>
-          <h3 className="sec-title" style={{ fontSize: 16 }}>⏳ Cotações sem resposta ({cotacoes.length})</h3>
-          <p className="sec-sub">Pedidos enviados que o fornecedor ainda não respondeu</p>
-          <div className="form-card">
-            {cotacoes.map(c => (
-              <div key={c.id} onClick={() => c.licitacaoId && abrirLicitacao(c.licitacaoId)}
-                style={{
-                  display: 'flex', gap: 10, padding: '9px 10px', borderRadius: 8, marginBottom: 6,
-                  background: '#F8FAFC', borderLeft: '3px solid #9333EA',
-                  cursor: c.licitacaoId ? 'pointer' : 'default',
-                }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#2E2D2F' }}>{c.edital}</div>
-                  <div style={{ fontSize: 11.5, color: '#64748B', marginTop: 2 }}>
-                    {[c.destinatario, c.empresaNome].filter(Boolean).join(' · ')}
+        <div className="janela-dash">
+          <div className="janela-dash-hdr">
+            <span>⏳ Cotações sem resposta</span>
+            <span className="janela-dash-cont">{cotacoes.length}</span>
+          </div>
+          <div className="janela-dash-corpo">
+            {cotacoes.length === 0
+              ? <p style={{ fontSize: 12.5, color: '#94A3B8', margin: 0 }}>Nenhum pedido aguardando fornecedor.</p>
+              : cotacoes.map(c => (
+                <div key={c.id} onClick={() => c.licitacaoId && abrirLicitacao(c.licitacaoId)}
+                  style={{
+                    display: 'flex', gap: 10, padding: '9px 10px', borderRadius: 8, marginBottom: 6,
+                    background: '#F8FAFC', borderLeft: '3px solid #9333EA',
+                    cursor: c.licitacaoId ? 'pointer' : 'default',
+                  }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#2E2D2F' }}>{c.edital}</div>
+                    <div style={{ fontSize: 11.5, color: '#64748B', marginTop: 2 }}>
+                      {[c.destinatario, c.empresaNome].filter(Boolean).join(' · ')}
+                    </div>
+                    {c.objeto && <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 1 }}>{c.objeto}</div>}
                   </div>
-                  {c.objeto && <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 1 }}>{c.objeto}</div>}
                 </div>
+              ))}
+          </div>
+        </div>
+
+        <div className="janela-dash">
+          <div className="janela-dash-hdr">
+            <span>🏢 Empresas</span>
+            <span className="janela-dash-cont">{empresas.length}</span>
+            {comPendencia.length > 0 && (
+              <span className="pill pill-amber" style={{ marginLeft: 'auto' }}>{comPendencia.length} com pendência</span>
+            )}
+          </div>
+          <div className="janela-dash-corpo">
+            {empresas.map(e => (
+              <div key={e.id}>
+                <div onClick={() => setEmpresaAberta(empresaAberta === e.id ? null : e.id)}
+                  style={{
+                    display: 'flex', gap: 10, alignItems: 'center', padding: '9px 10px', borderRadius: 8,
+                    marginBottom: 6, background: '#F8FAFC', borderLeft: `3px solid ${CORES[e.status]}`, cursor: 'pointer',
+                  }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#2E2D2F' }}>{e.nome}</div>
+                    <div style={{ fontSize: 11.5, color: '#64748B', marginTop: 2 }}>
+                      {e.cnpj}{e.responsavel ? ' · ' + e.responsavel : ''}
+                    </div>
+                  </div>
+                  <span className="pill" style={{ background: CORES[e.status] + '22', color: CORES[e.status] }}>
+                    {e.vencidas ? `${e.vencidas} vencida(s)` : e.alerta ? `${e.alerta} vencendo` : 'regular'}
+                  </span>
+                </div>
+                {empresaAberta === e.id && (
+                  <div style={{ margin: '-2px 0 10px 16px' }}>
+                    {(e.pendencias || []).length === 0
+                      ? <p style={{ fontSize: 12, color: '#94A3B8', margin: '0 0 6px' }}>Nenhuma certidão vencida ou vencendo nos próximos 7 dias.</p>
+                      : e.pendencias.map((p, i) => (
+                        <div key={i} style={{ fontSize: 12, color: p.dias < 0 ? '#B91C1C' : '#B45309', padding: '3px 0' }}>
+                          {p.dias < 0 ? '⛔' : '⚠️'} {rotuloTipo(p.tipo)} — {p.validade}
+                          {p.dias < 0 ? ` (vencida há ${Math.abs(p.dias)} dia(s))` : ` (vence em ${p.dias} dia(s))`}
+                        </div>
+                      ))}
+                    <Link href="/dashboard/certidoes" className="iBtn" style={{ marginTop: 4, display: 'inline-block' }}>
+                      abrir Certidões →
+                    </Link>
+                  </div>
+                )}
               </div>
             ))}
           </div>
-        </div>
-      )}
-
-      <div style={{ marginTop: 26 }}>
-        <h3 className="sec-title" style={{ fontSize: 16 }}>🏢 Empresas ({empresas.length})</h3>
-        <p className="sec-sub">
-          {comPendencia.length > 0
-            ? `${comPendencia.length} com certidão vencida ou vencendo — clique para ver o que falta`
-            : 'Todas com a documentação em dia'}
-        </p>
-        <div className="form-card">
-          {empresas.map(e => (
-            <div key={e.id}>
-              <div onClick={() => setEmpresaAberta(empresaAberta === e.id ? null : e.id)}
-                style={{
-                  display: 'flex', gap: 10, alignItems: 'center', padding: '9px 10px', borderRadius: 8,
-                  marginBottom: 6, background: '#F8FAFC', borderLeft: `3px solid ${CORES[e.status]}`, cursor: 'pointer',
-                }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#2E2D2F' }}>{e.nome}</div>
-                  <div style={{ fontSize: 11.5, color: '#64748B', marginTop: 2 }}>
-                    {e.cnpj}{e.responsavel ? ' · ' + e.responsavel : ''}
-                  </div>
-                </div>
-                <span className="pill" style={{ background: CORES[e.status] + '22', color: CORES[e.status] }}>
-                  {e.vencidas ? `${e.vencidas} vencida(s)` : e.alerta ? `${e.alerta} vencendo` : 'regular'}
-                </span>
-              </div>
-              {empresaAberta === e.id && (
-                <div style={{ margin: '-2px 0 10px 16px' }}>
-                  {(e.pendencias || []).length === 0
-                    ? <p style={{ fontSize: 12, color: '#94A3B8', margin: '0 0 6px' }}>Nenhuma certidão vencida ou vencendo nos próximos 7 dias.</p>
-                    : e.pendencias.map((p, i) => (
-                      <div key={i} style={{ fontSize: 12, color: p.dias < 0 ? '#B91C1C' : '#B45309', padding: '3px 0' }}>
-                        {p.dias < 0 ? '⛔' : '⚠️'} {rotuloTipo(p.tipo)} — {p.validade}
-                        {p.dias < 0 ? ` (vencida há ${Math.abs(p.dias)} dia(s))` : ` (vence em ${p.dias} dia(s))`}
-                      </div>
-                    ))}
-                  <Link href="/dashboard/certidoes" className="iBtn" style={{ marginTop: 4, display: 'inline-block' }}>
-                    abrir Certidões →
-                  </Link>
-                </div>
-              )}
-            </div>
-          ))}
         </div>
       </div>
 

@@ -12,7 +12,7 @@ const rotuloDia = d => d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-
 
 // Sessões de hoje e do resto da semana. Responde a pergunta que o dashboard
 // antigo não respondia: o que acontece hoje e o que vem pela frente.
-export default function PainelAgenda() {
+export default function PainelAgenda({ apenas = null, onAbrirLicitacao }) {
   const router = useRouter()
   const { empresaAtual } = useApp()
   const [lista, setLista] = useState(null)
@@ -63,7 +63,11 @@ export default function PainelAgenda() {
     const faltaMin = (l.data - agora) / 60000
     const iminente = faltaMin > 0 && faltaMin <= 60
     return (
-      <div onClick={() => { setVerTodas(null); router.push(`/dashboard/licitacoes?id=${l.id}`) }}
+      <div onClick={() => {
+          setVerTodas(null)
+          if (onAbrirLicitacao) onAbrirLicitacao(l.id)
+          else router.push(`/dashboard/licitacoes?id=${l.id}`)
+        }}
         style={{
           display: 'flex', gap: 10, alignItems: 'flex-start', padding: '9px 10px', cursor: 'pointer',
           borderRadius: 8, borderLeft: `3px solid ${f.cor}`,
@@ -99,6 +103,55 @@ export default function PainelAgenda() {
     if (grupo) grupo.itens.push(l)
     else porDia.push({ chave, data: l.data, itens: [l] })
   })
+
+  // Uma seção por vez: o Dashboard monta uma janela para cada assunto, em
+  // vez de empilhar tudo num bloco só e obrigar a rolar.
+  if (apenas) {
+    const conf = {
+      hoje: { titulo: '📌 Hoje', itens: hoje, vazio: 'Nenhuma sessão hoje.', limite: 6, dia: false },
+      andamento: { titulo: '▶️ Em andamento', itens: emAndamento, vazio: 'Nada em andamento.', limite: 6, dia: true },
+      futuras: { titulo: '📆 Próximos 7 dias', itens: semana, vazio: 'Nada marcado para a semana.', limite: 6, dia: true },
+    }[apenas]
+    if (!conf) return null
+    return (
+      <div className="janela-dash">
+        <div className="janela-dash-hdr">
+          <span>{conf.titulo}</span>
+          <span className="janela-dash-cont">{conf.itens.length}</span>
+        </div>
+        <div className="janela-dash-corpo">
+          {conf.itens.length === 0
+            ? <p style={{ fontSize: 12.5, color: '#94A3B8', margin: 0 }}>{conf.vazio}</p>
+            : conf.itens.slice(0, conf.limite).map(l => <Linha key={l.id} l={l} mostrarDia={conf.dia} />)}
+          {conf.itens.length > conf.limite && (
+            <button className="iBtn" onClick={() => setVerTodas({ titulo: conf.titulo, itens: conf.itens })}>
+              ver todas as {conf.itens.length} →
+            </button>
+          )}
+        </div>
+
+        {verTodas && (
+          <div className="overlay" onClick={e => { if (e.target === e.currentTarget) setVerTodas(null) }}>
+            <div className="modal modal-lg">
+              <div className="modal-hdr">
+                <div>
+                  <div className="modal-hdr-sub">AGENDA</div>
+                  <div className="modal-hdr-title">{verTodas.titulo}</div>
+                  <div style={{ color: 'rgba(255,255,255,.55)', fontSize: 12, marginTop: 2 }}>
+                    {verTodas.itens.length} licitação(ões)
+                  </div>
+                </div>
+                <button className="modal-x" onClick={() => setVerTodas(null)}>×</button>
+              </div>
+              <div className="modal-body">
+                {verTodas.itens.map(l => <Linha key={l.id} l={l} mostrarDia />)}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="form-card">
