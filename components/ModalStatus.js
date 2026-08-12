@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { FASES, FORMAS_VALOR, normalizarFase } from '@/lib/fases'
 import { RESULTADOS, MOTIVOS_NAO_PARTICIPACAO, MOTIVOS_PERDA } from '@/lib/resultado'
 import { gerarResumoItens } from '@/lib/checklist'
@@ -114,6 +114,20 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
   const [obsEvento, setObsEvento] = useState('')
   const [salvandoEvento, setSalvandoEvento] = useState(false)
   const [avisoEvento, setAvisoEvento] = useState('')
+  // Nos tipos que remarcam (suspensão com retorno, remarcação), a data
+  // informada é a nova data da sessão — vem marcado, mas dá para desmarcar.
+  const [atualizarSessao, setAtualizarSessao] = useState(true)
+  const [historico, setHistorico] = useState(null)
+
+  const carregarHistorico = useCallback(() => {
+    fetch('/api/calendario/eventos').then(r => r.json())
+      .then(r => setHistorico(r.sucesso
+        ? r.eventos.filter(e => String(e.licitacaoId || '') === String(lic.id))
+            .sort((a, b) => String(b.data).localeCompare(String(a.data)))
+        : []))
+      .catch(() => setHistorico([]))
+  }, [lic.id])
+  useEffect(() => { carregarHistorico() }, [carregarHistorico])
 
   async function registrarEvento() {
     if (!dataEvento) { setAvisoEvento('Informe a data e hora do evento.'); return }
@@ -135,17 +149,27 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
       }).then(x => x.json())
       if (!ev.sucesso) { setAvisoEvento(ev.erro || 'Erro ao criar o evento no calendário.'); setSalvandoEvento(false); return }
 
-      if (info.statusLic) {
+      // O campo do evento é datetime-local (aaaa-mm-ddThh:mm); a data da
+      // sessão é guardada no formato brasileiro. Converte antes de gravar.
+      const m = dataEvento.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
+      const sessaoBR = m ? `${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}` : ''
+      const remarcar = info.remarcaSessao && atualizarSessao && !!sessaoBR
+      if (info.statusLic || remarcar) {
         await fetch('/api/licitacoes', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             id: lic.id, empresa_id: lic.empresa_id, objeto: lic.objeto,
-            status: info.statusLic,
+            ...(info.statusLic ? { status: info.statusLic } : {}),
+            ...(remarcar ? { dataSessao: sessaoBR } : {}),
           }),
         })
+        if (remarcar) set('dataSessao', sessaoBR)
       }
-      setAvisoEvento('✅ Evento registrado e adicionado ao calendário.' + (info.statusLic ? ' Status da licitação atualizado.' : ''))
+      setAvisoEvento('✅ Evento registrado e adicionado ao calendário.'
+        + (info.statusLic ? ' Status da licitação atualizado.' : '')
+        + (remarcar ? ' Data da sessão atualizada.' : ''))
       setDataEvento(''); setObsEvento(''); setTituloEventoCustom(''); setEventoAberto(false)
+      carregarHistorico()
     } catch {
       setAvisoEvento('Erro de conexão.')
     }
@@ -612,20 +636,23 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
             </div>
           )}
 
-          {['Aguardando', 'Disputa'].includes(fase) && (
+          {/* Registrar evento só faz sentido com a sessão em jogo; o histórico
+              vale em qualquer fase — é o registro do que aconteceu no processo. */}
+          {(['Aguardando', 'Disputa'].includes(fase) || (historico && historico.length > 0)) && (
             <div className="form-sub">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label style={{ margin: 0 }}>📅 Eventos da licitação</label>
-                <button className="iBtn" onClick={() => setEventoAberto(a => !a)}>
-                  {eventoAberto ? 'Fechar' : '+ Registrar evento'}
-                </button>
+                <label style={{ margin: 0 }}>📅 Histórico de eventos da licitação</label>
+                {['Aguardando', 'Disputa'].includes(fase) && (
+                  <button className="iBtn" onClick={() => setEventoAberto(a => !a)}>
+                    {eventoAberto ? 'Fechar' : '+ Registrar evento'}
+                  </button>
+                )}
               </div>
-              {eventoAberto && (
+              {eventoAberto && ['Aguardando', 'Disputa'].includes(fase) && (
                 <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 10, padding: 12, marginTop: 8 }}>
                   <p className="dica-menus" style={{ marginTop: 0 }}>
                     Registra qualquer evento que aconteça no meio do processo — suspensão, diligência, recurso, reunião etc.
-                    — e já cria um lembrete no calendário. A data da sessão não muda sozinha; se precisar corrigir, ajuste
-                    o campo "Data da sessão" ali em cima manualmente. Suspensão marca a licitação como "Suspensa".
+                    — e já cria um lembrete no calendário. Suspensão marca a licitação como "Suspensa".
                   </p>
                   <label className="mini-lbl">TIPO DE EVENTO</label>
                   <select value={tipoEvento} onChange={e => setTipoEvento(e.target.value)}>
@@ -639,12 +666,50 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                   )}
                   <label className="mini-lbl" style={{ marginTop: 8, display: 'block' }}>DATA E HORA DO EVENTO</label>
                   <input type="datetime-local" value={dataEvento} onChange={e => setDataEvento(e.target.value)} />
+                  {tipoEventoInfo(tipoEvento).remarcaSessao && (
+                    <label style={{ display: 'flex', gap: 6, alignItems: 'flex-start', marginTop: 8, fontSize: 12.5, color: '#374151', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={atualizarSessao} onChange={e => setAtualizarSessao(e.target.checked)} style={{ marginTop: 3 }} />
+                      <span>
+                        Usar esta data como a nova <strong>data da sessão</strong> da licitação
+                        {f.dataSessao ? ` (hoje: ${f.dataSessao})` : ''}
+                      </span>
+                    </label>
+                  )}
                   <label className="mini-lbl" style={{ marginTop: 8, display: 'block' }}>OBSERVAÇÃO (opcional)</label>
                   <textarea rows={2} value={obsEvento} onChange={e => setObsEvento(e.target.value)} placeholder="Detalhes do evento..." />
                   {avisoEvento && <p style={{ fontSize: 12, marginTop: 8, color: avisoEvento.startsWith('✅') ? '#166534' : '#B45309' }}>{avisoEvento}</p>}
                   <button className="iBtn iBtn-up" style={{ marginTop: 8 }} onClick={registrarEvento} disabled={salvandoEvento}>
                     {salvandoEvento ? 'Registrando...' : '📅 Registrar evento e adicionar ao calendário'}
                   </button>
+                </div>
+              )}
+
+              {/* Histórico do que já foi registrado nesta licitação */}
+              {historico === null && <p className="dica-menus" style={{ marginTop: 8 }}>Carregando histórico...</p>}
+              {historico && historico.length === 0 && (
+                <p className="dica-menus" style={{ marginTop: 8 }}>Nenhum evento registrado nesta licitação ainda.</p>
+              )}
+              {historico && historico.length > 0 && (
+                <div style={{ marginTop: 10 }}>
+                  {historico.map(ev => {
+                    const info = tipoEventoInfo(ev.tipoEvento)
+                    return (
+                      <div key={ev.id} style={{
+                        display: 'flex', gap: 8, alignItems: 'flex-start',
+                        padding: '7px 0', borderBottom: '1px solid #F1F5F9',
+                      }}>
+                        <span style={{ fontSize: 14 }}>{info.ico}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 12.5, color: '#2E2D2F', fontWeight: 600 }}>
+                            {String(ev.data).split('-').reverse().join('/')} — {info.nome.split('(')[0].trim()}
+                          </div>
+                          {ev.descricao && ev.descricao !== info.nome && (
+                            <div style={{ fontSize: 11.5, color: '#64748B', marginTop: 2 }}>{ev.descricao}</div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
