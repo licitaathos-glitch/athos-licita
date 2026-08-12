@@ -36,7 +36,9 @@ export default function SinoNotificacoes() {
   // que faz o aviso de "30 min" e "10 min" aparecer na hora certa.
   useEffect(() => {
     carregar()
-    const t = setInterval(carregar, 5 * 60 * 1000)
+    // 10 min: as fontes mudam devagar e cada busca custa cota do Sheets.
+    // Quem dá a sensação de tempo real é o recálculo local, a cada 30 s.
+    const t = setInterval(carregar, 10 * 60 * 1000)
     return () => clearInterval(t)
   }, [carregar])
 

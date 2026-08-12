@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server'
-import { lerAba, garantirAba } from '@/lib/google'
+import { lerAba } from '@/lib/google'
 import { getUsuarioFromReq, empresasVisiveis } from '@/lib/auth'
-import { COLS_COTACAO } from '@/lib/cotacao'
-import { COLS_TAREFA } from '../tarefas/route'
 
 // Devolve só as FONTES das notificações, cruas. Quem calcula "faltam 30 min" é
 // o navegador: o servidor da Vercel roda em UTC e erraria o horário de
@@ -54,7 +52,6 @@ export async function GET(req) {
     // Cotações já respondidas pelo fornecedor
     let cotacoes = []
     try {
-      await garantirAba('Cotacoes', COLS_COTACAO)
       const porLicitacao = {}
       licitacoes.forEach(l => { if (l.id) porLicitacao[String(l.id).trim()] = l })
       cotacoes = (await lerAba('Cotacoes'))
@@ -75,7 +72,6 @@ export async function GET(req) {
     // Tarefas: as pendentes com prazo e as concluídas recentemente
     let tarefas = []
     try {
-      await garantirAba('Tarefas', COLS_TAREFA)
       tarefas = (await lerAba('Tarefas'))
         .filter(t => t.id && podeVer(t.empresaId))
         .map(t => ({
