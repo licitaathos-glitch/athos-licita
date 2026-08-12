@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useApp } from '@/lib/AppContext'
 import CalendarioGeral from '@/components/CalendarioGeral'
 import PainelTarefas from '@/components/PainelTarefas'
+import PainelAgenda from '@/components/PainelAgenda'
 
 const CORES = { ok: '#16A34A', warn: '#D97706', bad: '#DC2626', nd: '#CBD5E1' }
 
@@ -57,6 +58,14 @@ export default function DashboardPage() {
         <div className="kpi"><div className="kpi-val kv-navy">{totais.empresas}</div><div className="kpi-label">Empresas {empresaAtual === 'todas' ? 'cadastradas' : 'em foco'}</div></div>
         <div className="kpi"><div className="kpi-val kv-red">{totais.vencidas}</div><div className="kpi-label">Certidões vencidas</div></div>
         <div className="kpi"><div className="kpi-val kv-amber">{totais.alerta}</div><div className="kpi-label">Vencem em 7 dias</div></div>
+      </div>
+
+      {/* O que acontece hoje e no resto da semana vem antes de tudo: é a
+          pergunta que se faz ao abrir o sistema de manhã. */}
+      <div style={{ marginBottom: 26 }}>
+        <h3 className="sec-title" style={{ fontSize: 16 }}>⚖️ Licitações do dia e da semana</h3>
+        <p className="sec-sub">Sessões, limites de proposta e aberturas — clique para abrir a licitação</p>
+        <PainelAgenda />
       </div>
 
       <div style={{ fontSize: 14, fontWeight: 700, color: '#145653', marginBottom: 12 }}>📋 Status por empresa</div>
