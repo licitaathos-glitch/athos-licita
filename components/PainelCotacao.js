@@ -36,6 +36,31 @@ export default function PainelCotacao({ lic, itens, setItens, marcados }) {
   const [incluirEdital, setIncluirEdital] = useState(true)
   const [incluirResumo, setIncluirResumo] = useState(true)
 
+  // E-mails cadastrados na empresa (campo aceita vários separados por vírgula).
+  // São sugeridos aqui porque o pedido de cotação também é o que avisa a empresa
+  // sobre a oportunidade — o botão "Avisar empresa" separado deixou de existir.
+  const [emailsEmpresa, setEmailsEmpresa] = useState([])
+
+  useEffect(() => {
+    let vivo = true
+    fetch('/api/empresas').then(r => r.json()).then(r => {
+      if (!vivo || !r.sucesso) return
+      const emp = r.empresas?.find(e => String(e.id) === String(lic.empresa_id))
+      const lista = String(emp?.email || '').split(/[,;]/).map(x => x.trim()).filter(x => x.includes('@'))
+      setEmailsEmpresa(lista)
+      setEmail(atual => (atual.trim() ? atual : lista.join(', ')))
+    }).catch(() => {})
+    return () => { vivo = false }
+  }, [lic.empresa_id])
+
+  function juntarEmail(novo) {
+    setEmail(atual => {
+      const jaTem = atual.split(/[,;]/).map(x => x.trim()).filter(Boolean)
+      if (jaTem.includes(novo)) return atual
+      return [...jaTem, novo].join(', ')
+    })
+  }
+
   function carregar() {
     fetch(`/api/licitacoes/cotacao?licitacaoId=${lic.id}`).then(r => r.json())
       .then(r => { if (r.sucesso) setLista(r.cotacoes) })
@@ -143,8 +168,20 @@ export default function PainelCotacao({ lic, itens, setItens, marcados }) {
             Envia um link público (sem senha) para o fornecedor preencher o preço só dos {marcados.length} item(ns) marcados acima.
           </p>
           <div className="form-sub" style={{ marginTop: 8 }}>
-            <label>E-MAIL DO FORNECEDOR</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="compras@fornecedor.com.br" />
+            <label>E-MAIL DE DESTINO</label>
+            <input value={email} onChange={e => setEmail(e.target.value)}
+              placeholder="compras@fornecedor.com.br" />
+            <p style={{ fontSize: 11, color: '#94A3B8', margin: '4px 0 0' }}>
+              Pode enviar para mais de um — separe por vírgula.
+            </p>
+            {emailsEmpresa.length > 0 && (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6, alignItems: 'center' }}>
+                <span style={{ fontSize: 11, color: '#64748B' }}>Cadastrados na empresa:</span>
+                {emailsEmpresa.map(e => (
+                  <button type="button" key={e} className="iBtn" onClick={() => juntarEmail(e)}>+ {e}</button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="form-sub">
             <label>MENSAGEM (OPCIONAL)</label>
