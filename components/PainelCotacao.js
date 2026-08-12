@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { gerarResumoTexto } from '@/lib/checklist'
+import { gerarResumoItens, gerarResumoTexto } from '@/lib/checklist'
 
 const moeda = n => (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -20,6 +20,19 @@ export default function PainelCotacao({ lic, itens, setItens, marcados }) {
   let chkDados = {}
   try { chkDados = JSON.parse(lic.checklistJson || '{}') } catch {}
   const resumoTexto = gerarResumoTexto(chkDados)
+
+  // Mesmo conteúdo do "Resumo (PDF)" da licitação, para ir no corpo do e-mail
+  const resumoPdf = {
+    orgao: lic.orgao || '', uasg: lic.uasg || '', uf: lic.uf || '',
+    modalidade: lic.modalidade || '', portal: lic.portal || '',
+    numeroPNCP: lic.numeroPNCP || '', srp: lic.srp || '',
+    valorEstimado: lic.valor || '',
+    dataAbertura: lic.dataAbertura || '', dataLimite: lic.dataLimite || '',
+    analiseGeral: chkDados._riscos || '',
+    itensResumo: gerarResumoItens(chkDados),
+    observacoes: lic.observacaoDisputa || '',
+    anexos: (lic.anexos?.length ? lic.anexos : (lic.anexoDriveUrl ? [{ nome: 'Edital', url: lic.anexoDriveUrl }] : [])),
+  }
   const [incluirEdital, setIncluirEdital] = useState(true)
   const [incluirResumo, setIncluirResumo] = useState(true)
 
@@ -39,11 +52,15 @@ export default function PainelCotacao({ lic, itens, setItens, marcados }) {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           licitacaoId: lic.id, empresaId: lic.empresa_id, numeroEdital: lic.numeroEdital, objeto: lic.objeto,
-          itens: marcados.map(it => ({ descricao: it.descricao, quantidade: it.quantidade, unidade: it.unidade })),
+          itens: marcados.map(it => ({
+            descricao: it.descricao, quantidade: it.quantidade, unidade: it.unidade,
+            valorUnitarioRef: it.valorUnitarioRef ?? '',
+          })),
           destinatarioEmail: email.trim(), mensagem,
           editalAnexoUrl: (incluirEdital && lic.anexoDriveUrl) ? lic.anexoDriveUrl : '',
           resumoTexto: (incluirResumo && resumoTexto) ? resumoTexto : '',
           linkLicitacao: lic.link || '', dataSessao: lic.dataSessao || lic.dataLimite || lic.dataAbertura || '', srp: lic.srp || '',
+          resumoPdf: incluirResumo ? resumoPdf : { ...resumoPdf, analiseGeral: '', itensResumo: [] },
         }),
       }).then(x => x.json())
       if (r.sucesso) {

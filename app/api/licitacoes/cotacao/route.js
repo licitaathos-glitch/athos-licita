@@ -39,7 +39,7 @@ export async function POST(req) {
 
   try {
     const { licitacaoId, empresaId, numeroEdital, objeto, itens, destinatarioEmail, mensagem,
-      editalAnexoUrl, resumoTexto, linkLicitacao, dataSessao, srp } = await req.json()
+      editalAnexoUrl, resumoTexto, linkLicitacao, dataSessao, srp, resumoPdf } = await req.json()
     if (!licitacaoId || !empresaId || !destinatarioEmail) {
       return NextResponse.json({ sucesso: false, erro: 'Faltam dados obrigatórios.' })
     }
@@ -71,8 +71,8 @@ export async function POST(req) {
     let avisoEmail = null
     try {
       const html = montarEmailPedido({
-        empresa: empresa.nome, numeroEdital, objeto, itens, mensagem, link, editalAnexoUrl, resumoTexto,
-        linkLicitacao, dataSessao, srp,
+        empresa: empresa.nome, numeroEdital, objeto, itens, mensagem, link, editalAnexoUrl,
+        linkLicitacao, dataSessao, srp, resumo: resumoPdf || {},
       })
       const env = await chamarGAS({
         action: 'enviarEmailGenerico', para: destinatarioEmail,
@@ -120,57 +120,127 @@ function doisDiasAntes(dataBR) {
   return `${dd}/${mm}/${d.getFullYear()}`
 }
 
-function montarEmailPedido({ empresa, numeroEdital, objeto, itens, mensagem, link, editalAnexoUrl, resumoTexto, linkLicitacao, dataSessao, srp }) {
-  const linhas = itens.map(it => `<tr>
-    <td style="padding:7px 10px;border-bottom:1px solid #F1F5F9;font-size:13px">${it.descricao || ''}</td>
-    <td style="padding:7px 10px;border-bottom:1px solid #F1F5F9;font-size:13px;text-align:center">${it.quantidade || ''}</td>
-    <td style="padding:7px 10px;border-bottom:1px solid #F1F5F9;font-size:13px;text-align:center">${it.unidade || ''}</td>
-  </tr>`).join('')
+const esc = t => String(t ?? '')
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+const brl = v => (v === 0 || (v && !isNaN(Number(v))))
+  ? Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  : null
+
+// Corpo do e-mail de pedido de cotação. Reproduz o mesmo conteúdo do
+// "Resumo (PDF)" da licitação (informações básicas, objeto, qualificação/
+// prazos/condições, observações, anexos), acrescenta a tabela de itens com
+// valor estimado unitário e total, e termina no botão de enviar a cotação.
+function montarEmailPedido({ empresa, numeroEdital, objeto, itens, mensagem, link, editalAnexoUrl,
+  linkLicitacao, dataSessao, srp, resumo = {} }) {
+
+  const h2 = txt => `<h2 style="font-size:13px;font-weight:800;color:#145653;text-transform:uppercase;letter-spacing:.04em;margin:22px 0 8px;padding-bottom:5px;border-bottom:2px solid #B9A06B">${esc(txt)}</h2>`
+  const p = (txt, extra = '') => `<p style="font-size:13px;color:#2E2D2F;line-height:1.55;margin:0 0 10px;${extra}">${esc(txt)}</p>`
 
   const dataProposta = doisDiasAntes(dataSessao)
   const linhaSRP = srp === 'Sim'
     ? 'Trata-se de Sistema de Registro de Preços (SRP).'
     : 'Não se trata de registro de preços.'
 
+  // ── Informações básicas (mesmos campos do resumo em PDF) ──────────────
+  const basicas = [
+    ['Licitação', numeroEdital], ['Órgão', resumo.orgao], ['UASG', resumo.uasg],
+    ['UF', resumo.uf], ['Modalidade', resumo.modalidade], ['Portal', resumo.portal],
+    ['Nº PNCP', resumo.numeroPNCP], ['SRP', resumo.srp],
+    ['Valor estimado', resumo.valorEstimado],
+    ['Abertura', resumo.dataAbertura], ['Limite da proposta', resumo.dataLimite],
+    ['Sessão de disputa', dataSessao],
+    ['Data para apresentar proposta', dataProposta],
+  ].filter(x => x[1])
+    .map(x => `<tr>
+      <td style="padding:6px 0;font-size:12.5px;color:#6B7280;width:190px;vertical-align:top">${esc(x[0])}</td>
+      <td style="padding:6px 0;font-size:12.5px;color:#2E2D2F;font-weight:700">${esc(x[1])}</td>
+    </tr>`).join('')
+
+  // ── Qualificação, prazos e condições (o que a IA leu do edital) ───────
+  const itensResumo = Array.isArray(resumo.itensResumo) ? resumo.itensResumo : []
+  const blocoResumo = (resumo.analiseGeral || itensResumo.length) ? `
+    ${h2('Qualificação, prazos e condições')}
+    ${resumo.analiseGeral ? p(resumo.analiseGeral, 'font-weight:600') : ''}
+    ${itensResumo.map(it => `<p style="font-size:12.5px;color:#2E2D2F;line-height:1.5;margin:0 0 10px">
+      <strong style="text-transform:uppercase;display:block;color:#145653">${esc(it.label)}</strong>
+      ${esc(it.resposta)}${it.detalhe ? ' — ' + esc(it.detalhe) : ''}
+    </p>`).join('')}` : ''
+
+  // ── Anexos ────────────────────────────────────────────────────────────
+  const anexos = Array.isArray(resumo.anexos) ? resumo.anexos : []
+  const listaAnexos = anexos.length ? anexos : (editalAnexoUrl ? [{ nome: 'Edital', url: editalAnexoUrl }] : [])
+  const blocoAnexos = listaAnexos.length ? `
+    ${h2('Anexos')}
+    ${listaAnexos.map(a => `<p style="font-size:13px;margin:0 0 6px">
+      <a href="${esc(a.url)}" style="color:#145653;font-weight:700">📎 ${esc(a.nome || 'Anexo')}</a></p>`).join('')}` : ''
+
+  // ── Itens: quantidade, valor estimado unitário e total ────────────────
+  let totalEstimado = 0
+  let algumEstimado = false
+  const linhas = itens.map(it => {
+    const qtd = Number(it.quantidade) || 0
+    const unit = Number(it.valorUnitarioRef)
+    const temUnit = !isNaN(unit) && String(it.valorUnitarioRef ?? '').trim() !== ''
+    const totalItem = temUnit ? unit * qtd : null
+    if (temUnit) { algumEstimado = true; totalEstimado += totalItem }
+    return `<tr>
+      <td style="padding:7px 10px;border-bottom:1px solid #F1F5F9;font-size:12.5px">${esc(it.descricao || '')}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #F1F5F9;font-size:12.5px;text-align:center">${esc(it.quantidade || '')}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #F1F5F9;font-size:12.5px;text-align:center">${esc(it.unidade || '')}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #F1F5F9;font-size:12.5px;text-align:right">${temUnit ? brl(unit) : 'Sigiloso'}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #F1F5F9;font-size:12.5px;text-align:right">${totalItem !== null ? brl(totalItem) : '—'}</td>
+    </tr>`
+  }).join('')
+
+  const rodapeTotal = algumEstimado ? `<tr>
+      <td colspan="4" style="padding:9px 10px;font-size:12.5px;font-weight:800;color:#145653;text-align:right">Valor total estimado dos itens</td>
+      <td style="padding:9px 10px;font-size:13px;font-weight:800;color:#145653;text-align:right">${brl(totalEstimado)}</td>
+    </tr>` : ''
+
   return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F3EFE7;font-family:-apple-system,sans-serif">
   <table width="100%"><tr><td align="center" style="padding:28px 14px">
-  <table width="560" style="max-width:560px;width:100%;background:#fff;border-radius:14px;overflow:hidden">
+  <table width="640" style="max-width:640px;width:100%;background:#fff;border-radius:14px;overflow:hidden">
     <tr><td style="background:#145653;padding:22px 26px">
       <p style="margin:0;font-size:11px;font-weight:700;color:#B9A06B;letter-spacing:.1em">ATHOS LICITA</p>
       <p style="margin:6px 0 0;font-size:19px;font-weight:800;color:#fff">Pedido de cotação</p>
     </td></tr>
     <tr><td style="padding:24px 26px">
-      <p style="font-size:14px;color:#2E2D2F;margin:0 0 14px">
+      <p style="font-size:13.5px;color:#2E2D2F;line-height:1.6;margin:0 0 14px">
         Prezados,<br /><br />
-        Identifiquei uma licitação na qual há possibilidade de participação pela <strong>${empresa}</strong>. ${linhaSRP}
-        Encaminho o edital para que possam avaliar a viabilidade de participação, e precisamos do seu melhor preço
-        para os itens abaixo.
+        Identifiquei uma licitação na qual há possibilidade de participação pela <strong>${esc(empresa)}</strong>. ${linhaSRP}
+        Abaixo vai o resumo completo do edital e, ao final, os itens para os quais precisamos do seu melhor preço.
       </p>
-      <table width="100%" style="border-collapse:collapse;margin-bottom:14px">
-        <tbody>
-          <tr><td style="padding:6px 0;font-size:13px;color:#6B7280;width:170px">Licitação</td><td style="padding:6px 0;font-size:13px;color:#2E2D2F;font-weight:700">${numeroEdital || '—'}</td></tr>
-          ${linkLicitacao ? `<tr><td style="padding:6px 0;font-size:13px;color:#6B7280">Link da licitação</td><td style="padding:6px 0;font-size:13px"><a href="${linkLicitacao}" style="color:#145653;font-weight:700">Acessar edital</a></td></tr>` : ''}
-          ${objeto ? `<tr><td style="padding:6px 0;font-size:13px;color:#6B7280;vertical-align:top">Objeto</td><td style="padding:6px 0;font-size:12.5px;color:#6B7280">${objeto}</td></tr>` : ''}
-          ${dataSessao ? `<tr><td style="padding:6px 0;font-size:13px;color:#6B7280">Data da sessão</td><td style="padding:6px 0;font-size:13px;color:#2E2D2F;font-weight:700">${dataSessao}</td></tr>` : ''}
-          ${dataProposta ? `<tr><td style="padding:6px 0;font-size:13px;color:#6B7280">Data para apresentar proposta</td><td style="padding:6px 0;font-size:13px;color:#2E2D2F;font-weight:700">${dataProposta}</td></tr>` : ''}
-        </tbody>
-      </table>
-      ${mensagem ? `<p style="font-size:13px;color:#2E2D2F;background:#F8FAFC;padding:10px 14px;border-radius:8px;margin:0 0 14px">${mensagem}</p>` : ''}
-      ${resumoTexto ? `<p style="font-size:12.5px;color:#2E2D2F;background:#F8FAFC;padding:10px 14px;border-radius:8px;margin:0 0 14px;white-space:pre-wrap">${resumoTexto}</p>` : ''}
-      ${editalAnexoUrl ? `<p style="font-size:13px;margin:0 0 14px"><a href="${editalAnexoUrl}" style="color:#145653;font-weight:700">📎 Edital completo (anexo)</a></p>` : ''}
-      <table width="100%" style="border-collapse:collapse;margin-bottom:20px">
+      ${mensagem ? `<p style="font-size:13px;color:#2E2D2F;background:#F8FAFC;padding:10px 14px;border-radius:8px;margin:0 0 14px">${esc(mensagem)}</p>` : ''}
+
+      ${h2('Informações básicas')}
+      <table width="100%" style="border-collapse:collapse;margin-bottom:4px"><tbody>
+        ${basicas}
+        ${linkLicitacao ? `<tr><td style="padding:6px 0;font-size:12.5px;color:#6B7280">Link da licitação</td><td style="padding:6px 0;font-size:12.5px"><a href="${esc(linkLicitacao)}" style="color:#145653;font-weight:700">Acessar edital</a></td></tr>` : ''}
+      </tbody></table>
+
+      ${objeto ? h2('Objeto') + p(objeto) : ''}
+      ${blocoResumo}
+      ${resumo.observacoes ? h2('Observações') + p(resumo.observacoes) : ''}
+      ${blocoAnexos}
+
+      ${h2('Itens para cotação')}
+      <table width="100%" style="border-collapse:collapse;margin-bottom:18px">
         <thead><tr style="background:#F8FAFC">
-          <th style="padding:8px 10px;font-size:11px;color:#64748B;text-align:left">DESCRIÇÃO</th>
-          <th style="padding:8px 10px;font-size:11px;color:#64748B">QTD</th>
-          <th style="padding:8px 10px;font-size:11px;color:#64748B">UN</th>
+          <th style="padding:8px 10px;font-size:10.5px;color:#64748B;text-align:left">DESCRIÇÃO</th>
+          <th style="padding:8px 10px;font-size:10.5px;color:#64748B">QTD</th>
+          <th style="padding:8px 10px;font-size:10.5px;color:#64748B">UN</th>
+          <th style="padding:8px 10px;font-size:10.5px;color:#64748B;text-align:right">VL. UNIT. ESTIMADO</th>
+          <th style="padding:8px 10px;font-size:10.5px;color:#64748B;text-align:right">VL. TOTAL ESTIMADO</th>
         </tr></thead>
-        <tbody>${linhas}</tbody>
+        <tbody>${linhas}${rodapeTotal}</tbody>
       </table>
+
       <p style="text-align:center;margin:0 0 10px">
-        <a href="${link}" style="display:inline-block;background:#B9A06B;color:#145653;font-weight:800;font-size:15px;padding:13px 28px;border-radius:10px;text-decoration:none">Enviar minha cotação</a>
+        <a href="${esc(link)}" style="display:inline-block;background:#B9A06B;color:#145653;font-weight:800;font-size:15px;padding:13px 28px;border-radius:10px;text-decoration:none">Enviar minha cotação</a>
       </p>
       <p style="font-size:11.5px;color:#9CA3AF;text-align:center;margin:0">Não é preciso criar conta — o link abre direto o formulário de cotação.</p>
-      <p style="margin:20px 0 0;font-size:12px;color:#9CA3AF;text-align:center">Consultoria Athos Licita</p>
+      <p style="margin:20px 0 0;font-size:12px;color:#9CA3AF;text-align:center">Athos Licita — Consultoria em Licitações Públicas</p>
     </td></tr>
   </table></td></tr></table></body></html>`
 }
