@@ -295,11 +295,9 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
   // Em análise mostra o catálogo inteiro (é onde se escolhe); na Inscrição de
   // proposta só os itens escolhidos, que é o que se vai precificar. O toggle
   // continua ali para conferir ou corrigir uma marcação esquecida.
-  const [somenteSelecionados, setSomenteSelecionados] = useState(fase === 'Inscricao')
-  useEffect(() => {
-    if (fase === 'Inscricao') setSomenteSelecionados(true)
-    else if (fase === 'Em analise') setSomenteSelecionados(false)
-  }, [fase])
+  // Só a fase Em análise usa este filtro (é onde se escolhe). A Inscrição de
+  // proposta mostra sempre e apenas os itens escolhidos lá, sem alternância.
+  const [somenteSelecionados, setSomenteSelecionados] = useState(false)
   const semValor = marcados.filter(it => !String(it.meuValor).trim()).length
   // Total do que estamos de fato participando (só os itens marcados) e o
   // total da licitação inteira (todos os itens, pelo valor estimado) — útil
@@ -598,19 +596,19 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
               )}
               {itens.length > 0 && marcados.length === 0 && (
                 <div className="aviso-box" style={{ marginBottom: 8 }}>
-                  Nenhum item marcado ainda. Desligue "Somente selecionados" abaixo para ver os {itens.length} itens
-                  e escolher — ou volte à fase Em análise, onde a lista já abre inteira.
+                  Nenhum item marcado. A escolha dos itens é feita na fase <strong>Em análise</strong> —
+                  volte lá pela trilha acima e marque em quais vamos participar.
                 </div>
               )}
-              {itens.length > 0 && (
+              {/* Aqui aparecem SÓ os itens escolhidos na fase Em análise — esta
+                  fase é para precificar, não para escolher. Sem toggle. */}
+              {marcados.length > 0 && (
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
                   <input className="busca-input" style={{ flex: 1, minWidth: 160 }} placeholder="Buscar item por descrição..."
                     value={buscaItem} onChange={e => setBuscaItem(e.target.value)} />
-                  <Toggle ligado={somenteSelecionados} onChange={setSomenteSelecionados} label="Somente selecionados" />
-                  <button className="iBtn" onClick={() => setItens(a => a.map((it, i) =>
-                    itemVisivel(it, buscaItem, somenteSelecionados) ? { ...it, participar: true } : it))}>Marcar todos</button>
-                  <button className="iBtn" onClick={() => setItens(a => a.map((it, i) =>
-                    itemVisivel(it, buscaItem, somenteSelecionados) ? { ...it, participar: false } : it))}>Desmarcar todos</button>
+                  <span style={{ fontSize: 11.5, color: '#64748B' }}>
+                    {marcados.length} item(ns) escolhido(s) na análise
+                  </span>
                 </div>
               )}
               {itens.length > 0 && (
@@ -618,7 +616,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                   <table className="tbl-proposta">
                     <thead>
                       <tr>
-                        <th style={{ width: 40 }}>Vou</th>
+                        <th style={{ width: 40 }}></th>
                         {itens.some(it => it.grupo) && <th style={{ width: 90 }}>Grupo</th>}
                         <th>Descrição</th>
                         <th style={{ width: 70 }}>Qtd</th>
@@ -629,19 +627,20 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {itens.map((it, i) => itemVisivel(it, buscaItem, somenteSelecionados) && (
-                        <tr key={i} style={{ opacity: it.participar ? 1 : .45 }}>
+                      {itens.map((it, i) => itemVisivel(it, buscaItem, true) && (
+                        <tr key={i}>
                           <td style={{ textAlign: 'center' }}>
-                            <input type="checkbox" checked={it.participar}
-                              onChange={e => setItem(i, 'participar', e.target.checked)} />
+                            <button className="iBtn iBtn-del" title="Tirar este item da proposta"
+                              onClick={() => setItem(i, 'participar', false)}>×</button>
                           </td>
                           {itens.some(x => x.grupo) && (
                             <td>
                               {it.grupo || '—'}
                               {it.grupo && (
                                 <button className="iBtn" style={{ display: 'block', marginTop: 4, fontSize: 10, padding: '2px 6px' }}
-                                  onClick={() => setItens(a => a.map(x => x.grupo === it.grupo ? { ...x, participar: !it.participar } : x))}>
-                                  marcar grupo
+                                  title="Tirar o grupo inteiro da proposta"
+                                  onClick={() => setItens(a => a.map(x => x.grupo === it.grupo ? { ...x, participar: false } : x))}>
+                                  tirar grupo
                                 </button>
                               )}
                             </td>
