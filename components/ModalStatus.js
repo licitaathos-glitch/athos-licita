@@ -703,9 +703,10 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                           <div style={{ fontSize: 12.5, color: '#2E2D2F', fontWeight: 600 }}>
                             {String(ev.data).split('-').reverse().join('/')} — {info.nome.split('(')[0].trim()}
                           </div>
-                          {ev.descricao && ev.descricao !== info.nome && (
-                            <div style={{ fontSize: 11.5, color: '#64748B', marginTop: 2 }}>{ev.descricao}</div>
-                          )}
+                          <div style={{ fontSize: 11.5, color: ev.descricao && ev.descricao !== info.nome ? '#374151' : '#94A3B8', marginTop: 2 }}>
+                            <strong style={{ color: '#64748B' }}>Observação:</strong>{' '}
+                            {ev.descricao && ev.descricao !== info.nome ? ev.descricao : 'sem observação'}
+                          </div>
                         </div>
                       </div>
                     )
