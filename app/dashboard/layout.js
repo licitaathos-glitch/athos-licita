@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { AppProvider, useApp } from '@/lib/AppContext'
 import Sidebar from '@/components/Sidebar'
+import SinoNotificacoes from '@/components/SinoNotificacoes'
 import { menuDaRota } from '@/lib/menus'
 
 function Shell({ children }) {
@@ -27,6 +28,7 @@ function Shell({ children }) {
         <div className="topbar">
           <div className="brand"><img src="/brand/athos-mark.png" alt="" className="ico brand-mark" /> Athos Licita</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            {usuario && <SinoNotificacoes />}
             {usuario && <span style={{ fontSize: 13, opacity: .8 }}>{usuario.nome?.split(' ')[0]}</span>}
             <button onClick={sair}>Sair</button>
           </div>

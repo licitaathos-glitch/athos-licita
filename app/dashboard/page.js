@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useApp } from '@/lib/AppContext'
 import CalendarioGeral from '@/components/CalendarioGeral'
+import PainelTarefas from '@/components/PainelTarefas'
 
 const CORES = { ok: '#16A34A', warn: '#D97706', bad: '#DC2626', nd: '#CBD5E1' }
 
@@ -76,6 +77,12 @@ export default function DashboardPage() {
           </div>
         </div>
       ))}
+
+      <div style={{ marginTop: 26 }}>
+        <h3 className="sec-title" style={{ fontSize: 16 }}>✔️ Tarefas</h3>
+        <p className="sec-sub">O que precisa ser feito — separado dos compromissos com hora marcada</p>
+        <PainelTarefas />
+      </div>
 
       <div style={{ marginTop: 26 }}>
         <h3 className="sec-title" style={{ fontSize: 16 }}>📅 Calendário e alertas</h3>
