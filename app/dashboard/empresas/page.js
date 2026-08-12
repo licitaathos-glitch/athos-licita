@@ -1,5 +1,5 @@
 'use client'
-import ModalNovaTarefa from '@/components/ModalNovaTarefa'
+import ModalNovoRegistro from '@/components/ModalNovoRegistro'
 import { useEffect, useState } from 'react'
 import { useApp } from '@/lib/AppContext'
 import { MODELOS } from '@/lib/comercial'
@@ -147,15 +147,15 @@ function CardEmpresa({ empresa, config, onSalvar, onSalvarDados }) {
             {empresa.cnpj}{empresa.responsavel ? ' · ' + empresa.responsavel : ''}{empresa.email ? ' · ' + empresa.email : ''}
           </div>
         </div>
-        <button className="iBtn" title="Criar uma tarefa para esta empresa"
-          onClick={e => { e.stopPropagation(); setNovaTarefa(true) }}>✔️ Tarefa</button>
+        <button className="iBtn" title="Criar uma tarefa ou evento para esta empresa"
+          onClick={e => { e.stopPropagation(); setNovaTarefa(true) }}>➕ Tarefa/evento</button>
         <span className="pill pill-gray">
           {rotulo}{atual.modelo === 'comissao' && atual.percentualComissao ? ' ' + atual.percentualComissao + '%' : ''}
         </span>
       </div>
 
       {novaTarefa && (
-        <ModalNovaTarefa empresaId={empresa.id} empresaNome={empresa.nome}
+        <ModalNovoRegistro empresaId={empresa.id} empresaNome={empresa.nome}
           onFechar={() => setNovaTarefa(false)} />
       )}
 

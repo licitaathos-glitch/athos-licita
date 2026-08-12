@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useApp } from '@/lib/AppContext'
 import { Cartao, Janela, LinhaJanela } from '@/components/CartoesDashboard'
 import ModalDetalheLicitacao from '@/components/ModalDetalheLicitacao'
-import ModalNovaTarefa from '@/components/ModalNovaTarefa'
+import ModalNovoRegistro from '@/components/ModalNovoRegistro'
 import { paraData } from '@/lib/notificacoes'
 import { faseDe } from '@/lib/fases'
 import { rotuloTipo } from '@/lib/tiposCertidao'
@@ -22,6 +22,7 @@ export default function DashboardPage() {
   const [dados, setDados] = useState(null)
   const [agenda, setAgenda] = useState(null)
   const [tarefas, setTarefas] = useState([])
+  const [eventos, setEventos] = useState([])
   const [erro, setErro] = useState('')
 
   // Qual janela está aberta e o que está aberto por cima dela. O Dashboard
@@ -33,8 +34,12 @@ export default function DashboardPage() {
   const [carregandoLic, setCarregandoLic] = useState(false)
   const [novaTarefa, setNovaTarefa] = useState(false)
 
-  function carregarTarefas() {
+  // Tarefa e evento aparecem juntos no Dashboard: são as duas formas de
+  // "coisa marcada para fazer", e separá-las em cartões diferentes só faria
+  // procurar em dois lugares.
+  function carregarAgendaPessoal() {
     fetch('/api/tarefas').then(r => r.json()).then(r => r.sucesso && setTarefas(r.tarefas)).catch(() => {})
+    fetch('/api/calendario/eventos').then(r => r.json()).then(r => r.sucesso && setEventos(r.eventos)).catch(() => {})
   }
 
   useEffect(() => {
@@ -44,7 +49,7 @@ export default function DashboardPage() {
     fetch('/api/agenda').then(r => r.json())
       .then(r => setAgenda(r.sucesso ? r : { licitacoes: [], cotacoes: [] }))
       .catch(() => setAgenda({ licitacoes: [], cotacoes: [] }))
-    carregarTarefas()
+    carregarAgendaPessoal()
   }, [])
 
   async function abrirLicitacao(id) {
@@ -88,7 +93,29 @@ export default function DashboardPage() {
   const perfil = String(usuario?.perfil || '').toLowerCase()
   const empresas = empresaSel ? dados.empresas.filter(e => String(e.id) === empresaSel) : dados.empresas
   const comPendencia = empresas.filter(e => e.vencidas > 0 || e.alerta > 0)
-  const pendentes = tarefas.filter(t => t.status !== 'Concluída' && (!empresaSel || !t.empresaId || t.empresaId === empresaSel))
+  const agora = new Date()
+  const pendentes = [
+    ...tarefas
+      .filter(t => t.status !== 'Concluída' && (!empresaSel || !t.empresaId || t.empresaId === empresaSel))
+      .map(t => ({
+        chave: 'tarefa:' + t.id, tipo: 'tarefa', icone: '✔️',
+        titulo: t.titulo, quando: paraData(t.prazo), extra: t.prioridade,
+        empresaNome: t.empresaNome, licitacaoId: t.licitacaoId,
+      })),
+    // Evento passado já aconteceu — some da lista de pendências sozinho
+    ...eventos
+      .filter(e => !empresaSel || !e.empresaId || e.empresaId === empresaSel)
+      .map(e => ({
+        chave: 'evento:' + e.id, tipo: 'evento', icone: '📅',
+        titulo: e.titulo, quando: paraData(e.data), extra: 'evento',
+        empresaNome: e.empresaNome, licitacaoId: e.licitacaoId,
+      }))
+      .filter(e => e.quando && e.quando >= zerar(agora)),
+  ].sort((a, b) => {
+    if (!a.quando) return 1
+    if (!b.quando) return -1
+    return a.quando - b.quando
+  })
 
   return (
     <div>
@@ -100,7 +127,7 @@ export default function DashboardPage() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn-ghost" onClick={() => setNovaTarefa(true)}>+ Tarefa</button>
+          <button className="btn-ghost" onClick={() => setNovaTarefa(true)}>+ Tarefa ou evento</button>
           {perfil === 'adm' && <Link href="/dashboard/empresas" className="btn-ghost">+ Empresa</Link>}
           {perfil === 'adm' && <Link href="/dashboard/usuarios" className="btn-ghost">+ Usuário</Link>}
         </div>
@@ -133,9 +160,9 @@ export default function DashboardPage() {
           onAbrir={() => setJanela('futuras')} />
 
         <Cartao
-          icone="✔️" titulo="Tarefas pendentes" total={pendentes.length} cor="#0F766E"
-          vazio="Nenhuma tarefa pendente."
-          linhas={pendentes.map(t => t.titulo)}
+          icone="✔️" titulo="Tarefas e eventos" total={pendentes.length} cor="#0F766E"
+          vazio="Nada pendente."
+          linhas={pendentes.map(t => `${t.icone} ${t.titulo}`)}
           onAbrir={() => setJanela('tarefas')} />
 
         <Cartao
@@ -195,20 +222,23 @@ export default function DashboardPage() {
       )}
 
       {janela === 'tarefas' && (
-        <Janela titulo="Tarefas pendentes" subtitulo={`${pendentes.length} pendente(s)`} onFechar={() => setJanela(null)}>
-          <button className="iBtn iBtn-up" style={{ marginBottom: 10 }} onClick={() => setNovaTarefa(true)}>+ Nova tarefa</button>
-          {pendentes.length === 0 && <p style={{ fontSize: 12.5, color: '#94A3B8' }}>Nenhuma tarefa pendente.</p>}
+        <Janela titulo="Tarefas e eventos" subtitulo={`${pendentes.length} pendente(s)`} onFechar={() => setJanela(null)}>
+          <button className="iBtn iBtn-up" style={{ marginBottom: 10 }} onClick={() => setNovaTarefa(true)}>+ Nova tarefa ou evento</button>
+          {pendentes.length === 0 && <p style={{ fontSize: 12.5, color: '#94A3B8' }}>Nada pendente.</p>}
           {pendentes.map(t => {
-            const prazo = paraData(t.prazo)
-            const atrasada = prazo && prazo < new Date()
+            const atrasada = t.tipo === 'tarefa' && t.quando && t.quando < new Date()
             return (
-              <LinhaJanela key={t.id} marcador={atrasada ? '#DC2626' : '#0F766E'}
-                titulo={t.titulo}
+              <LinhaJanela key={t.chave}
+                marcador={atrasada ? '#DC2626' : t.tipo === 'evento' ? '#9333EA' : '#0F766E'}
+                titulo={`${t.icone} ${t.titulo}`}
                 detalhe={[
-                  prazo ? (atrasada ? '⚠️ venceu em ' : 'até ') + prazo.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : 'sem prazo',
+                  t.quando
+                    ? (atrasada ? '⚠️ venceu em ' : t.tipo === 'evento' ? 'em ' : 'até ') +
+                      t.quando.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+                    : 'sem prazo',
                   t.empresaNome,
                 ].filter(Boolean).join(' · ')}
-                extra={t.prioridade}
+                extra={t.extra}
                 onClick={t.licitacaoId ? () => abrirLicitacao(t.licitacaoId) : undefined} />
             )
           })}
@@ -245,7 +275,7 @@ export default function DashboardPage() {
       )}
 
       {novaTarefa && (
-        <ModalNovaTarefa onFechar={() => setNovaTarefa(false)} onSalvo={carregarTarefas} />
+        <ModalNovoRegistro onFechar={() => setNovaTarefa(false)} onSalvo={carregarTarefas} />
       )}
     </div>
   )

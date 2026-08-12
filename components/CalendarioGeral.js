@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useApp } from '@/lib/AppContext'
 import { faseDe } from '@/lib/fases'
 import { tipoEventoInfo } from '@/lib/tiposEvento'
+import ModalNovoRegistro from './ModalNovoRegistro'
 
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 const DOW = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
@@ -42,7 +43,10 @@ export default function CalendarioGeral({ compacto = false }) {
   const [erro, setErro] = useState('')
   const [visiveis, setVisiveis] = useState(Object.keys(TIPOS))
   const [diaAberto, setDiaAberto] = useState(null)
-  const [modalEvento, setModalEvento] = useState(null) // null=fechado; {}=novo; {data}=novo com data; objeto completo=editar
+  const [modalEvento, setModalEvento] = useState(null)
+  // Criar passa pelo modal unificado (tarefa ou evento); o ModalEvento antigo
+  // fica só para editar/excluir um evento que já existe.
+  const [novoRegistro, setNovoRegistro] = useState(null) // null=fechado; {}=novo; {data}=novo com data; objeto completo=editar
 
   const carregar = useCallback(() => {
     Promise.all([
@@ -204,7 +208,7 @@ export default function CalendarioGeral({ compacto = false }) {
         </div>
 
         <div style={{ padding: '8px 14px 0', display: 'flex', justifyContent: 'flex-end' }}>
-          <button className="iBtn iBtn-up" onClick={() => setModalEvento({ data: hojeStr })}>+ Novo evento</button>
+          <button className="iBtn iBtn-up" onClick={() => setNovoRegistro({ data: hojeStr })}>+ Nova tarefa ou evento</button>
         </div>
 
         <div className="cal-grid">
@@ -222,7 +226,7 @@ export default function CalendarioGeral({ compacto = false }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div className="cal-num">{d}</div>
                   <button className="cal-add" title="Novo evento neste dia"
-                    onClick={ev => { ev.stopPropagation(); setModalEvento({ data: chave }) }}>+</button>
+                    onClick={ev => { ev.stopPropagation(); setNovoRegistro({ data: chave }) }}>+</button>
                 </div>
                 {evs.slice(0, 3).map((e, j) => (
                   <div className="cal-ev" key={j} style={{ background: TIPOS[e.tipo].bg, color: TIPOS[e.tipo].cor, cursor: 'pointer' }}
@@ -269,6 +273,14 @@ export default function CalendarioGeral({ compacto = false }) {
       </div>
       {proximos.length === 0 && <div style={{ color: '#94A3B8', fontSize: 13 }}>Nada nos próximos dias.</div>}
       {proximos.map((e, i) => <LinhaEvento e={e} key={i} mostrarData onEditarManual={setModalEvento} />)}
+
+      {novoRegistro && (
+        <ModalNovoRegistro
+          dataInicial={novoRegistro.data}
+          empresaId={empresaAtual !== 'todas' ? String(empresaAtual) : ''}
+          onFechar={() => setNovoRegistro(null)}
+          onSalvo={carregar} />
+      )}
 
       {modalEvento && (
         <ModalEvento

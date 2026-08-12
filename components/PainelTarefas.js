@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useApp } from '@/lib/AppContext'
 import { paraData } from '@/lib/notificacoes'
-import ModalNovaTarefa from './ModalNovaTarefa'
+import ModalNovoRegistro from './ModalNovoRegistro'
 
 const corPrioridade = p => (p === 'Alta' ? '#DC2626' : p === 'Baixa' ? '#94A3B8' : '#B9A06B')
 
@@ -69,7 +69,7 @@ export default function PainelTarefas() {
       </div>
 
       {aberto && !somenteConsulta && (
-        <ModalNovaTarefa
+        <ModalNovoRegistro
           empresaId={empresaSel}
           empresaNome={(empresas.find(e => String(e.id) === empresaSel) || {}).nome || ''}
           onFechar={() => setAberto(false)}
