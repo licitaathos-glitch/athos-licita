@@ -82,7 +82,7 @@ export async function GET(req) {
         empresa_id: String(l.empresaId || '').trim(),
         empresa_nome: l.empresaNome || '',
         numeroPNCP: l.numeroPNCP || '', numeroEdital: l.numeroEdital || '',
-        objeto: l.objeto || '', orgao: l.orgao || '', uf: l.uf || '',
+        objeto: l.objeto || '', orgao: l.orgao || '', uasg: l.uasg || '', uf: l.uf || '',
         valor: l.valor || '', dataAbertura: l.dataAbertura || '', dataLimite: l.dataLimite || '', dataSessao: l.dataSessao || '',
         modalidade: l.modalidade || '', portal: l.portal || '',
         status: l.status || 'Aberta', srp: l.srp || 'Não', link: l.link || '',
