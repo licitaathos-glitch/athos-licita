@@ -41,19 +41,33 @@ export default function ModalEmpenho({ empenho = {}, ata, empresaId, modelo, per
 
   const set = (k, v) => setF(o => ({ ...o, [k]: v }))
 
-  // Menor preço que os fornecedores apresentaram na cotação da licitação que
-  // originou esta ata — é o custo de compra do item. Chave: descrição do item.
+  // Custo de compra do item = valor mínimo apurado na cotação do pregão que
+  // originou esta ata. Duas fontes, nesta ordem:
+  //   1) o Valor mínimo lançado nos itens da licitação (Inscrição de proposta);
+  //   2) o menor preço que algum fornecedor respondeu no pedido de cotação.
+  // Chave de casamento: descrição do item normalizada.
   const [custosCotacao, setCustosCotacao] = useState(null)
+  const licId = ata?.licitacaoId || ''
 
   useEffect(() => {
-    const licId = ata?.licitacaoId
-    if (!licId) return
+    if (!licId) { setCustosCotacao({}); return }
     let vivo = true
-    fetch('/api/licitacoes/cotacao?licitacaoId=' + encodeURIComponent(licId))
-      .then(x => x.json())
-      .then(r => {
-        if (!vivo || !r.sucesso) return
-        const mapa = {}
+    async function carregar() {
+      const mapa = {}
+      // 1) valor mínimo dos itens da licitação
+      try {
+        const r = await fetch('/api/licitacoes').then(x => x.json())
+        const lic = (r.licitacoes || []).find(l => String(l.id) === String(licId))
+        for (const it of lic?.itens || []) {
+          const v = n(it.meuValor)
+          const k = chaveItem(it.descricao)
+          if (!v || !k) continue
+          if (mapa[k] === undefined || v < mapa[k]) mapa[k] = v
+        }
+      } catch {}
+      // 2) preços respondidos pelos fornecedores
+      try {
+        const r = await fetch('/api/licitacoes/cotacao?licitacaoId=' + encodeURIComponent(licId)).then(x => x.json())
         for (const c of r.cotacoes || []) {
           for (const resp of c.respostaItens || []) {
             const preco = n(resp.precoFornecedor)
@@ -62,11 +76,12 @@ export default function ModalEmpenho({ empenho = {}, ata, empresaId, modelo, per
             if (mapa[k] === undefined || preco < mapa[k]) mapa[k] = preco
           }
         }
-        setCustosCotacao(mapa)
-      })
-      .catch(() => {})
+      } catch {}
+      if (vivo) setCustosCotacao(mapa)
+    }
+    carregar()
     return () => { vivo = false }
-  }, [ata?.licitacaoId])
+  }, [licId])
 
   const custoCotado = desc => {
     const k = chaveItem(desc)
@@ -237,13 +252,19 @@ export default function ModalEmpenho({ empenho = {}, ata, empresaId, modelo, per
             {modelo !== 'comissao' && (
               <div><label className="mini-lbl">CUSTO UNITÁRIO (compra)</label>
                 <input type="number" step="0.01" value={f.custoUnitario} onChange={e => set('custoUnitario', e.target.value)} />
-                {custoDoItem !== null && (
+                {custoDoItem !== null ? (
                   <div style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>
-                    Menor preço da cotação: {fmtBRL(custoDoItem)}
+                    Valor mínimo da cotação: {fmtBRL(custoDoItem)}
                     {n(f.custoUnitario) !== custoDoItem && (
                       <button type="button" className="iBtn" style={{ marginLeft: 6 }}
                         onClick={() => set('custoUnitario', String(custoDoItem))}>usar</button>
                     )}
+                  </div>
+                ) : f.itemNumero && custosCotacao && (
+                  <div style={{ fontSize: 11, color: '#B45309', marginTop: 4 }}>
+                    {!licId
+                      ? 'Ata sem pregão vinculado — edite a ata e preencha "Vincular a um pregão vencido" para o custo vir sozinho.'
+                      : 'Não achei o valor mínimo deste item no pregão vinculado (a descrição na ata pode estar diferente da do edital).'}
                   </div>
                 )}</div>
             )}
