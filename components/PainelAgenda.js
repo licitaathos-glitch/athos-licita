@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useApp } from '@/lib/AppContext'
 import { paraData } from '@/lib/notificacoes'
 import { faseDe } from '@/lib/fases'
@@ -12,7 +13,7 @@ const rotuloDia = d => d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-
 
 // Sessões de hoje e do resto da semana. Responde a pergunta que o dashboard
 // antigo não respondia: o que acontece hoje e o que vem pela frente.
-export default function PainelAgenda() {
+export default function PainelAgenda({ compacto = false }) {
   const router = useRouter()
   const { empresaAtual } = useApp()
   const [lista, setLista] = useState(null)
@@ -99,6 +100,27 @@ export default function PainelAgenda() {
     if (grupo) grupo.itens.push(l)
     else porDia.push({ chave, data: l.data, itens: [l] })
   })
+
+  if (compacto) {
+    return (
+      <div className="form-card">
+        <div style={{ fontSize: 12.5, fontWeight: 800, color: '#145653', marginBottom: 6 }}>
+          📌 Hoje ({hoje.length})
+        </div>
+        {hoje.length === 0
+          ? <p style={{ fontSize: 12.5, color: '#94A3B8', margin: '0 0 10px' }}>Nenhuma sessão hoje.</p>
+          : hoje.slice(0, 5).map(l => <Linha key={l.id} l={l} />)}
+        {hoje.length > 5 && (
+          <p style={{ fontSize: 11, color: '#94A3B8', margin: '0 0 8px' }}>e mais {hoje.length - 5} hoje...</p>
+        )}
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginTop: 8, fontSize: 12, color: '#64748B' }}>
+          {emAndamento.length > 0 && <span>▶️ {emAndamento.length} em andamento</span>}
+          <span>📆 {semana.length} nos próximos 7 dias</span>
+          <Link href="/dashboard/agenda" className="iBtn">abrir a Agenda →</Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="form-card">

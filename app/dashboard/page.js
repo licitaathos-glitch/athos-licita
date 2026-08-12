@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useApp } from '@/lib/AppContext'
-import CalendarioGeral from '@/components/CalendarioGeral'
 import PainelTarefas from '@/components/PainelTarefas'
 import PainelAgenda from '@/components/PainelAgenda'
 
@@ -63,9 +62,9 @@ export default function DashboardPage() {
       {/* O que acontece hoje e no resto da semana vem antes de tudo: é a
           pergunta que se faz ao abrir o sistema de manhã. */}
       <div style={{ marginBottom: 26 }}>
-        <h3 className="sec-title" style={{ fontSize: 16 }}>⚖️ Licitações do dia e da semana</h3>
+        <h3 className="sec-title" style={{ fontSize: 16 }}>⚖️ Hoje</h3>
         <p className="sec-sub">Sessões, limites de proposta e aberturas — clique para abrir a licitação</p>
-        <PainelAgenda />
+        <PainelAgenda compacto />
       </div>
 
       <div style={{ fontSize: 14, fontWeight: 700, color: '#145653', marginBottom: 12 }}>📋 Status por empresa</div>
@@ -93,11 +92,7 @@ export default function DashboardPage() {
         <PainelTarefas />
       </div>
 
-      <div style={{ marginTop: 26 }}>
-        <h3 className="sec-title" style={{ fontSize: 16 }}>📅 Calendário e alertas</h3>
-        <p className="sec-sub">Prazos, sessões, certidões, atas e pagamentos — clique para abrir o registro</p>
-        <CalendarioGeral compacto />
-      </div>
+
     </div>
   )
 }
