@@ -1,11 +1,18 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { STATUS_EMPENHO, fmtBRL } from '@/lib/comercial'
 import { enviarAoGAS, lerBase64 } from '@/lib/gasClient'
 
 const isoParaBR = v => { const p = String(v || '').split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : '' }
 const brParaISO = v => { const m = String(v || '').match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? `${m[3]}-${m[2]}-${m[1]}` : '' }
 const n = v => Number(String(v || '').replace(',', '.')) || 0
+
+// Chave para casar o item da ata com o item cotado pelo fornecedor. As duas
+// descrições vêm de origens diferentes (ata x edital), então compara sem
+// acento, sem pontuação e sem diferença de maiúscula/espaço.
+const chaveItem = txt => String(txt || '')
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 
 export default function ModalEmpenho({ empenho = {}, ata, empresaId, modelo, percentual, itensDisponiveis = [], onFechar, onSalvo }) {
   const ed = !!empenho.id
@@ -34,18 +41,60 @@ export default function ModalEmpenho({ empenho = {}, ata, empresaId, modelo, per
 
   const set = (k, v) => setF(o => ({ ...o, [k]: v }))
 
-  // Ao escolher o item da ata, puxa descrição e preço registrado
+  // Menor preço que os fornecedores apresentaram na cotação da licitação que
+  // originou esta ata — é o custo de compra do item. Chave: descrição do item.
+  const [custosCotacao, setCustosCotacao] = useState(null)
+
+  useEffect(() => {
+    const licId = ata?.licitacaoId
+    if (!licId) return
+    let vivo = true
+    fetch('/api/licitacoes/cotacao?licitacaoId=' + encodeURIComponent(licId))
+      .then(x => x.json())
+      .then(r => {
+        if (!vivo || !r.sucesso) return
+        const mapa = {}
+        for (const c of r.cotacoes || []) {
+          for (const resp of c.respostaItens || []) {
+            const preco = n(resp.precoFornecedor)
+            const k = chaveItem(resp.descricao)
+            if (!preco || !k) continue
+            if (mapa[k] === undefined || preco < mapa[k]) mapa[k] = preco
+          }
+        }
+        setCustosCotacao(mapa)
+      })
+      .catch(() => {})
+    return () => { vivo = false }
+  }, [ata?.licitacaoId])
+
+  const custoCotado = desc => {
+    const k = chaveItem(desc)
+    return custosCotacao && k && custosCotacao[k] !== undefined ? custosCotacao[k] : null
+  }
+
+  // Ao escolher o item da ata, puxa descrição, preço registrado e o custo de compra
   function escolherItem(numero) {
     const it = itensDisponiveis.find(x => String(x.item) === String(numero))
+    const custo = custoCotado(it?.descricao)
     setF(o => ({
       ...o,
       itemNumero: numero,
       itemDescricao: it?.descricao || o.itemDescricao,
       valorUnitario: it?.valorUnitario ?? o.valorUnitario,
+      custoUnitario: custo !== null ? String(custo) : o.custoUnitario,
     }))
   }
 
   const itemSel = itensDisponiveis.find(x => String(x.item) === String(f.itemNumero))
+  const custoDoItem = custoCotado(itemSel?.descricao || f.itemDescricao)
+
+  // A cotação pode chegar depois do item já estar escolhido — preenche o custo
+  // se ainda estiver vazio, sem sobrescrever nada que já tenha sido digitado.
+  useEffect(() => {
+    if (custoDoItem === null) return
+    setF(o => (String(o.custoUnitario).trim() ? o : { ...o, custoUnitario: String(custoDoItem) }))
+  }, [custoDoItem])
   const faturamento = n(f.quantidade) * n(f.valorUnitario)
   const custo = n(f.quantidade) * n(f.custoUnitario)
   const receita = modelo === 'comissao' ? faturamento * (n(percentual) / 100) : faturamento - custo
@@ -187,7 +236,16 @@ export default function ModalEmpenho({ empenho = {}, ata, empresaId, modelo, per
               <input type="number" step="0.01" value={f.valorUnitario} onChange={e => set('valorUnitario', e.target.value)} /></div>
             {modelo !== 'comissao' && (
               <div><label className="mini-lbl">CUSTO UNITÁRIO (compra)</label>
-                <input type="number" step="0.01" value={f.custoUnitario} onChange={e => set('custoUnitario', e.target.value)} /></div>
+                <input type="number" step="0.01" value={f.custoUnitario} onChange={e => set('custoUnitario', e.target.value)} />
+                {custoDoItem !== null && (
+                  <div style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>
+                    Menor preço da cotação: {fmtBRL(custoDoItem)}
+                    {n(f.custoUnitario) !== custoDoItem && (
+                      <button type="button" className="iBtn" style={{ marginLeft: 6 }}
+                        onClick={() => set('custoUnitario', String(custoDoItem))}>usar</button>
+                    )}
+                  </div>
+                )}</div>
             )}
           </div>
 
