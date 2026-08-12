@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { FASES, normalizarFase } from '@/lib/fases'
 import { nomeResultado, corResultado } from '@/lib/resultado'
 import { corStatus, nomeStatus } from '@/lib/statusLicitacao'
+import { tipoEventoInfo } from '@/lib/tiposEvento'
 
 // Selo do fluxo de cotacao mostrado ao lado do numero do edital
 const SELO_COTACAO = {
@@ -54,6 +55,7 @@ export default function ListaLicitacoes({
   licitacoes, somenteConsulta, onMover, onStatus, onEditar, onExcluir,
   planas = false, // true = mostra tudo junto, sem abas (usada pela visão "Lista")
   abrirId = null, // vindo do calendário: já abre essa licitação direto, sem passar pela lista
+  registrosPorLic = {}, // eventos e tarefas de cada licitação, para exibir na linha
 }) {
   const [faseAtiva, setFaseAtiva] = useState(FASES[0].id)
   const [aberta, setAberta] = useState(null)
@@ -170,6 +172,29 @@ export default function ListaLicitacoes({
                 </div>
                 {l.observacaoDisputa && (
                   <div className="lic-obs" title={l.observacaoDisputa}>📝 {l.observacaoDisputa}</div>
+                )}
+
+                {/* Registros e eventos da licitação, logo abaixo da empresa:
+                    é onde a informação faz falta na hora de bater o olho. */}
+                {(registrosPorLic[l.id] || []).slice(0, 3).map(r => (
+                  <div key={r.chave} className="lic-registro"
+                    style={{ borderLeftColor: ['suspensao', 'remarcacao'].includes(r.tipoEvento) ? '#B45309' : r.tipo === 'tarefa' ? '#0F766E' : '#9333EA' }}>
+                    <div className="lic-registro-top">
+                      <span>{r.tipo === 'tarefa' ? (r.feita ? '✅' : '✔️') : tipoEventoInfo(r.tipoEvento).ico}</span>
+                      <strong>
+                        {r.data ? String(r.data).split('-').reverse().join('/') : 'sem data'}
+                        {r.hora ? ` às ${r.hora}` : ''} — {r.titulo}
+                      </strong>
+                    </div>
+                    <div className="lic-registro-obs">
+                      <span>Observação:</span> {r.obs || 'sem observação'}
+                    </div>
+                  </div>
+                ))}
+                {(registrosPorLic[l.id] || []).length > 3 && (
+                  <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>
+                    e mais {(registrosPorLic[l.id] || []).length - 3} registro(s) — abra a licitação
+                  </div>
                 )}
               </div>
 

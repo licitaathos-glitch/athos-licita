@@ -45,6 +45,36 @@ function LicitacoesConteudo() {
   const params = useSearchParams()
   const idDaUrl = params.get('id')
 
+  // Eventos e tarefas de todas as licitações, agrupados por licitação, para a
+  // lista mostrar os registros embaixo de cada uma.
+  const [registrosPorLic, setRegistrosPorLic] = useState({})
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/calendario/eventos').then(r => r.json()).catch(() => ({})),
+      fetch('/api/tarefas').then(r => r.json()).catch(() => ({})),
+    ]).then(([ev, tf]) => {
+      const mapa = {}
+      const juntar = r => {
+        if (!r.licitacaoId) return
+        ;(mapa[r.licitacaoId] = mapa[r.licitacaoId] || []).push(r)
+      }
+      ;(ev.sucesso ? ev.eventos : []).forEach(e => juntar({
+        chave: 'e' + e.id, tipo: 'evento', tipoEvento: e.tipoEvento || '',
+        data: e.data || '', hora: e.hora || '',
+        titulo: (e.titulo || '').replace(/^\S+\s/, ''), obs: e.descricao || '',
+        licitacaoId: String(e.licitacaoId || ''),
+      }))
+      ;(tf.sucesso ? tf.tarefas : []).forEach(t => juntar({
+        chave: 't' + t.id, tipo: 'tarefa', tipoEvento: '',
+        data: String(t.prazo || '').slice(0, 10), hora: String(t.prazo || '').slice(11, 16),
+        titulo: t.titulo, obs: t.descricao || '', feita: t.status === 'Concluída',
+        licitacaoId: String(t.licitacaoId || ''),
+      }))
+      Object.values(mapa).forEach(l => l.sort((a, b) => String(b.data + b.hora).localeCompare(String(a.data + a.hora))))
+      setRegistrosPorLic(mapa)
+    })
+  }, [])
+
   const carregar = useCallback(() => {
     fetch('/api/licitacoes').then(r => r.json())
       .then(r => { r.sucesso ? setLics(r.licitacoes) : setErro(r.erro || 'Erro ao carregar.') })
@@ -199,6 +229,7 @@ function LicitacoesConteudo() {
           onEditar={setEditando}
           onExcluir={excluir}
           abrirId={idDaUrl}
+          registrosPorLic={registrosPorLic}
         />
       )}
 
@@ -213,6 +244,7 @@ function LicitacoesConteudo() {
           onEditar={setEditando}
           onExcluir={excluir}
           abrirId={idDaUrl}
+          registrosPorLic={registrosPorLic}
           planas
         />
       )}
