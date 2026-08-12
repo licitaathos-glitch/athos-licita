@@ -456,7 +456,10 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
           origem: linkPncp ? 'pncp' : 'manual',
         }),
       }).then(x => x.json())
-      if (r.sucesso) onSalvo(); else setErro(r.erro || 'Erro ao salvar.')
+      if (r.sucesso) {
+        if (r.aviso) { setErro('⚠️ ' + r.aviso); setSalvando(false); return }
+        onSalvo()
+      } else setErro(r.erro || 'Erro ao salvar.')
     } catch { setErro('Erro de conexão.') }
     setSalvando(false)
   }

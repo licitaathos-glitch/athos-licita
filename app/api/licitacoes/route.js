@@ -170,6 +170,22 @@ export async function POST(req) {
       salvoEm: new Date().toISOString(),
     })
     if (!r.ok) return NextResponse.json({ sucesso: false, erro: r.erro })
+
+    // Confere o que realmente entrou na planilha. Campo enviado que não voltou
+    // significa coluna faltando ou com nome diferente no cabeçalho — antes isso
+    // passava calado e o usuário só descobria vendo a licitação sem as datas.
+    const gravada = (await lerAba('Licitacoes')).find(l => String(l.id || '').trim() === id)
+    if (!gravada) {
+      return NextResponse.json({ sucesso: false, erro: 'A licitação não foi gravada na planilha. Tente de novo.' })
+    }
+    const perdidos = Object.keys(campos)
+      .filter(c => String(campos[c] ?? '').trim() !== '' && String(gravada[c] ?? '').trim() === '')
+    if (perdidos.length) {
+      return NextResponse.json({
+        sucesso: true, id,
+        aviso: 'Salvo, mas estes campos não entraram na planilha (confira o cabeçalho da aba Licitacoes): ' + perdidos.join(', '),
+      })
+    }
     return NextResponse.json({ sucesso: true, id })
   } catch (e) {
     return NextResponse.json({ sucesso: false, erro: 'Erro ao salvar: ' + e.message }, { status: 500 })
