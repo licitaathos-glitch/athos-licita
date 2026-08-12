@@ -26,6 +26,23 @@ export default function ModalDetalheLicitacao({
   // Tudo que foi registrado nesta licitação (eventos e tarefas), para constar
   // aqui embaixo — antes só existia dentro do Andamento e sumia da ficha.
   const [registros, setRegistros] = useState(null)
+  const [recarga, setRecarga] = useState(0)
+
+  async function excluirRegistro(r) {
+    if (!confirm(`Excluir ${r.tipo === 'tarefa' ? 'a tarefa' : 'o evento'} "${r.titulo}"?`)) return
+    try {
+      if (r.tipo === 'tarefa') {
+        await fetch(`/api/tarefas?id=${encodeURIComponent(r.id)}`, { method: 'DELETE' })
+      } else {
+        await fetch('/api/calendario/eventos', {
+          method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: r.id }),
+        })
+      }
+      setRecarga(n => n + 1)
+    } catch {}
+  }
+
   useEffect(() => {
     let vivo = true
     Promise.all([
@@ -36,14 +53,14 @@ export default function ModalDetalheLicitacao({
       const meus = [
         ...(ev.sucesso ? ev.eventos : []).filter(e => String(e.licitacaoId || '') === String(l.id))
           .map(e => ({
-            chave: 'e' + e.id, tipo: 'evento', tipoEvento: e.tipoEvento || '',
+            chave: 'e' + e.id, id: e.id, tipo: 'evento', tipoEvento: e.tipoEvento || '',
             data: e.data || '', hora: e.hora || '',
             titulo: tipoEventoInfo(e.tipoEvento).nome.split('(')[0].trim(),
             obs: e.descricao || '',
           })),
         ...(tf.sucesso ? tf.tarefas : []).filter(t => String(t.licitacaoId || '') === String(l.id))
           .map(t => ({
-            chave: 't' + t.id, tipo: 'tarefa', tipoEvento: '',
+            chave: 't' + t.id, id: t.id, tipo: 'tarefa', tipoEvento: '',
             data: String(t.prazo || '').slice(0, 10), hora: String(t.prazo || '').slice(11, 16),
             titulo: t.titulo, obs: t.descricao || '',
             feita: t.status === 'Concluída',
@@ -52,7 +69,7 @@ export default function ModalDetalheLicitacao({
       setRegistros(meus)
     })
     return () => { vivo = false }
-  }, [l.id])
+  }, [l.id, recarga])
 
   // Último evento que mexeu na sessão — é o que precisa ficar gritando na tela
   const remarcacao = (registros || [])
@@ -242,6 +259,10 @@ export default function ModalDetalheLicitacao({
                       <strong style={{ color: '#64748B' }}>Observação:</strong> {r.obs || 'sem observação'}
                     </div>
                   </div>
+                  {!somenteConsulta && (
+                    <button className="iBtn iBtn-del" title="Excluir registro"
+                      onClick={() => excluirRegistro(r)}>×</button>
+                  )}
                 </div>
               )
             })}

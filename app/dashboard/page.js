@@ -1,121 +1,53 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useApp } from '@/lib/AppContext'
-import { Cartao, Janela, LinhaJanela } from '@/components/CartoesDashboard'
+import PainelAgenda from '@/components/PainelAgenda'
+import PainelPendencias from '@/components/PainelPendencias'
 import ModalDetalheLicitacao from '@/components/ModalDetalheLicitacao'
-import ModalNovoRegistro from '@/components/ModalNovoRegistro'
-import { paraData } from '@/lib/notificacoes'
 import { faseDe } from '@/lib/fases'
 import { rotuloTipo } from '@/lib/tiposCertidao'
 
-const DIA = 24 * 60 * 60 * 1000
 const CORES = { ok: '#16A34A', warn: '#D97706', bad: '#DC2626', nd: '#CBD5E1' }
-const zerar = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x }
-const hora = d => d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-const dataCurta = d => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
 
 export default function DashboardPage() {
   const router = useRouter()
   const { usuario, empresaAtual, setEmpresaAtual } = useApp()
   const [dados, setDados] = useState(null)
-  const [agenda, setAgenda] = useState(null)
-  const [tarefas, setTarefas] = useState([])
-  const [eventos, setEventos] = useState([])
+  const [cotacoes, setCotacoes] = useState([])
   const [erro, setErro] = useState('')
-
-  // Qual janela está aberta e o que está aberto por cima dela. O Dashboard
-  // nunca é abandonado: fechar a licitação devolve à lista, fechar a lista
-  // devolve aos cartões.
-  const [janela, setJanela] = useState(null)
   const [empresaAberta, setEmpresaAberta] = useState(null)
   const [licAberta, setLicAberta] = useState(null)
   const [carregandoLic, setCarregandoLic] = useState(false)
-  const [novaTarefa, setNovaTarefa] = useState(false)
-
-  // Tarefa e evento aparecem juntos no Dashboard: são as duas formas de
-  // "coisa marcada para fazer", e separá-las em cartões diferentes só faria
-  // procurar em dois lugares.
-  function carregarAgendaPessoal() {
-    fetch('/api/tarefas').then(r => r.json()).then(r => r.sucesso && setTarefas(r.tarefas)).catch(() => {})
-    fetch('/api/calendario/eventos').then(r => r.json()).then(r => r.sucesso && setEventos(r.eventos)).catch(() => {})
-  }
 
   useEffect(() => {
     fetch('/api/dashboard').then(r => r.json())
       .then(r => (r.sucesso ? setDados(r) : setErro(r.erro || 'Erro ao carregar.')))
       .catch(() => setErro('Erro de conexão.'))
     fetch('/api/agenda').then(r => r.json())
-      .then(r => setAgenda(r.sucesso ? r : { licitacoes: [], cotacoes: [] }))
-      .catch(() => setAgenda({ licitacoes: [], cotacoes: [] }))
-    carregarAgendaPessoal()
+      .then(r => r.sucesso && setCotacoes(r.cotacoes || []))
+      .catch(() => {})
   }, [])
 
+  // Abre a licitação sem sair do Dashboard; fechar volta para cá
   async function abrirLicitacao(id) {
     setCarregandoLic(true)
     try {
       const r = await fetch('/api/licitacoes').then(x => x.json())
       const l = r.sucesso ? r.licitacoes.find(x => String(x.id) === String(id)) : null
-      if (l) setLicAberta(l)
-      else setErro('Não consegui abrir esta licitação.')
+      if (l) setLicAberta(l); else setErro('Não consegui abrir esta licitação.')
     } catch { setErro('Erro de conexão ao abrir a licitação.') }
     setCarregandoLic(false)
   }
-
-  const empresaSel = empresaAtual !== 'todas' ? String(empresaAtual) : ''
-
-  const grupos = useMemo(() => {
-    if (!agenda) return { hoje: [], andamento: [], futuras: [], cotacoes: [] }
-    const agora = new Date()
-    const inicioHoje = zerar(agora)
-    const fimSemana = new Date(inicioHoje.getTime() + 8 * DIA)
-
-    const comData = (agenda.licitacoes || [])
-      .filter(l => !empresaSel || String(l.empresaId) === empresaSel)
-      .map(l => ({ ...l, data: paraData(l.quando) }))
-      .filter(l => l.data)
-      .sort((a, b) => a.data - b.data)
-
-    const idsVisiveis = new Set(comData.map(l => String(l.id)))
-    return {
-      andamento: comData.filter(l => l.data < inicioHoje),
-      hoje: comData.filter(l => l.data >= inicioHoje && l.data < new Date(inicioHoje.getTime() + DIA)),
-      futuras: comData.filter(l => l.data >= new Date(inicioHoje.getTime() + DIA) && l.data < fimSemana),
-      cotacoes: (agenda.cotacoes || [])
-        .filter(c => !empresaSel || !c.licitacaoId || idsVisiveis.has(String(c.licitacaoId))),
-    }
-  }, [agenda, empresaSel])
 
   if (erro && !dados) return <div style={{ padding: 40, textAlign: 'center', color: '#DC2626' }}>{erro}</div>
   if (!dados) return <div style={{ padding: 40, textAlign: 'center', color: '#64748B' }}>Carregando...</div>
 
   const perfil = String(usuario?.perfil || '').toLowerCase()
+  const empresaSel = empresaAtual !== 'todas' ? String(empresaAtual) : ''
   const empresas = empresaSel ? dados.empresas.filter(e => String(e.id) === empresaSel) : dados.empresas
   const comPendencia = empresas.filter(e => e.vencidas > 0 || e.alerta > 0)
-  const agora = new Date()
-  const pendentes = [
-    ...tarefas
-      .filter(t => t.status !== 'Concluída' && (!empresaSel || !t.empresaId || t.empresaId === empresaSel))
-      .map(t => ({
-        chave: 'tarefa:' + t.id, tipo: 'tarefa', icone: '✔️',
-        titulo: t.titulo, quando: paraData(t.prazo), extra: t.prioridade,
-        empresaNome: t.empresaNome, licitacaoId: t.licitacaoId,
-      })),
-    // Evento passado já aconteceu — some da lista de pendências sozinho
-    ...eventos
-      .filter(e => !empresaSel || !e.empresaId || e.empresaId === empresaSel)
-      .map(e => ({
-        chave: 'evento:' + e.id, tipo: 'evento', icone: '📅',
-        titulo: e.titulo, quando: paraData(e.data), extra: 'evento',
-        empresaNome: e.empresaNome, licitacaoId: e.licitacaoId,
-      }))
-      .filter(e => e.quando && e.quando >= zerar(agora)),
-  ].sort((a, b) => {
-    if (!a.quando) return 1
-    if (!b.quando) return -1
-    return a.quando - b.quando
-  })
 
   return (
     <div>
@@ -127,64 +59,77 @@ export default function DashboardPage() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn-ghost" onClick={() => setNovaTarefa(true)}>+ Tarefa ou evento</button>
+          <Link href="/dashboard/agenda" className="btn-ghost">📅 Calendário</Link>
           {perfil === 'adm' && <Link href="/dashboard/empresas" className="btn-ghost">+ Empresa</Link>}
           {perfil === 'adm' && <Link href="/dashboard/usuarios" className="btn-ghost">+ Usuário</Link>}
         </div>
       </div>
 
-      {/* Seis janelas: três em cima, três embaixo. No celular viram uma coluna. */}
-      <div className="dash-grid">
-        <Cartao
-          icone="🏢" titulo="Empresas" total={empresas.length} cor="#145653"
-          vazio="Nenhuma empresa cadastrada."
-          linhas={empresas.map(e => `${e.nome}${e.vencidas ? ` · ${e.vencidas} vencida(s)` : ''}`)}
-          onAbrir={() => setJanela('empresas')} />
-
-        <Cartao
-          icone="📌" titulo="Licitações de hoje" total={grupos.hoje.length} cor="#B45309"
-          vazio="Nenhuma sessão hoje."
-          linhas={grupos.hoje.map(l => `${hora(l.data)} · ${l.numeroEdital} — ${l.orgao || l.empresaNome}`)}
-          onAbrir={() => setJanela('hoje')} />
-
-        <Cartao
-          icone="▶️" titulo="Em andamento" total={grupos.andamento.length} cor="#D97706"
-          vazio="Nada em andamento."
-          linhas={grupos.andamento.map(l => `${dataCurta(l.data)} · ${l.numeroEdital} — ${l.orgao || l.empresaNome}`)}
-          onAbrir={() => setJanela('andamento')} />
-
-        <Cartao
-          icone="📆" titulo="Próximos 7 dias" total={grupos.futuras.length} cor="#0369A1"
-          vazio="Nada marcado para a semana."
-          linhas={grupos.futuras.map(l => `${dataCurta(l.data)} ${hora(l.data)} · ${l.numeroEdital}`)}
-          onAbrir={() => setJanela('futuras')} />
-
-        <Cartao
-          icone="✔️" titulo="Tarefas e eventos" total={pendentes.length} cor="#0F766E"
-          vazio="Nada pendente."
-          linhas={pendentes.map(t => `${t.icone} ${t.titulo}`)}
-          onAbrir={() => setJanela('tarefas')} />
-
-        <Cartao
-          icone="⏳" titulo="Cotações sem resposta" total={grupos.cotacoes.length} cor="#9333EA"
-          vazio="Nenhum pedido aguardando fornecedor."
-          linhas={grupos.cotacoes.map(c => `${c.edital} · ${c.destinatario}`)}
-          onAbrir={() => setJanela('cotacoes')} />
+      {/* O que acontece hoje, o que está rolando e o que vem — o motivo de
+          abrir o sistema de manhã, no mesmo visual da agenda. */}
+      <div style={{ marginTop: 20 }}>
+        <h3 className="sec-title" style={{ fontSize: 16 }}>⚖️ Licitações — hoje, em andamento e futuras</h3>
+        <PainelAgenda />
       </div>
 
-      {janela === 'empresas' && (
-        <Janela titulo="Empresas" subtitulo={`${empresas.length} cadastrada(s) · ${comPendencia.length} com pendência`}
-          onFechar={() => { setJanela(null); setEmpresaAberta(null) }}>
+      <div style={{ marginTop: 26 }}>
+        <h3 className="sec-title" style={{ fontSize: 16 }}>✔️ Pendências</h3>
+        <p className="sec-sub">Tarefas e eventos — marque como feita ou exclua o que não vale mais</p>
+        <PainelPendencias />
+      </div>
+
+      {cotacoes.length > 0 && (
+        <div style={{ marginTop: 26 }}>
+          <h3 className="sec-title" style={{ fontSize: 16 }}>⏳ Cotações sem resposta ({cotacoes.length})</h3>
+          <p className="sec-sub">Pedidos enviados que o fornecedor ainda não respondeu</p>
+          <div className="form-card">
+            {cotacoes.map(c => (
+              <div key={c.id} onClick={() => c.licitacaoId && abrirLicitacao(c.licitacaoId)}
+                style={{
+                  display: 'flex', gap: 10, padding: '9px 10px', borderRadius: 8, marginBottom: 6,
+                  background: '#F8FAFC', borderLeft: '3px solid #9333EA',
+                  cursor: c.licitacaoId ? 'pointer' : 'default',
+                }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#2E2D2F' }}>{c.edital}</div>
+                  <div style={{ fontSize: 11.5, color: '#64748B', marginTop: 2 }}>
+                    {[c.destinatario, c.empresaNome].filter(Boolean).join(' · ')}
+                  </div>
+                  {c.objeto && <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 1 }}>{c.objeto}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div style={{ marginTop: 26 }}>
+        <h3 className="sec-title" style={{ fontSize: 16 }}>🏢 Empresas ({empresas.length})</h3>
+        <p className="sec-sub">
+          {comPendencia.length > 0
+            ? `${comPendencia.length} com certidão vencida ou vencendo — clique para ver o que falta`
+            : 'Todas com a documentação em dia'}
+        </p>
+        <div className="form-card">
           {empresas.map(e => (
             <div key={e.id}>
-              <LinhaJanela
-                marcador={CORES[e.status]}
-                titulo={e.nome}
-                detalhe={`${e.cnpj}${e.responsavel ? ' · ' + e.responsavel : ''}`}
-                extra={e.vencidas ? `${e.vencidas} vencida(s)` : e.alerta ? `${e.alerta} vencendo` : 'regular'}
-                onClick={() => setEmpresaAberta(empresaAberta === e.id ? null : e.id)} />
+              <div onClick={() => setEmpresaAberta(empresaAberta === e.id ? null : e.id)}
+                style={{
+                  display: 'flex', gap: 10, alignItems: 'center', padding: '9px 10px', borderRadius: 8,
+                  marginBottom: 6, background: '#F8FAFC', borderLeft: `3px solid ${CORES[e.status]}`, cursor: 'pointer',
+                }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#2E2D2F' }}>{e.nome}</div>
+                  <div style={{ fontSize: 11.5, color: '#64748B', marginTop: 2 }}>
+                    {e.cnpj}{e.responsavel ? ' · ' + e.responsavel : ''}
+                  </div>
+                </div>
+                <span className="pill" style={{ background: CORES[e.status] + '22', color: CORES[e.status] }}>
+                  {e.vencidas ? `${e.vencidas} vencida(s)` : e.alerta ? `${e.alerta} vencendo` : 'regular'}
+                </span>
+              </div>
               {empresaAberta === e.id && (
-                <div style={{ margin: '-2px 0 12px 14px' }}>
+                <div style={{ margin: '-2px 0 10px 16px' }}>
                   {(e.pendencias || []).length === 0
                     ? <p style={{ fontSize: 12, color: '#94A3B8', margin: '0 0 6px' }}>Nenhuma certidão vencida ou vencendo nos próximos 7 dias.</p>
                     : e.pendencias.map((p, i) => (
@@ -200,63 +145,8 @@ export default function DashboardPage() {
               )}
             </div>
           ))}
-        </Janela>
-      )}
-
-      {['hoje', 'andamento', 'futuras'].includes(janela) && (
-        <Janela
-          titulo={{ hoje: 'Licitações de hoje', andamento: 'Em andamento', futuras: 'Próximos 7 dias' }[janela]}
-          subtitulo="Clique para abrir a licitação sem sair do Dashboard"
-          onFechar={() => setJanela(null)}>
-          {grupos[janela].map(l => {
-            const f = faseDe(l.fase)
-            return (
-              <LinhaJanela key={l.id} marcador={f.cor}
-                titulo={`${dataCurta(l.data)} ${hora(l.data)} · ${l.numeroEdital}`}
-                detalhe={[l.empresaNome, l.orgao, l.portal].filter(Boolean).join(' · ') + (l.objeto ? ' — ' + l.objeto : '')}
-                extra={f.nome}
-                onClick={() => abrirLicitacao(l.id)} />
-            )
-          })}
-        </Janela>
-      )}
-
-      {janela === 'tarefas' && (
-        <Janela titulo="Tarefas e eventos" subtitulo={`${pendentes.length} pendente(s)`} onFechar={() => setJanela(null)}>
-          <button className="iBtn iBtn-up" style={{ marginBottom: 10 }} onClick={() => setNovaTarefa(true)}>+ Nova tarefa ou evento</button>
-          {pendentes.length === 0 && <p style={{ fontSize: 12.5, color: '#94A3B8' }}>Nada pendente.</p>}
-          {pendentes.map(t => {
-            const atrasada = t.tipo === 'tarefa' && t.quando && t.quando < new Date()
-            return (
-              <LinhaJanela key={t.chave}
-                marcador={atrasada ? '#DC2626' : t.tipo === 'evento' ? '#9333EA' : '#0F766E'}
-                titulo={`${t.icone} ${t.titulo}`}
-                detalhe={[
-                  t.quando
-                    ? (atrasada ? '⚠️ venceu em ' : t.tipo === 'evento' ? 'em ' : 'até ') +
-                      t.quando.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
-                    : 'sem prazo',
-                  t.empresaNome,
-                ].filter(Boolean).join(' · ')}
-                extra={t.extra}
-                onClick={t.licitacaoId ? () => abrirLicitacao(t.licitacaoId) : undefined} />
-            )
-          })}
-        </Janela>
-      )}
-
-      {janela === 'cotacoes' && (
-        <Janela titulo="Cotações sem resposta" subtitulo="Pedidos enviados que o fornecedor ainda não respondeu"
-          onFechar={() => setJanela(null)}>
-          {grupos.cotacoes.length === 0 && <p style={{ fontSize: 12.5, color: '#94A3B8' }}>Nenhum pedido aguardando resposta.</p>}
-          {grupos.cotacoes.map(c => (
-            <LinhaJanela key={c.id} marcador="#9333EA"
-              titulo={`${c.edital} — ${c.destinatario || 'sem e-mail'}`}
-              detalhe={[c.empresaNome, c.objeto].filter(Boolean).join(' · ')}
-              onClick={c.licitacaoId ? () => abrirLicitacao(c.licitacaoId) : undefined} />
-          ))}
-        </Janela>
-      )}
+        </div>
+      </div>
 
       {carregandoLic && (
         <div className="overlay"><div className="modal"><div className="modal-body">Abrindo a licitação...</div></div></div>
@@ -267,15 +157,9 @@ export default function DashboardPage() {
           lic={licAberta} fx={faseDe(licAberta.fase)} somenteConsulta
           onFechar={() => setLicAberta(null)}
           onIrPara={l => {
-            // Troca a empresa selecionada junto: chegar na tela de Licitações
-            // com outra empresa em foco faria a licitação sumir da lista.
             if (l.empresa_id) setEmpresaAtual(String(l.empresa_id))
             router.push(`/dashboard/licitacoes?id=${l.id}`)
           }} />
-      )}
-
-      {novaTarefa && (
-        <ModalNovoRegistro onFechar={() => setNovaTarefa(false)} onSalvo={carregarTarefas} />
       )}
     </div>
   )

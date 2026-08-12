@@ -1,21 +1,15 @@
 'use client'
 import { Suspense } from 'react'
 import CalendarioGeral from '@/components/CalendarioGeral'
-import PainelAgenda from '@/components/PainelAgenda'
 
-// A agenda ganhou menu próprio porque no Dashboard ela disputava espaço com o
-// resto e ainda carregava seis APIs numa tela que deveria abrir instantânea.
+// A Agenda ficou sendo só o calendário. O que é lista de trabalho — hoje, em
+// andamento, futuras, pendências — voltou para o Dashboard, que é onde se
+// decide o que fazer; aqui é onde se enxerga o mês.
 export default function AgendaPage() {
   return (
     <div>
       <h2 className="sec-title">Agenda</h2>
-      <p className="sec-sub">Sessões, prazos, certidões, atas, recebimentos, eventos e tarefas</p>
-
-      <div style={{ marginBottom: 26 }}>
-        <h3 className="sec-title" style={{ fontSize: 16 }}>⚖️ Licitações do dia e da semana</h3>
-        <Suspense fallback={null}><PainelAgenda /></Suspense>
-      </div>
-
+      <p className="sec-sub">Sessões, prazos, certidões, atas, recebimentos, eventos e tarefas no calendário</p>
       <Suspense fallback={null}><CalendarioGeral /></Suspense>
     </div>
   )
