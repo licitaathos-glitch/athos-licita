@@ -5,6 +5,7 @@ import { faseAutomatica, faseInferida } from '@/lib/fases'
 import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu, empresasComMenu } from '@/lib/auth'
 import { novoId } from '@/lib/uuid'
 import { chunkCampo, juntarChunk, nomesChunk } from '@/lib/chunkCampo'
+import { COLS_COTACAO } from '@/lib/cotacao'
 
 const CAMPOS = ['numeroPNCP','numeroEdital','objeto','orgao','uasg','uf','valor','dataAbertura',
   'dataLimite','dataSessao','modalidade','status','link','portal','srp','numeroProposta','anexoDriveId','anexoDriveUrl','anexosJson',
@@ -22,6 +23,24 @@ function parseItens(json) {
   try { const a = JSON.parse(json || '[]'); return Array.isArray(a) ? a : [] } catch { return [] }
 }
 
+// Mapa licitacaoId -> { pendentes, total } das cotacoes pedidas a fornecedores.
+// Usado so para mostrar o selo "Cotacao pendente" na lista. Se a aba ainda nao
+// existir ou der erro, devolve mapa vazio — nunca derruba a listagem.
+async function mapaCotacoes() {
+  try {
+    await garantirAba('Cotacoes', COLS_COTACAO)
+    const mapa = {}
+    for (const c of await lerAba('Cotacoes')) {
+      const lid = String(c.licitacaoId || '').trim()
+      if (!lid) continue
+      if (!mapa[lid]) mapa[lid] = { pendentes: 0, total: 0 }
+      mapa[lid].total++
+      if (String(c.status || 'Pendente').trim() !== 'Respondida') mapa[lid].pendentes++
+    }
+    return mapa
+  } catch { return {} }
+}
+
 async function contexto(usuario) {
   await garantirAba('Licitacoes', COLS_LIC)
   const todas = await lerAba('Empresas')
@@ -35,7 +54,9 @@ export async function GET(req) {
   if (!podeAcessarMenu(usuario, 'licitacoes')) return NextResponse.json({ sucesso: false, erro: 'Seu usuário não tem acesso a este módulo.' }, { status: 403 })
 
   try {
-    const [{ ids }, linhas] = await Promise.all([contexto(usuario), lerAba('Licitacoes')])
+    const [{ ids }, linhas, cotacoes] = await Promise.all([
+      contexto(usuario), lerAba('Licitacoes'), mapaCotacoes(),
+    ])
     const licitacoes = linhas
       .filter(l => l.id && ids.has(String(l.empresaId || '').trim()))
       .map(l => ({
@@ -63,6 +84,8 @@ export async function GET(req) {
         empresaVencedora: l.empresaVencedora || '',
         colocacao: l.colocacao || '',
         observacaoDisputa: l.observacaoDisputa || '', dataHomologacao: l.dataHomologacao || '',
+        cotacoesPendentes: (cotacoes[String(l.id).trim()] || {}).pendentes || 0,
+        cotacoesTotal: (cotacoes[String(l.id).trim()] || {}).total || 0,
         salvoEm: l.salvoEm || '',
       }))
       .sort((a, b) => String(b.salvoEm).localeCompare(String(a.salvoEm)))

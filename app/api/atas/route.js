@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { lerAba, adicionarLinha, atualizarLinha, excluirLinha } from '@/lib/google'
+import { lerAba, adicionarLinha, atualizarLinha, excluirLinha, garantirAba } from '@/lib/google'
 import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu, empresasComMenu } from '@/lib/auth'
 import { diasRestantes, statusPorDias } from '@/lib/datas'
 import { novoId } from '@/lib/uuid'
@@ -9,11 +9,18 @@ const CAMPOS = ['numeroAta','orgao','cnpjOrgao','uf','licitacao','processo','obj
   'representante','dataAssinatura','vigencia','vencimento','adesao','condPagamento',
   'contato','emailOrgao','telefoneOrgao','observacoes','itensJson','licitacaoId']
 
+// Colunas que a aba Atas precisa ter. adicionarLinha só grava colunas que existem
+// no cabeçalho — se faltar alguma (id, empresaId...), a ata é gravada sem ela e
+// some da listagem. garantirAba acrescenta as que faltarem antes de qualquer uso.
+const COLS_ATA = ['id','empresaId','empresaNome','fornecedor','cnpjFornecedor',
+  ...CAMPOS, 'salvoEm']
+
 function contarItens(json) {
   try { const a = JSON.parse(json || '[]'); return Array.isArray(a) ? a : [] } catch { return [] }
 }
 
 async function contexto(usuario) {
+  await garantirAba('Atas', COLS_ATA)
   const todas = await lerAba('Empresas')
   const empresas = empresasComMenu(usuario, 'atas', todas.filter(e => e.id))
   return { empresas, ids: new Set(empresas.map(e => String(e.id).trim())) }
@@ -96,6 +103,16 @@ export async function POST(req) {
       salvoEm: new Date().toISOString(),
     })
     if (!r.ok) return NextResponse.json({ sucesso: false, erro: r.erro })
+
+    // Confere se a linha realmente entrou e com a empresa certa. Sem isso o
+    // sistema já respondeu "salvou" para atas que não apareciam na lista.
+    const conferir = (await lerAba('Atas')).find(a => String(a.id || '').trim() === id)
+    if (!conferir) {
+      return NextResponse.json({ sucesso: false, erro: 'A ata não foi gravada na planilha. Tente de novo.' })
+    }
+    if (String(conferir.empresaId || '').trim() !== String(b.empresa_id).trim()) {
+      return NextResponse.json({ sucesso: false, erro: 'A ata foi gravada sem a empresa e não apareceria na lista. Confira o cabeçalho da aba Atas.' })
+    }
     return NextResponse.json({ sucesso: true, id })
   } catch (e) {
     return NextResponse.json({ sucesso: false, erro: 'Erro ao salvar: ' + e.message }, { status: 500 })
