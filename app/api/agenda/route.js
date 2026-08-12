@@ -34,7 +34,29 @@ export async function GET(req) {
       }))
       .filter(l => l.quando && !['Finalizada', 'Descartado'].includes(l.fase))
 
-    return NextResponse.json({ sucesso: true, licitacoes })
+    // Pedidos de cotação ainda sem resposta do fornecedor — o Dashboard mostra
+    // isso num cartão próprio, é a fila que trava a montagem da proposta.
+    let cotacoes = []
+    try {
+      const porId = {}
+      licitacoes.forEach(l => { porId[String(l.id).trim()] = l })
+      cotacoes = (await lerAba('Cotacoes'))
+        .filter(c => c.id && String(c.status || 'Pendente').trim() !== 'Respondida')
+        .filter(c => !c.empresaId || permitidas.has(String(c.empresaId).trim()))
+        .map(c => {
+          const lic = porId[String(c.licitacaoId || '').trim()]
+          return {
+            id: c.id, licitacaoId: c.licitacaoId || '',
+            empresaNome: c.empresaNome || (lic ? lic.empresaNome : ''),
+            edital: c.numeroEdital || (lic ? lic.numeroEdital : '') || 'Sem nº',
+            destinatario: c.destinatarioEmail || '',
+            enviadoEm: c.criadoEm || '',
+            objeto: lic ? lic.objeto : '',
+          }
+        })
+    } catch { cotacoes = [] }
+
+    return NextResponse.json({ sucesso: true, licitacoes, cotacoes })
   } catch (e) {
     return NextResponse.json({ sucesso: false, erro: e.message }, { status: 500 })
   }

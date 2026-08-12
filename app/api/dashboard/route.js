@@ -45,7 +45,13 @@ export async function GET(req) {
         else regulares++
       })
       const status = vencidas ? 'bad' : alerta ? 'warn' : regulares ? 'ok' : 'nd'
-      return { id: e.id, nome: e.nome, cnpj: e.cnpj, responsavel: e.responsavel || '', vencidas, alerta, regulares, status }
+      // Quais documentos estão pendentes, não só quantos — o Dashboard abre
+      // essa lista ao clicar na empresa, para saber o que providenciar.
+      const pendencias = docs
+        .map(d => ({ tipo: String(d.tipo_slug || ''), validade: d.validade || '', dias: diffDias(d.validade) }))
+        .filter(d => d.dias !== null && d.dias <= 7)
+        .sort((a, b) => a.dias - b.dias)
+      return { id: e.id, nome: e.nome, cnpj: e.cnpj, responsavel: e.responsavel || '', vencidas, alerta, regulares, status, pendencias }
     })
 
     return NextResponse.json({

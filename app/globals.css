@@ -495,3 +495,8 @@ body{font-family:'Manrope',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-seri
 .toggle-track.on{background:#145653}
 .toggle-knob{position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
 .toggle-track.on .toggle-knob{left:19px}
+
+/* Dashboard em seis janelas: 3 em cima, 3 embaixo no desktop; uma coluna no celular */
+.dash-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}
+@media(max-width:1100px){.dash-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:700px){.dash-grid{grid-template-columns:1fr}}
