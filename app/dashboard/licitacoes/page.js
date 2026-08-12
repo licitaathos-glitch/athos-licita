@@ -497,11 +497,23 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
 
           <div className="form-sub"><label>LINK DO EDITAL</label><input value={f.link} onChange={e => set('link', e.target.value)} /></div>
           <p className="dica-menus" style={{ marginTop: -6 }}>
-            📎 Depois de "Extrair", os documentos publicados no PNCP são buscados e anexados aqui automaticamente. Se não encontrar, anexe manualmente abaixo.
+            📎 Depois de "Extrair", os documentos publicados no PNCP são buscados e anexados aqui automaticamente. Você também pode chamar a busca de novo pelo botão abaixo, ou anexar o arquivo você mesmo.
           </p>
 
           <div className="form-sub">
-            <label>📎 ARQUIVOS (edital, termo de referência, anexos...)</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <label style={{ margin: 0 }}>📎 ARQUIVOS (edital, termo de referência, anexos...)</label>
+              {/* Mesmo botão da fase Em análise, disponível já no cadastro: dá
+                  para trazer o edital do PNCP ou subir o arquivo manualmente. */}
+              <button className="iBtn iBtn-up" disabled={buscandoAnexosPNCP}
+                onClick={() => {
+                  const ref = (linkPncp || f.numeroPNCP || f.link || '').trim()
+                  if (!ref) { setErro('Cole o link do PNCP acima (ou preencha o nº PNCP) para buscar os arquivos.'); return }
+                  setErro(''); buscarEAnexarPNCP(ref)
+                }}>
+                {buscandoAnexosPNCP ? 'Buscando...' : '📎 Extrair arquivos do edital'}
+              </button>
+            </div>
             {buscandoAnexosPNCP && (
               <p className="dica-menus" style={{ margin: '0 0 8px' }}>🔎 Buscando arquivos do edital no PNCP...</p>
             )}

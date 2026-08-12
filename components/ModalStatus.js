@@ -292,7 +292,14 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
 
   const marcados = itens.filter(it => it.participar)
   const [buscaItem, setBuscaItem] = useState('')
-  const [somenteSelecionados, setSomenteSelecionados] = useState(false)
+  // Em análise mostra o catálogo inteiro (é onde se escolhe); na Inscrição de
+  // proposta só os itens escolhidos, que é o que se vai precificar. O toggle
+  // continua ali para conferir ou corrigir uma marcação esquecida.
+  const [somenteSelecionados, setSomenteSelecionados] = useState(fase === 'Inscricao')
+  useEffect(() => {
+    if (fase === 'Inscricao') setSomenteSelecionados(true)
+    else if (fase === 'Em analise') setSomenteSelecionados(false)
+  }, [fase])
   const semValor = marcados.filter(it => !String(it.meuValor).trim()).length
   // Total do que estamos de fato participando (só os itens marcados) e o
   // total da licitação inteira (todos os itens, pelo valor estimado) — útil
@@ -493,6 +500,70 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                 </div>
               )}
 
+              {/* Selecao dos itens ja na analise: aqui aparece o catalogo inteiro
+                  e voce marca no que vale a pena entrar. Na Inscricao de proposta
+                  so os marcados aparecem, para precificar. */}
+              {itens.length > 0 && (
+                <div className="form-sub">
+                  <label>ITENS DA LICITAÇÃO — MARQUE EM QUAIS VAMOS PARTICIPAR</label>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
+                    <input className="busca-input" style={{ flex: 1, minWidth: 160 }} placeholder="Buscar item por descrição..."
+                      value={buscaItem} onChange={e => setBuscaItem(e.target.value)} />
+                    <Toggle ligado={somenteSelecionados} onChange={setSomenteSelecionados} label="Somente selecionados" />
+                    <button className="iBtn" onClick={() => setItens(a => a.map(it =>
+                      itemVisivel(it, buscaItem, somenteSelecionados) ? { ...it, participar: true } : it))}>Marcar todos</button>
+                    <button className="iBtn" onClick={() => setItens(a => a.map(it =>
+                      itemVisivel(it, buscaItem, somenteSelecionados) ? { ...it, participar: false } : it))}>Desmarcar todos</button>
+                  </div>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="tbl-proposta">
+                      <thead>
+                        <tr>
+                          <th style={{ width: 40 }}>Vou</th>
+                          {itens.some(it => it.grupo) && <th style={{ width: 90 }}>Grupo</th>}
+                          <th>Descrição</th>
+                          <th style={{ width: 70 }}>Qtd</th>
+                          <th style={{ width: 60 }}>Un</th>
+                          <th style={{ width: 110 }}>Estimado</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {itens.map((it, i) => itemVisivel(it, buscaItem, somenteSelecionados) && (
+                          <tr key={i} style={{ opacity: it.participar ? 1 : .45 }}>
+                            <td style={{ textAlign: 'center' }}>
+                              <input type="checkbox" checked={!!it.participar}
+                                onChange={e => setItem(i, 'participar', e.target.checked)} />
+                            </td>
+                            {itens.some(x => x.grupo) && (
+                              <td style={{ fontSize: 11.5 }}>
+                                {it.grupo || '—'}
+                                {it.grupo && (
+                                  <button className="iBtn" style={{ marginLeft: 4, padding: '1px 5px', fontSize: 10 }}
+                                    title="Marcar/desmarcar o grupo inteiro"
+                                    onClick={() => setItens(a => a.map(x => x.grupo === it.grupo ? { ...x, participar: !it.participar } : x))}>
+                                    grupo
+                                  </button>
+                                )}
+                              </td>
+                            )}
+                            <td>{it.descricao}</td>
+                            <td style={{ textAlign: 'center' }}>{it.quantidade}</td>
+                            <td style={{ textAlign: 'center' }}>{it.unidade}</td>
+                            <td style={{ textAlign: 'right' }}>
+                              {it.valorUnitarioRef ? moeda(it.valorUnitarioRef) : 'Sigiloso'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="dica-menus" style={{ marginTop: 6 }}>
+                    {marcados.length} de {itens.length} item(ns) marcado(s). Os preços são definidos na próxima fase,
+                    Inscrição de proposta, onde só estes itens aparecem.
+                  </p>
+                </div>
+              )}
+
               <div className="form-sub">
                 <label>DECISÃO DE PARTICIPAÇÃO</label>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -523,6 +594,12 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
               {itens.length === 0 && (
                 <div className="aviso-box">
                   Nenhum item cadastrado. Feche e use "Importar do PNCP" na edição da licitação.
+                </div>
+              )}
+              {itens.length > 0 && marcados.length === 0 && (
+                <div className="aviso-box" style={{ marginBottom: 8 }}>
+                  Nenhum item marcado ainda. Desligue "Somente selecionados" abaixo para ver os {itens.length} itens
+                  e escolher — ou volte à fase Em análise, onde a lista já abre inteira.
                 </div>
               )}
               {itens.length > 0 && (

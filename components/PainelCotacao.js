@@ -34,7 +34,6 @@ export default function PainelCotacao({ lic, itens, setItens, marcados }) {
     anexos: (lic.anexos?.length ? lic.anexos : (lic.anexoDriveUrl ? [{ nome: 'Edital', url: lic.anexoDriveUrl }] : [])),
   }
   const [incluirEdital, setIncluirEdital] = useState(true)
-  const [incluirResumo, setIncluirResumo] = useState(true)
 
   // E-mails cadastrados na empresa (campo aceita vários separados por vírgula).
   // São sugeridos aqui porque o pedido de cotação também é o que avisa a empresa
@@ -83,9 +82,9 @@ export default function PainelCotacao({ lic, itens, setItens, marcados }) {
           })),
           destinatarioEmail: email.trim(), mensagem,
           editalAnexoUrl: (incluirEdital && lic.anexoDriveUrl) ? lic.anexoDriveUrl : '',
-          resumoTexto: (incluirResumo && resumoTexto) ? resumoTexto : '',
+          resumoTexto,
           linkLicitacao: lic.link || '', dataSessao: lic.dataSessao || lic.dataLimite || lic.dataAbertura || '', srp: lic.srp || '',
-          resumoPdf: incluirResumo ? resumoPdf : { ...resumoPdf, analiseGeral: '', itensResumo: [] },
+          resumoPdf,
         }),
       }).then(x => x.json())
       if (r.sucesso) {
@@ -165,7 +164,9 @@ export default function PainelCotacao({ lic, itens, setItens, marcados }) {
       {aberto && (
         <div style={{ background: '#F8FAFC', borderRadius: 10, padding: 12, marginTop: 10 }}>
           <p className="dica-menus" style={{ marginTop: 0 }}>
-            Envia um link público (sem senha) para o fornecedor preencher o preço só dos {marcados.length} item(ns) marcados acima.
+            O e-mail leva o mesmo conteúdo do Resumo (PDF) desta licitação e um link público (sem senha)
+            para preencher o preço dos {marcados.length} item(ns) marcados acima.
+            {!resumoTexto && ' Ainda não há resumo da IA — rode "Resumir com IA" na fase Em análise para o e-mail sair completo.'}
           </p>
           <div className="form-sub" style={{ marginTop: 8 }}>
             <label>E-MAIL DE DESTINO</label>
@@ -192,11 +193,6 @@ export default function PainelCotacao({ lic, itens, setItens, marcados }) {
               <input type="checkbox" checked={incluirEdital && !!lic.anexoDriveUrl} disabled={!lic.anexoDriveUrl}
                 onChange={e => setIncluirEdital(e.target.checked)} />
               📎 Incluir o edital anexado{!lic.anexoDriveUrl && ' (nenhum edital anexado ainda — anexe na fase Em análise)'}
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: '#374151', cursor: resumoTexto ? 'pointer' : 'not-allowed' }}>
-              <input type="checkbox" checked={incluirResumo && !!resumoTexto} disabled={!resumoTexto}
-                onChange={e => setIncluirResumo(e.target.checked)} />
-              📄 Incluir o resumo da análise{!resumoTexto && ' (nenhuma análise registrada ainda — preencha o checklist em Em análise)'}
             </label>
           </div>
           {linkGerado && (
