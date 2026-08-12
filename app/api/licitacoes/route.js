@@ -23,9 +23,9 @@ function parseItens(json) {
   try { const a = JSON.parse(json || '[]'); return Array.isArray(a) ? a : [] } catch { return [] }
 }
 
-// Mapa licitacaoId -> { pendentes, total } das cotacoes pedidas a fornecedores.
-// Usado so para mostrar o selo "Cotacao pendente" na lista. Se a aba ainda nao
-// existir ou der erro, devolve mapa vazio — nunca derruba a listagem.
+// Mapa licitacaoId -> { pendentes, respondidas, total } dos pedidos de cotacao
+// enviados a fornecedores. Se a aba ainda nao existir ou der erro, devolve mapa
+// vazio — nunca derruba a listagem.
 async function mapaCotacoes() {
   try {
     await garantirAba('Cotacoes', COLS_COTACAO)
@@ -33,12 +33,27 @@ async function mapaCotacoes() {
     for (const c of await lerAba('Cotacoes')) {
       const lid = String(c.licitacaoId || '').trim()
       if (!lid) continue
-      if (!mapa[lid]) mapa[lid] = { pendentes: 0, total: 0 }
+      if (!mapa[lid]) mapa[lid] = { pendentes: 0, respondidas: 0, total: 0 }
       mapa[lid].total++
-      if (String(c.status || 'Pendente').trim() !== 'Respondida') mapa[lid].pendentes++
+      if (String(c.status || 'Pendente').trim() === 'Respondida') mapa[lid].respondidas++
+      else mapa[lid].pendentes++
     }
     return mapa
   } catch { return {} }
+}
+
+// Etapa do fluxo de cotacao, para o selo da lista:
+//   'pendente'    — pedido enviado, fornecedor ainda nao respondeu
+//   'respondida'  — fornecedor respondeu, precos ainda nao aplicados aos itens
+//   'precificada' — precos ja lancados no Valor minimo dos itens participando
+// Sem nenhum pedido de cotacao, devolve ''.
+function etapaCotacao(cot, itens) {
+  if (!cot || !cot.total) return ''
+  if (cot.pendentes > 0) return 'pendente'
+  const participando = itens.filter(it => it.participar)
+  const comValor = participando.filter(it => String(it.meuValor ?? '').trim() !== '')
+  if (participando.length && comValor.length === participando.length) return 'precificada'
+  return 'respondida'
 }
 
 async function contexto(usuario) {
@@ -85,7 +100,9 @@ export async function GET(req) {
         colocacao: l.colocacao || '',
         observacaoDisputa: l.observacaoDisputa || '', dataHomologacao: l.dataHomologacao || '',
         cotacoesPendentes: (cotacoes[String(l.id).trim()] || {}).pendentes || 0,
+        cotacoesRespondidas: (cotacoes[String(l.id).trim()] || {}).respondidas || 0,
         cotacoesTotal: (cotacoes[String(l.id).trim()] || {}).total || 0,
+        cotacaoEtapa: etapaCotacao(cotacoes[String(l.id).trim()], parseItens(juntarChunk(l, 'itensJson'))),
         salvoEm: l.salvoEm || '',
       }))
       .sort((a, b) => String(b.salvoEm).localeCompare(String(a.salvoEm)))

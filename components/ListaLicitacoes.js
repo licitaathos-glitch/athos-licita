@@ -3,6 +3,22 @@ import { useState, useEffect } from 'react'
 import { FASES, normalizarFase } from '@/lib/fases'
 import { nomeResultado, corResultado } from '@/lib/resultado'
 import { corStatus, nomeStatus } from '@/lib/statusLicitacao'
+
+// Selo do fluxo de cotacao mostrado ao lado do numero do edital
+const SELO_COTACAO = {
+  pendente: {
+    texto: '⏳ Cotação', classe: 'pill-amber',
+    ajuda: l => `${l.cotacoesPendentes} de ${l.cotacoesTotal} pedido(s) de cotação sem resposta do fornecedor`,
+  },
+  respondida: {
+    texto: '📥 Cotação respondida', classe: 'pill-blue',
+    ajuda: () => 'Fornecedor respondeu — falta aceitar os preços e lançar no valor mínimo dos itens',
+  },
+  precificada: {
+    texto: '✅ Preço cadastrado', classe: 'pill-green',
+    ajuda: () => 'Preços da cotação já lançados no valor mínimo de todos os itens participando',
+  },
+}
 import ModalDetalheLicitacao from '@/components/ModalDetalheLicitacao'
 
 function diasAte(v) {
@@ -131,14 +147,15 @@ export default function ListaLicitacoes({
                 <div className="lic-num">
                   {l.numeroEdital || 'Sem nº'}
                   {l.srp === 'Sim' && <span className="pill pill-gray" style={{ marginLeft: 6 }}>SRP</span>}
-                  {/* Pedido de cotacao enviado ao fornecedor e ainda sem resposta */}
-                  {l.cotacoesPendentes > 0 && (
+                  {/* Etapa do pedido de cotacao ao fornecedor */}
+                  {SELO_COTACAO[l.cotacaoEtapa] && (
                     <span
-                      className="pill pill-amber"
+                      className={'pill ' + SELO_COTACAO[l.cotacaoEtapa].classe}
                       style={{ marginLeft: 6 }}
-                      title={`${l.cotacoesPendentes} de ${l.cotacoesTotal} pedido(s) de cotação sem resposta`}
+                      title={SELO_COTACAO[l.cotacaoEtapa].ajuda(l)}
                     >
-                      ⏳ Cotação{l.cotacoesPendentes > 1 ? ` (${l.cotacoesPendentes})` : ''}
+                      {SELO_COTACAO[l.cotacaoEtapa].texto}
+                      {l.cotacaoEtapa === 'pendente' && l.cotacoesPendentes > 1 ? ` (${l.cotacoesPendentes})` : ''}
                     </span>
                   )}
                 </div>
