@@ -135,7 +135,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
     if (tipoEvento === 'outro' && !tituloEventoCustom.trim()) { setAvisoEvento('Dê um título para o evento.'); return }
     setSalvandoEvento(true); setAvisoEvento('')
     try {
-      const [dataParte] = dataEvento.split('T')
+      const [dataParte, horaParte] = dataEvento.split('T')
       const titulo = tipoEvento === 'outro'
         ? `${info.ico} ${tituloEventoCustom.trim()}: ${lic.numeroEdital || 'licitação'}`
         : `${info.ico} ${info.nome.split('(')[0].trim()}: ${lic.numeroEdital || 'licitação'}`
@@ -143,7 +143,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
       const ev = await fetch('/api/calendario/eventos', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          titulo, data: dataParte, descricao: obsEvento || info.nome,
+          titulo, data: dataParte, hora: horaParte || '', descricao: obsEvento || info.nome,
           empresaId: lic.empresa_id, licitacaoId: lic.id, licitacaoEdital: lic.numeroEdital, tipoEvento,
         }),
       }).then(x => x.json())
@@ -701,7 +701,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                         <span style={{ fontSize: 14 }}>{info.ico}</span>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 12.5, color: '#2E2D2F', fontWeight: 600 }}>
-                            {String(ev.data).split('-').reverse().join('/')} — {info.nome.split('(')[0].trim()}
+                            {String(ev.data).split('-').reverse().join('/')}{ev.hora ? ' às ' + ev.hora : ''} — {info.nome.split('(')[0].trim()}
                           </div>
                           <div style={{ fontSize: 11.5, color: ev.descricao && ev.descricao !== info.nome ? '#374151' : '#94A3B8', marginTop: 2 }}>
                             <strong style={{ color: '#64748B' }}>Observação:</strong>{' '}

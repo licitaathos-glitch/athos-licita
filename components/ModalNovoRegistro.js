@@ -43,14 +43,13 @@ export default function ModalNovoRegistro({
           }),
         }).then(x => x.json())
       } else {
-        // O calendário guarda a data do evento só como dia (a hora vai no texto)
-        const [dia] = quando.split('T')
+        const [dia, horaDia] = quando.split('T')
         const nome = tipoEvento === 'outro' ? titulo.trim() : info.nome.split('(')[0].trim()
         r = await fetch('/api/calendario/eventos', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             titulo: `${info.ico} ${nome}${licitacaoEdital ? ': ' + licitacaoEdital : ''}`,
-            data: dia, descricao: descricao || info.nome, tipoEvento,
+            data: dia, hora: horaDia || '', descricao: descricao || info.nome, tipoEvento,
             empresaId, licitacaoId, licitacaoEdital,
           }),
         }).then(x => x.json())

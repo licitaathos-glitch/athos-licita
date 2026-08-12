@@ -1,6 +1,7 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import ModalNovoRegistro from './ModalNovoRegistro'
+import { tipoEventoInfo } from '@/lib/tiposEvento'
 import { FASES } from '@/lib/fases'
 import { nomeResultado, corResultado } from '@/lib/resultado'
 import { nomeStatus } from '@/lib/statusLicitacao'
@@ -21,6 +22,42 @@ export default function ModalDetalheLicitacao({
   const temParticipacaoDefinida = (l.itens || []).some(it => it.participar !== undefined)
   const [somenteParticipando, setSomenteParticipando] = useState(temParticipacaoDefinida)
   const [novaTarefa, setNovaTarefa] = useState(false)
+
+  // Tudo que foi registrado nesta licitação (eventos e tarefas), para constar
+  // aqui embaixo — antes só existia dentro do Andamento e sumia da ficha.
+  const [registros, setRegistros] = useState(null)
+  useEffect(() => {
+    let vivo = true
+    Promise.all([
+      fetch('/api/calendario/eventos').then(r => r.json()).catch(() => ({})),
+      fetch('/api/tarefas').then(r => r.json()).catch(() => ({})),
+    ]).then(([ev, tf]) => {
+      if (!vivo) return
+      const meus = [
+        ...(ev.sucesso ? ev.eventos : []).filter(e => String(e.licitacaoId || '') === String(l.id))
+          .map(e => ({
+            chave: 'e' + e.id, tipo: 'evento', tipoEvento: e.tipoEvento || '',
+            data: e.data || '', hora: e.hora || '',
+            titulo: tipoEventoInfo(e.tipoEvento).nome.split('(')[0].trim(),
+            obs: e.descricao || '',
+          })),
+        ...(tf.sucesso ? tf.tarefas : []).filter(t => String(t.licitacaoId || '') === String(l.id))
+          .map(t => ({
+            chave: 't' + t.id, tipo: 'tarefa', tipoEvento: '',
+            data: String(t.prazo || '').slice(0, 10), hora: String(t.prazo || '').slice(11, 16),
+            titulo: t.titulo, obs: t.descricao || '',
+            feita: t.status === 'Concluída',
+          })),
+      ].sort((a, b) => String(b.data + b.hora).localeCompare(String(a.data + a.hora)))
+      setRegistros(meus)
+    })
+    return () => { vivo = false }
+  }, [l.id])
+
+  // Último evento que mexeu na sessão — é o que precisa ficar gritando na tela
+  const remarcacao = (registros || [])
+    .filter(r => ['suspensao', 'remarcacao'].includes(r.tipoEvento))
+    .sort((a, b) => String(b.data + b.hora).localeCompare(String(a.data + a.hora)))[0]
 
   return (
     <div className="overlay" onClick={e => { if (e.target === e.currentTarget) onFechar() }}>
@@ -46,6 +83,33 @@ export default function ModalDetalheLicitacao({
               </span>
             )}
           </div>
+
+          {/* Suspensão e remarcação mudam o jogo: precisam gritar na ficha, não
+              ficar escondidas no meio da lista de registros lá embaixo. */}
+          {remarcacao && (
+            <div style={{
+              background: '#FEF3C7', border: '1.5px solid #F59E0B', borderRadius: 10,
+              padding: '10px 12px', marginBottom: 14,
+            }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#92400E' }}>
+                {remarcacao.tipoEvento === 'suspensao' ? '⏸ Sessão suspensa' : '🗓️ Sessão remarcada'}
+                {remarcacao.data && (
+                  <> — {remarcacao.tipoEvento === 'suspensao' ? 'retorno em ' : 'nova data: '}
+                    {String(remarcacao.data).split('-').reverse().join('/')}
+                    {remarcacao.hora ? ` às ${remarcacao.hora}` : ''}
+                  </>
+                )}
+              </div>
+              {remarcacao.obs && (
+                <div style={{ fontSize: 12, color: '#78350F', marginTop: 3 }}>{remarcacao.obs}</div>
+              )}
+              {l.dataSessao && (
+                <div style={{ fontSize: 11.5, color: '#92400E', marginTop: 3 }}>
+                  Data da sessão registrada na licitação: <strong>{l.dataSessao}</strong>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="detalhe-grid">
             {[['Órgão', l.orgao], ['UASG', l.uasg], ['UF', l.uf], ['Modalidade', l.modalidade], ['Portal', l.portal],
@@ -145,6 +209,43 @@ export default function ModalDetalheLicitacao({
               </div>
             )
           })()}
+          {/* ── Registros: eventos e tarefas desta licitação ── */}
+          <div style={{ marginTop: 18 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 800, color: '#145653', marginBottom: 8 }}>
+              📌 Registros e eventos
+            </div>
+
+            {registros === null && <p style={{ fontSize: 12, color: '#94A3B8' }}>Carregando...</p>}
+            {registros && registros.length === 0 && (
+              <p style={{ fontSize: 12, color: '#94A3B8' }}>Nada registrado nesta licitação ainda.</p>
+            )}
+
+            {registros && registros.map(r => {
+              const dataBR = r.data ? String(r.data).split('-').reverse().join('/') : 'sem data'
+              const destaque = ['suspensao', 'remarcacao'].includes(r.tipoEvento)
+              return (
+                <div key={r.chave} style={{
+                  display: 'flex', gap: 8, alignItems: 'flex-start', padding: '8px 10px',
+                  borderRadius: 8, marginBottom: 6,
+                  background: destaque ? '#FEF3C7' : '#F8FAFC',
+                  borderLeft: '3px solid ' + (destaque ? '#B45309' : r.tipo === 'tarefa' ? '#0F766E' : '#9333EA'),
+                }}>
+                  <span style={{ fontSize: 14 }}>
+                    {r.tipo === 'tarefa' ? (r.feita ? '✅' : '✔️') : tipoEventoInfo(r.tipoEvento).ico}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: '#2E2D2F' }}>
+                      {dataBR}{r.hora ? ` às ${r.hora}` : ''} — {r.titulo}
+                      {r.tipo === 'tarefa' && r.feita && <span className="pill pill-green" style={{ marginLeft: 6 }}>feita</span>}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: r.obs ? '#374151' : '#94A3B8', marginTop: 2 }}>
+                      <strong style={{ color: '#64748B' }}>Observação:</strong> {r.obs || 'sem observação'}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
 
         <div className="modal-foot" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>

@@ -3,7 +3,9 @@ import { lerAba, adicionarLinha, atualizarLinha, excluirLinha, garantirAba } fro
 import { getUsuarioFromReq, podeEditar, empresasVisiveis } from '@/lib/auth'
 import { novoId } from '@/lib/uuid'
 
-const COLS = ['id', 'empresaId', 'empresaNome', 'titulo', 'data', 'descricao', 'licitacaoId', 'licitacaoEdital', 'tipoEvento', 'criadoPor', 'criadoEm']
+// 'hora' entrou depois: o evento guardava só o dia, então o horário digitado
+// no formulário era descartado e nunca voltava para a tela.
+const COLS = ['id', 'empresaId', 'empresaNome', 'titulo', 'data', 'hora', 'descricao', 'licitacaoId', 'licitacaoEdital', 'tipoEvento', 'criadoPor', 'criadoEm']
 
 export async function GET(req) {
   const usuario = await getUsuarioFromReq(req)
@@ -19,7 +21,7 @@ export async function GET(req) {
       .filter(e => !e.empresaId || permitidas.has(String(e.empresaId).trim()))
       .map(e => ({
         id: e.id, empresaId: e.empresaId || '', empresaNome: e.empresaNome || '',
-        titulo: e.titulo || '', data: e.data || '', descricao: e.descricao || '',
+        titulo: e.titulo || '', data: e.data || '', hora: e.hora || '', descricao: e.descricao || '',
         licitacaoId: e.licitacaoId || '', licitacaoEdital: e.licitacaoEdital || '',
         tipoEvento: e.tipoEvento || '',
       }))
@@ -35,7 +37,7 @@ export async function POST(req) {
   if (!podeEditar(usuario)) return NextResponse.json({ sucesso: false, erro: 'Seu perfil é somente consulta.' }, { status: 403 })
 
   try {
-    const { id, empresaId, titulo, data, descricao, licitacaoId, licitacaoEdital, tipoEvento } = await req.json()
+    const { id, empresaId, titulo, data, hora, descricao, licitacaoId, licitacaoEdital, tipoEvento } = await req.json()
     if (!titulo || !data) return NextResponse.json({ sucesso: false, erro: 'Título e data são obrigatórios.' })
 
     await garantirAba('EventosCalendario', COLS)
@@ -51,7 +53,7 @@ export async function POST(req) {
 
     if (id) {
       const r = await atualizarLinha('EventosCalendario', 'id', id, {
-        empresaId: empresaId || '', empresaNome, titulo, data, descricao: descricao || '',
+        empresaId: empresaId || '', empresaNome, titulo, data, hora: hora || '', descricao: descricao || '',
         licitacaoId: licitacaoId || '', licitacaoEdital: licitacaoEdital || '', tipoEvento: tipoEvento || '',
       })
       if (!r.ok) return NextResponse.json({ sucesso: false, erro: r.erro })
@@ -59,7 +61,7 @@ export async function POST(req) {
     }
     const novoIdGerado = novoId()
     const r = await adicionarLinha('EventosCalendario', {
-      id: novoIdGerado, empresaId: empresaId || '', empresaNome, titulo, data, descricao: descricao || '',
+      id: novoIdGerado, empresaId: empresaId || '', empresaNome, titulo, data, hora: hora || '', descricao: descricao || '',
       licitacaoId: licitacaoId || '', licitacaoEdital: licitacaoEdital || '', tipoEvento: tipoEvento || '',
       criadoPor: usuario.email || usuario.nome || '', criadoEm: new Date().toISOString(),
     })

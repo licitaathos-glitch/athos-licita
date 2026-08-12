@@ -147,6 +147,10 @@ export default function ListaLicitacoes({
                 <div className="lic-num">
                   {l.numeroEdital || 'Sem nº'}
                   {l.srp === 'Sim' && <span className="pill pill-gray" style={{ marginLeft: 6 }}>SRP</span>}
+                  {String(l.status || '') === 'Suspensa' && (
+                    <span className="pill pill-amber" style={{ marginLeft: 6 }}
+                      title="Sessão suspensa — confira o retorno nos registros da licitação">⏸ Suspensa</span>
+                  )}
                   {/* Etapa do pedido de cotacao ao fornecedor */}
                   {SELO_COTACAO[l.cotacaoEtapa] && (
                     <span

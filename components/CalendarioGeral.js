@@ -112,8 +112,12 @@ export default function CalendarioGeral({ compacto = false }) {
     })
 
     ;(dados.manuais || []).filter(m => !empresaSel || !m.empresaId || m.empresaId === empresaSel).forEach(m => {
-      if (m.data) ev.push({ id: m.id, data: m.data, tipo: 'manual', titulo: m.titulo,
-        detalhe: m.descricao || '', empresa: m.empresaNome, manual: m, licitacaoId: m.licitacaoId || '' })
+      if (m.data) ev.push({
+        id: m.id, data: m.data, tipo: 'manual', titulo: m.titulo,
+        // Hora e observação lado a lado: era o que faltava para o registro
+        // dizer alguma coisa sem precisar abrir
+        detalhe: [m.hora ? '🕐 ' + m.hora : '', m.descricao || ''].filter(Boolean).join(' · '),
+        empresa: m.empresaNome, manual: m, licitacaoId: m.licitacaoId || '' })
     })
 
     // Tarefas com prazo entram como compromisso do dia. Sem prazo não têm
@@ -332,6 +336,7 @@ function ModalEvento({ evento, empresas, empresaAtual, onFechar, onSalvo }) {
   const ed = !!evento.id
   const [titulo, setTitulo] = useState(evento.titulo || '')
   const [data, setData] = useState(evento.data || '')
+  const [hora, setHora] = useState(evento.hora || '')
   const [empresaId, setEmpresaId] = useState(evento.empresaId || (empresaAtual !== 'todas' ? String(empresaAtual) : ''))
   const [descricao, setDescricao] = useState(evento.descricao || '')
   const [erro, setErro] = useState('')
@@ -344,7 +349,7 @@ function ModalEvento({ evento, empresas, empresaAtual, onFechar, onSalvo }) {
     try {
       const r = await fetch('/api/calendario/eventos', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: evento.id || null, empresaId: empresaId || '', titulo, data, descricao }),
+        body: JSON.stringify({ id: evento.id || null, empresaId: empresaId || '', titulo, data, hora, descricao, tipoEvento: evento.tipoEvento || '' }),
       }).then(x => x.json())
       if (r.sucesso) onSalvo(); else setErro(r.erro || 'Erro ao salvar.')
     } catch { setErro('Erro de conexão.') }
@@ -374,8 +379,12 @@ function ModalEvento({ evento, empresas, empresaAtual, onFechar, onSalvo }) {
         <div className="modal-body">
           <div className="form-sub"><label>TÍTULO</label>
             <input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Ex: Reunião com o órgão, prazo interno..." /></div>
-          <div className="form-sub"><label>DATA</label>
-            <input type="date" value={data} onChange={e => setData(e.target.value)} /></div>
+          <div className="filtro-linha">
+            <div style={{ minWidth: 160 }}><label className="mini-lbl">DATA</label>
+              <input type="date" value={data} onChange={e => setData(e.target.value)} /></div>
+            <div style={{ minWidth: 120 }}><label className="mini-lbl">HORA (opcional)</label>
+              <input type="time" value={hora} onChange={e => setHora(e.target.value)} /></div>
+          </div>
           <div className="form-sub"><label>EMPRESA (opcional)</label>
             <select value={empresaId} onChange={e => setEmpresaId(e.target.value)}>
               <option value="">Todas as empresas</option>
