@@ -15,6 +15,7 @@ const TIPOS = {
   ata:       { rotulo: 'Vencimento de ata', cor: '#0F766E', bg: '#F0FDFA', ico: '🗂️', href: '/dashboard/atas' },
   pagamento: { rotulo: 'Previsão de pagamento', cor: '#15803D', bg: '#F0FDF4', ico: '💰', href: '/dashboard/financeiro' },
   manual:    { rotulo: 'Evento', cor: '#9333EA', bg: '#F5F3FF', ico: '📌', href: '' },
+  tarefa:    { rotulo: 'Tarefa', cor: '#0369A1', bg: '#F0F9FF', ico: '✔️', href: '/dashboard' },
 }
 
 const parseBR = v => {
@@ -50,13 +51,15 @@ export default function CalendarioGeral({ compacto = false }) {
       fetch('/api/atas').then(r => r.json()),
       fetch('/api/empenhos').then(r => r.json()),
       fetch('/api/calendario/eventos').then(r => r.json()),
-    ]).then(([l, c, a, e, ev]) => {
+      fetch('/api/tarefas').then(r => r.json()),
+    ]).then(([l, c, a, e, ev, tf]) => {
       setDados({
         lics: l.sucesso ? l.licitacoes : [],
         certidoes: c.sucesso ? c.certidoes : [],
         atas: a.sucesso ? a.atas : [],
         empenhos: e.sucesso ? e.empenhos : [],
         manuais: ev.sucesso ? ev.eventos : [],
+        tarefas: tf.sucesso ? tf.tarefas : [],
       })
     }).catch(() => setErro('Erro de conexão.'))
   }, [])
@@ -107,6 +110,23 @@ export default function CalendarioGeral({ compacto = false }) {
     ;(dados.manuais || []).filter(m => !empresaSel || !m.empresaId || m.empresaId === empresaSel).forEach(m => {
       if (m.data) ev.push({ id: m.id, data: m.data, tipo: 'manual', titulo: m.titulo,
         detalhe: m.descricao || '', empresa: m.empresaNome, manual: m, licitacaoId: m.licitacaoId || '' })
+    })
+
+    // Tarefas com prazo entram como compromisso do dia. Sem prazo não têm
+    // lugar no calendário — ficam só na lista de tarefas.
+    ;(dados.tarefas || []).filter(t => !empresaSel || !t.empresaId || t.empresaId === empresaSel).forEach(t => {
+      const dia = String(t.prazo || '').slice(0, 10)
+      if (!dia) return
+      const hora = String(t.prazo || '').slice(11, 16)
+      ev.push({
+        id: t.id, data: dia, tipo: 'tarefa',
+        titulo: t.titulo,
+        detalhe: [hora, t.prioridade !== 'Normal' ? 'prioridade ' + t.prioridade.toLowerCase() : ''].filter(Boolean).join(' · '),
+        empresa: t.empresaNome,
+        badge: t.status === 'Concluída' ? '✅ feita' : '',
+        concluida: t.status === 'Concluída',
+        licitacaoId: t.licitacaoId || '',
+      })
     })
 
     return ev.filter(e => visiveis.includes(e.tipo))
@@ -269,10 +289,10 @@ function LinhaEvento({ e, mostrarData, onEditarManual }) {
   const textoPrazo = dd === null ? '' : dd === 0 ? 'hoje' : dd === 1 ? 'amanhã' : dd === -1 ? 'ontem'
     : dd < 0 ? `há ${Math.abs(dd)}d` : `em ${dd}d`
   return (
-    <div className="ev-linha" style={{ borderLeftColor: t.cor }}>
+    <div className="ev-linha" style={{ borderLeftColor: t.cor, opacity: e.concluida ? .5 : 1 }}>
       <span className="ev-ico" style={{ background: t.bg }}>{icone}</span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="ev-titulo">
+        <div className="ev-titulo" style={{ textDecoration: e.concluida ? 'line-through' : 'none' }}>
           {e.empresa && <span className="ev-empresa-chip">{e.empresa}</span>}
           {e.titulo}
         </div>

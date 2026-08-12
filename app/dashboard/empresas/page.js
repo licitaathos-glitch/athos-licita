@@ -1,4 +1,5 @@
 'use client'
+import ModalNovaTarefa from '@/components/ModalNovaTarefa'
 import { useEffect, useState } from 'react'
 import { useApp } from '@/lib/AppContext'
 import { MODELOS } from '@/lib/comercial'
@@ -104,6 +105,7 @@ export default function EmpresasPage() {
 
 function CardEmpresa({ empresa, config, onSalvar, onSalvarDados }) {
   const [aberto, setAberto] = useState(false)
+  const [novaTarefa, setNovaTarefa] = useState(false)
   const atual = config || { modelo: 'revenda', percentualComissao: '', observacao: '' }
   const [modelo, setModelo] = useState(atual.modelo)
   const [perc, setPerc] = useState(atual.percentualComissao)
@@ -145,10 +147,17 @@ function CardEmpresa({ empresa, config, onSalvar, onSalvarDados }) {
             {empresa.cnpj}{empresa.responsavel ? ' · ' + empresa.responsavel : ''}{empresa.email ? ' · ' + empresa.email : ''}
           </div>
         </div>
+        <button className="iBtn" title="Criar uma tarefa para esta empresa"
+          onClick={e => { e.stopPropagation(); setNovaTarefa(true) }}>✔️ Tarefa</button>
         <span className="pill pill-gray">
           {rotulo}{atual.modelo === 'comissao' && atual.percentualComissao ? ' ' + atual.percentualComissao + '%' : ''}
         </span>
       </div>
+
+      {novaTarefa && (
+        <ModalNovaTarefa empresaId={empresa.id} empresaNome={empresa.nome}
+          onFechar={() => setNovaTarefa(false)} />
+      )}
 
       {aberto && (
         <div className="detalhe-card">

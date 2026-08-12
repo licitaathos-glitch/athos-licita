@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import ModalNovaTarefa from './ModalNovaTarefa'
 import { FASES } from '@/lib/fases'
 import { nomeResultado, corResultado } from '@/lib/resultado'
 import { nomeStatus } from '@/lib/statusLicitacao'
@@ -16,6 +17,7 @@ export default function ModalDetalheLicitacao({
   // licitações com dezenas de itens, ver todos de uma vez atrapalha
   const temParticipacaoDefinida = (l.itens || []).some(it => it.participar !== undefined)
   const [somenteParticipando, setSomenteParticipando] = useState(temParticipacaoDefinida)
+  const [novaTarefa, setNovaTarefa] = useState(false)
 
   return (
     <div className="overlay" onClick={e => { if (e.target === e.currentTarget) onFechar() }}>
@@ -153,12 +155,21 @@ export default function ModalDetalheLicitacao({
               onChange={e => { if (e.target.value !== fx.id) onMover(l, e.target.value) }}>
               {FASES.map(x => <option key={x.id} value={x.id}>{x.nome}</option>)}
             </select>
+            <button className="iBtn" onClick={() => setNovaTarefa(true)}>✔️ Nova tarefa</button>
             <button className="iBtn" onClick={() => onStatus(l)}>📈 Andamento</button>
             <button className="iBtn" onClick={() => onEditar(l)}>✏️ Editar</button>
             <button className="iBtn iBtn-del" onClick={() => onExcluir(l)}>🗑 Excluir</button>
           </>}
         </div>
       </div>
+
+      {novaTarefa && (
+        <ModalNovaTarefa
+          empresaId={l.empresa_id} empresaNome={l.empresa_nome}
+          licitacaoId={l.id} licitacaoEdital={l.numeroEdital || ''}
+          onFechar={() => setNovaTarefa(false)}
+        />
+      )}
     </div>
   )
 }

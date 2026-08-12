@@ -2,8 +2,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useApp } from '@/lib/AppContext'
 import { paraData } from '@/lib/notificacoes'
+import ModalNovaTarefa from './ModalNovaTarefa'
 
-const PRIORIDADES = ['Alta', 'Normal', 'Baixa']
 const corPrioridade = p => (p === 'Alta' ? '#DC2626' : p === 'Baixa' ? '#94A3B8' : '#B9A06B')
 
 // Tarefas soltas do dia a dia — separadas dos eventos de calendário, que são
@@ -17,8 +17,6 @@ export default function PainelTarefas() {
   const [erro, setErro] = useState('')
   const [aberto, setAberto] = useState(false)
   const [verConcluidas, setVerConcluidas] = useState(false)
-  const [salvando, setSalvando] = useState(false)
-  const [nova, setNova] = useState({ titulo: '', prazo: '', prioridade: 'Normal', empresaId: '' })
 
   const carregar = useCallback(() => {
     fetch('/api/tarefas').then(r => r.json())
@@ -26,22 +24,6 @@ export default function PainelTarefas() {
       .catch(() => setErro('Erro de conexão.'))
   }, [])
   useEffect(() => { carregar() }, [carregar])
-
-  async function salvar() {
-    if (!nova.titulo.trim()) { setErro('Escreva o que precisa ser feito.'); return }
-    setErro(''); setSalvando(true)
-    try {
-      const r = await fetch('/api/tarefas', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...nova, empresaId: nova.empresaId || empresaSel }),
-      }).then(x => x.json())
-      if (r.sucesso) {
-        setNova({ titulo: '', prazo: '', prioridade: 'Normal', empresaId: '' })
-        setAberto(false); carregar()
-      } else setErro(r.erro || 'Erro ao salvar.')
-    } catch { setErro('Erro de conexão.') }
-    setSalvando(false)
-  }
 
   async function alternarStatus(t) {
     const novoStatus = t.status === 'Concluída' ? 'Pendente' : 'Concluída'
@@ -87,35 +69,12 @@ export default function PainelTarefas() {
       </div>
 
       {aberto && !somenteConsulta && (
-        <div style={{ background: '#F8FAFC', borderRadius: 10, padding: 12, marginTop: 10 }}>
-          <div className="form-sub" style={{ marginTop: 0 }}>
-            <label>O QUE PRECISA SER FEITO</label>
-            <input value={nova.titulo} onChange={e => setNova(o => ({ ...o, titulo: e.target.value }))}
-              placeholder="Ex: enviar impugnação do pregão 45/2026" />
-          </div>
-          <div className="filtro-linha">
-            <div style={{ minWidth: 190 }}>
-              <label className="mini-lbl">PRAZO (OPCIONAL)</label>
-              <input type="datetime-local" value={nova.prazo} onChange={e => setNova(o => ({ ...o, prazo: e.target.value }))} />
-            </div>
-            <div style={{ minWidth: 130 }}>
-              <label className="mini-lbl">PRIORIDADE</label>
-              <select value={nova.prioridade} onChange={e => setNova(o => ({ ...o, prioridade: e.target.value }))}>
-                {PRIORIDADES.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </div>
-            <div style={{ minWidth: 180 }}>
-              <label className="mini-lbl">EMPRESA (OPCIONAL)</label>
-              <select value={nova.empresaId || empresaSel} onChange={e => setNova(o => ({ ...o, empresaId: e.target.value }))}>
-                <option value="">Sem empresa</option>
-                {empresas.map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
-              </select>
-            </div>
-          </div>
-          <button className="btn-primary" style={{ marginTop: 10 }} onClick={salvar} disabled={salvando}>
-            {salvando ? 'Salvando...' : 'Salvar tarefa'}
-          </button>
-        </div>
+        <ModalNovaTarefa
+          empresaId={empresaSel}
+          empresaNome={(empresas.find(e => String(e.id) === empresaSel) || {}).nome || ''}
+          onFechar={() => setAberto(false)}
+          onSalvo={carregar}
+        />
       )}
 
       {erro && <div className="l-err" style={{ marginTop: 10 }}>{erro}</div>}
