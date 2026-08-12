@@ -16,7 +16,7 @@ const SELO_COTACAO = {
   },
   precificada: {
     texto: '✅ Preço cadastrado', classe: 'pill-green',
-    ajuda: () => 'Preços da cotação já lançados no valor mínimo de todos os itens participando',
+    ajuda: () => 'Todos os itens participando já têm valor mínimo definido',
   },
 }
 import ModalDetalheLicitacao from '@/components/ModalDetalheLicitacao'

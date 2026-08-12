@@ -42,18 +42,21 @@ async function mapaCotacoes() {
   } catch { return {} }
 }
 
-// Etapa do fluxo de cotacao, para o selo da lista:
-//   'pendente'    — pedido enviado, fornecedor ainda nao respondeu
-//   'respondida'  — fornecedor respondeu, precos ainda nao aplicados aos itens
-//   'precificada' — precos ja lancados no Valor minimo dos itens participando
-// Sem nenhum pedido de cotacao, devolve ''.
+// Etapa do preco/cotacao, para o selo da lista:
+//   'pendente'    — pedido de cotacao enviado, fornecedor ainda nao respondeu
+//   'precificada' — todos os itens participando ja tem Valor minimo preenchido
+//                   (vale mesmo sem pedido de cotacao — o preco pode ter sido
+//                   definido direto na Inscricao de proposta)
+//   'respondida'  — fornecedor respondeu, mas ainda falta preco em algum item
 function etapaCotacao(cot, itens) {
-  if (!cot || !cot.total) return ''
-  if (cot.pendentes > 0) return 'pendente'
   const participando = itens.filter(it => it.participar)
   const comValor = participando.filter(it => String(it.meuValor ?? '').trim() !== '')
-  if (participando.length && comValor.length === participando.length) return 'precificada'
-  return 'respondida'
+  const precificada = participando.length > 0 && comValor.length === participando.length
+
+  if (cot && cot.pendentes > 0) return 'pendente'
+  if (precificada) return 'precificada'
+  if (cot && cot.total > 0) return 'respondida'
+  return ''
 }
 
 async function contexto(usuario) {
