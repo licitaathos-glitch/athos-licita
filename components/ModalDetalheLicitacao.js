@@ -23,6 +23,12 @@ export default function ModalDetalheLicitacao({
   const [somenteParticipando, setSomenteParticipando] = useState(temParticipacaoDefinida)
   const [novaTarefa, setNovaTarefa] = useState(false)
   const [verRegistros, setVerRegistros] = useState(false)
+  const [abaReg, setAbaReg] = useState('tudo')     // tudo | evento | tarefa
+  const [verAnexos, setVerAnexos] = useState(false)
+
+  // Editais grandes vêm com 15+ anexos; listá-los soltos no rodapé virava um
+  // paredão de botões. Ficam todos numa janela só.
+  const anexos = l.anexos?.length ? l.anexos : (l.anexoDriveUrl ? [{ nome: 'Anexo', url: l.anexoDriveUrl }] : [])
 
   // Tudo que foi registrado nesta licitação (eventos e tarefas), para constar
   // aqui embaixo — antes só existia dentro do Andamento e sumia da ficha.
@@ -248,8 +254,9 @@ export default function ModalDetalheLicitacao({
           <button className="iBtn" onClick={() => setVerRegistros(true)}>
             📌 Registros{registros?.length ? ` (${registros.length})` : ''}
           </button>
-          {(l.anexos?.length ? l.anexos : (l.anexoDriveUrl ? [{ nome: 'Anexo', url: l.anexoDriveUrl }] : []))
-            .map((a, i) => <a key={i} href={a.url} target="_blank" rel="noreferrer" className="iBtn">📎 {a.nome}</a>)}
+          {anexos.length > 0 && (
+            <button className="iBtn" onClick={() => setVerAnexos(true)}>📎 Anexos ({anexos.length})</button>
+          )}
 
           {!somenteConsulta && <>
             <select className="mover-fase-sel" value={fx.id} title="Mover para outra fase"
@@ -277,12 +284,33 @@ export default function ModalDetalheLicitacao({
             </div>
             <div className="modal-body">
           <div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              {[['tudo', 'Tudo'], ['evento', '📅 Eventos'], ['tarefa', '✔️ Tarefas']].map(([id, rot]) => {
+                const qtd = id === 'tudo' ? (registros || []).length : (registros || []).filter(r => r.tipo === id).length
+                const ativo = abaReg === id
+                return (
+                  <div key={id} onClick={() => setAbaReg(id)}
+                    style={{
+                      flex: 1, textAlign: 'center', padding: '8px 10px', borderRadius: 9, cursor: 'pointer',
+                      fontSize: 12.5, fontWeight: 700,
+                      border: '1.5px solid ' + (ativo ? '#145653' : '#E2E8F0'),
+                      background: ativo ? '#145653' : '#fff', color: ativo ? '#fff' : '#64748B',
+                    }}>
+                    {rot} ({qtd})
+                  </div>
+                )
+              })}
+            </div>
             {registros === null && <p style={{ fontSize: 12, color: '#94A3B8' }}>Carregando...</p>}
             {registros && registros.length === 0 && (
               <p style={{ fontSize: 12, color: '#94A3B8' }}>Nada registrado nesta licitação ainda.</p>
             )}
 
-            {registros && registros.map(r => {
+            {registros && registros.filter(r => abaReg === 'tudo' || r.tipo === abaReg).length === 0 && registros.length > 0 && (
+              <p style={{ fontSize: 12, color: '#94A3B8' }}>Nenhum registro deste tipo.</p>
+            )}
+
+            {registros && registros.filter(r => abaReg === 'tudo' || r.tipo === abaReg).map(r => {
               const dataBR = r.data ? String(r.data).split('-').reverse().join('/') : 'sem data'
               const destaque = ['suspensao', 'remarcacao'].includes(r.tipoEvento)
               return (
@@ -312,6 +340,33 @@ export default function ModalDetalheLicitacao({
               )
             })}
           </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {verAnexos && (
+        <div className="overlay" onClick={e => { if (e.target === e.currentTarget) setVerAnexos(false) }}>
+          <div className="modal">
+            <div className="modal-hdr">
+              <div>
+                <div className="modal-hdr-sub">LICITAÇÃO {l.numeroEdital || ''}</div>
+                <div className="modal-hdr-title">Anexos ({anexos.length})</div>
+              </div>
+              <button className="modal-x" onClick={() => setVerAnexos(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              {anexos.map((a, i) => (
+                <a key={i} href={a.url} target="_blank" rel="noreferrer"
+                  style={{
+                    display: 'block', padding: '9px 10px', borderRadius: 8, marginBottom: 6,
+                    background: '#F8FAFC', borderLeft: '3px solid #145653',
+                    fontSize: 12.5, color: '#145653', fontWeight: 600, textDecoration: 'none',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                  📎 {a.nome}
+                </a>
+              ))}
             </div>
           </div>
         </div>
