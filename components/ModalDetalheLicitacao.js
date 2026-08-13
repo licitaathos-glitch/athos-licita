@@ -263,7 +263,6 @@ export default function ModalDetalheLicitacao({
               onChange={e => { if (e.target.value !== fx.id) onMover(l, e.target.value) }}>
               {FASES.map(x => <option key={x.id} value={x.id}>{x.nome}</option>)}
             </select>
-            <button className="iBtn" onClick={() => setNovaTarefa(true)}>➕ Tarefa ou evento</button>
             <button className="iBtn" onClick={() => onStatus(l)}>📈 Andamento</button>
             <button className="iBtn" onClick={() => onEditar(l)}>✏️ Editar</button>
             <button className="iBtn iBtn-del" onClick={() => onExcluir(l)}>🗑 Excluir</button>
@@ -284,6 +283,11 @@ export default function ModalDetalheLicitacao({
             </div>
             <div className="modal-body">
           <div>
+            {!somenteConsulta && (
+              <button className="iBtn iBtn-up" style={{ marginBottom: 10 }} onClick={() => setNovaTarefa(true)}>
+                + Nova tarefa ou evento
+              </button>
+            )}
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
               {[['tudo', 'Tudo'], ['evento', '📅 Eventos'], ['tarefa', '✔️ Tarefas']].map(([id, rot]) => {
                 const qtd = id === 'tudo' ? (registros || []).length : (registros || []).filter(r => r.tipo === id).length
@@ -377,6 +381,7 @@ export default function ModalDetalheLicitacao({
           empresaId={l.empresa_id} empresaNome={l.empresa_nome}
           licitacaoId={l.id} licitacaoEdital={l.numeroEdital || ''}
           onFechar={() => setNovaTarefa(false)}
+          onSalvo={() => setRecarga(n => n + 1)}
         />
       )}
     </div>
