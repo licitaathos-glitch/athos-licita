@@ -7,6 +7,7 @@ import { UFS } from '@/lib/pncpComum'
 import { enviarAoGAS, lerBase64 } from '@/lib/gasClient'
 import ModalStatus from '@/components/ModalStatus'
 import { nomeResultado, corResultado } from '@/lib/resultado'
+import { exportarExcel, numero } from '@/lib/exportarExcel'
 import ListaLicitacoes from '@/components/ListaLicitacoes'
 import { FASES, normalizarFase } from '@/lib/fases'
 import { STATUS_LIC, corStatus, nomeStatus } from '@/lib/statusLicitacao'
@@ -213,6 +214,35 @@ function LicitacoesConteudo() {
             ✕ Limpar filtros
           </button>
         )}
+
+        {/* Exporta a lista como ela está na tela — com os filtros aplicados */}
+        <button className="iBtn" disabled={!lista.length} onClick={() => exportarExcel(
+          lista.map(l => ({
+            Edital: l.numeroEdital || '',
+            'Nº PNCP': l.numeroPNCP || '',
+            Empresa: l.empresa_nome || '',
+            Órgão: l.orgao || '',
+            UASG: l.uasg || '',
+            UF: l.uf || '',
+            Modalidade: l.modalidade || '',
+            Portal: l.portal || '',
+            SRP: l.srp || '',
+            Objeto: l.objeto || '',
+            'Valor estimado': numero(l.valor),
+            Abertura: l.dataAbertura || '',
+            'Limite da proposta': l.dataLimite || '',
+            'Sessão de disputa': l.dataSessao || '',
+            Fase: l.fase || '',
+            Status: l.status || '',
+            Resultado: nomeResultado(l.resultado) || '',
+            'Nº proposta': l.numeroProposta || '',
+            Itens: (l.itens || []).length,
+            Observações: l.observacaoDisputa || '',
+            Link: l.link || '',
+          })),
+          `Licitacoes ${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}`,
+          'Licitações',
+        )}>⬇ Excel ({lista.length})</button>
 
         <div className="vista-toggle">
           <button className={vista === 'fases' ? 'on' : ''} onClick={() => setVista('fases')}>⊞ Por fase</button>

@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import ModalNovoRegistro from './ModalNovoRegistro'
 import { tipoEventoInfo } from '@/lib/tiposEvento'
+import { exportarExcel, numero } from '@/lib/exportarExcel'
 import { FASES } from '@/lib/fases'
 import { nomeResultado, corResultado } from '@/lib/resultado'
 import { nomeStatus } from '@/lib/statusLicitacao'
@@ -179,14 +180,38 @@ export default function ModalDetalheLicitacao({
               : [null]
             return (
               <div style={{ marginTop: 12 }}>
-                {temParticipacaoDefinida && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <span style={{ fontSize: 12, color: '#64748B' }}>
-                      {itensBase.length} de {l.itens.length} itens
-                    </span>
-                    <Toggle ligado={somenteParticipando} onChange={setSomenteParticipando} label="Somente participando" />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 12, color: '#64748B' }}>
+                    {itensBase.length} de {l.itens.length} itens
+                  </span>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {/* Exporta exatamente o que está na tela, respeitando o
+                        filtro "somente participando" — valores como número,
+                        para o Excel somar sem precisar converter nada. */}
+                    <button className="iBtn" onClick={() => exportarExcel(
+                      itensBase.map((it, i) => ({
+                        '#': i + 1,
+                        Grupo: it.grupo || '',
+                        Descrição: it.descricao || '',
+                        Qtd: numero(it.quantidade),
+                        Un: it.unidade || '',
+                        'Vl. unit. estimado': numero(it.valorUnitarioRef),
+                        'Vl. total estimado': numero(it.valorUnitarioRef) && numero(it.quantidade)
+                          ? numero(it.valorUnitarioRef) * numero(it.quantidade) : '',
+                        'Valor mínimo': numero(it.meuValor),
+                        'Nosso lance': numero(it.lanceFinal),
+                        Colocação: it.colocacao || '',
+                        Vencedor: it.vencedor || '',
+                        Participar: it.participar === false ? 'Não' : 'Sim',
+                      })),
+                      `Itens ${l.numeroEdital || l.numeroPNCP || 'licitacao'}`,
+                      'Itens',
+                    )}>⬇ Excel</button>
+                    {temParticipacaoDefinida && (
+                      <Toggle ligado={somenteParticipando} onChange={setSomenteParticipando} label="Somente participando" />
+                    )}
                   </div>
-                )}
+                </div>
                 {itensBase.length === 0 && (
                   <div style={{ color: '#94A3B8', fontSize: 12.5, padding: '10px 0' }}>
                     Nenhum item marcado para participar ainda — desligue o filtro acima para ver todos.
