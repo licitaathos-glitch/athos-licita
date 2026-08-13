@@ -176,7 +176,12 @@ export default function ListaLicitacoes({
 
                 {/* Registros e eventos da licitação, logo abaixo da empresa:
                     é onde a informação faz falta na hora de bater o olho. */}
-                {(registrosPorLic[l.id] || []).slice(0, 3).map(r => (
+                {/* Só o registro mais recente de cada tipo — a lista precisa
+                    caber na tela; o histórico completo fica na ficha. */}
+                {[
+                  (registrosPorLic[l.id] || []).find(r => r.tipo === 'evento'),
+                  (registrosPorLic[l.id] || []).find(r => r.tipo === 'tarefa'),
+                ].filter(Boolean).map(r => (
                   <div key={r.chave} className="lic-registro"
                     style={{ borderLeftColor: ['suspensao', 'remarcacao'].includes(r.tipoEvento) ? '#B45309' : r.tipo === 'tarefa' ? '#0F766E' : '#9333EA' }}>
                     <div className="lic-registro-top">
@@ -191,9 +196,9 @@ export default function ListaLicitacoes({
                     </div>
                   </div>
                 ))}
-                {(registrosPorLic[l.id] || []).length > 3 && (
+                {(registrosPorLic[l.id] || []).length > 2 && (
                   <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>
-                    e mais {(registrosPorLic[l.id] || []).length - 3} registro(s) — abra a licitação
+                    {(registrosPorLic[l.id] || []).length} registros no total — abra a licitação para ver
                   </div>
                 )}
               </div>

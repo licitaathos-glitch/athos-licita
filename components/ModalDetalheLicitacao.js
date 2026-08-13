@@ -22,6 +22,7 @@ export default function ModalDetalheLicitacao({
   const temParticipacaoDefinida = (l.itens || []).some(it => it.participar !== undefined)
   const [somenteParticipando, setSomenteParticipando] = useState(temParticipacaoDefinida)
   const [novaTarefa, setNovaTarefa] = useState(false)
+  const [verRegistros, setVerRegistros] = useState(false)
 
   // Tudo que foi registrado nesta licitação (eventos e tarefas), para constar
   // aqui embaixo — antes só existia dentro do Andamento e sumia da ficha.
@@ -72,9 +73,19 @@ export default function ModalDetalheLicitacao({
   }, [l.id, recarga])
 
   // Último evento que mexeu na sessão — é o que precisa ficar gritando na tela
+  // O aviso de remarcação/suspensão só serve enquanto a nova data não chegou.
+  // Depois que a hora passa ele vira ruído: a sessão já aconteceu, e a
+  // informação continua guardada no histórico de registros.
+  const aindaVale = r => {
+    if (!r?.data) return false
+    const [a, m, d] = r.data.split('-').map(Number)
+    const [hh, mm] = (r.hora || '23:59').split(':').map(Number)
+    return new Date(a, m - 1, d, hh || 23, mm || 59) > new Date()
+  }
   const remarcacao = (registros || [])
     .filter(r => ['suspensao', 'remarcacao'].includes(r.tipoEvento))
-    .sort((a, b) => String(b.data + b.hora).localeCompare(String(a.data + a.hora)))[0]
+    .filter(aindaVale)
+    .sort((a, b) => String(a.data + a.hora).localeCompare(String(b.data + b.hora)))[0]
 
   return (
     <div className="overlay" onClick={e => { if (e.target === e.currentTarget) onFechar() }}>
@@ -226,12 +237,46 @@ export default function ModalDetalheLicitacao({
               </div>
             )
           })()}
-          {/* ── Registros: eventos e tarefas desta licitação ── */}
-          <div style={{ marginTop: 18 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 800, color: '#145653', marginBottom: 8 }}>
-              📌 Registros e eventos
-            </div>
+        </div>
 
+        <div className="modal-foot" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+          {onIrPara && (
+            <button className="iBtn iBtn-up" onClick={() => onIrPara(l)}>➡️ Ir para a licitação</button>
+          )}
+          {l.link && <a href={l.link} target="_blank" rel="noreferrer" className="iBtn">↗ Edital</a>}
+          <a href={`/dashboard/licitacoes/resumo?id=${l.id}`} target="_blank" rel="noreferrer" className="iBtn">📄 Resumo (PDF)</a>
+          <button className="iBtn" onClick={() => setVerRegistros(true)}>
+            📌 Registros{registros?.length ? ` (${registros.length})` : ''}
+          </button>
+          {(l.anexos?.length ? l.anexos : (l.anexoDriveUrl ? [{ nome: 'Anexo', url: l.anexoDriveUrl }] : []))
+            .map((a, i) => <a key={i} href={a.url} target="_blank" rel="noreferrer" className="iBtn">📎 {a.nome}</a>)}
+
+          {!somenteConsulta && <>
+            <select className="mover-fase-sel" value={fx.id} title="Mover para outra fase"
+              onChange={e => { if (e.target.value !== fx.id) onMover(l, e.target.value) }}>
+              {FASES.map(x => <option key={x.id} value={x.id}>{x.nome}</option>)}
+            </select>
+            <button className="iBtn" onClick={() => setNovaTarefa(true)}>➕ Tarefa ou evento</button>
+            <button className="iBtn" onClick={() => onStatus(l)}>📈 Andamento</button>
+            <button className="iBtn" onClick={() => onEditar(l)}>✏️ Editar</button>
+            <button className="iBtn iBtn-del" onClick={() => onExcluir(l)}>🗑 Excluir</button>
+          </>}
+        </div>
+      </div>
+
+
+      {verRegistros && (
+        <div className="overlay" onClick={e => { if (e.target === e.currentTarget) setVerRegistros(false) }}>
+          <div className="modal modal-lg">
+            <div className="modal-hdr">
+              <div>
+                <div className="modal-hdr-sub">LICITAÇÃO {l.numeroEdital || ''}</div>
+                <div className="modal-hdr-title">Registros e eventos</div>
+              </div>
+              <button className="modal-x" onClick={() => setVerRegistros(false)}>×</button>
+            </div>
+            <div className="modal-body">
+          <div>
             {registros === null && <p style={{ fontSize: 12, color: '#94A3B8' }}>Carregando...</p>}
             {registros && registros.length === 0 && (
               <p style={{ fontSize: 12, color: '#94A3B8' }}>Nada registrado nesta licitação ainda.</p>
@@ -267,29 +312,10 @@ export default function ModalDetalheLicitacao({
               )
             })}
           </div>
+            </div>
+          </div>
         </div>
-
-        <div className="modal-foot" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
-          {onIrPara && (
-            <button className="iBtn iBtn-up" onClick={() => onIrPara(l)}>➡️ Ir para a licitação</button>
-          )}
-          {l.link && <a href={l.link} target="_blank" rel="noreferrer" className="iBtn">↗ Edital</a>}
-          <a href={`/dashboard/licitacoes/resumo?id=${l.id}`} target="_blank" rel="noreferrer" className="iBtn">📄 Resumo (PDF)</a>
-          {(l.anexos?.length ? l.anexos : (l.anexoDriveUrl ? [{ nome: 'Anexo', url: l.anexoDriveUrl }] : []))
-            .map((a, i) => <a key={i} href={a.url} target="_blank" rel="noreferrer" className="iBtn">📎 {a.nome}</a>)}
-
-          {!somenteConsulta && <>
-            <select className="mover-fase-sel" value={fx.id} title="Mover para outra fase"
-              onChange={e => { if (e.target.value !== fx.id) onMover(l, e.target.value) }}>
-              {FASES.map(x => <option key={x.id} value={x.id}>{x.nome}</option>)}
-            </select>
-            <button className="iBtn" onClick={() => setNovaTarefa(true)}>➕ Tarefa ou evento</button>
-            <button className="iBtn" onClick={() => onStatus(l)}>📈 Andamento</button>
-            <button className="iBtn" onClick={() => onEditar(l)}>✏️ Editar</button>
-            <button className="iBtn iBtn-del" onClick={() => onExcluir(l)}>🗑 Excluir</button>
-          </>}
-        </div>
-      </div>
+      )}
 
       {novaTarefa && (
         <ModalNovoRegistro
