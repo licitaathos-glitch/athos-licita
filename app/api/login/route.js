@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { lerAba } from '@/lib/google'
-import { criarToken } from '@/lib/session'
+import { criarToken, SEGUNDOS_SESSAO } from '@/lib/session'
 
 // Aceita as variações que o Sheets pode devolver para "ativo"
 function estaAtivo(v) {
@@ -36,7 +36,7 @@ export async function POST(req) {
     const token = await criarToken(usuario)
     const res = NextResponse.json({ sucesso: true, usuario })
     res.cookies.set('athos_sessao', token, {
-      httpOnly: true, secure: true, sameSite: 'lax', maxAge: 60 * 60 * 24 * 7, path: '/',
+      httpOnly: true, secure: true, sameSite: 'lax', maxAge: SEGUNDOS_SESSAO, path: '/',
     })
     return res
   } catch (e) {
