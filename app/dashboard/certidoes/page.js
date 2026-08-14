@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useApp } from '@/lib/AppContext'
 import { CATEGORIAS } from '@/lib/tiposCertidao'
 import { enviarAoGAS, lerBase64 } from '@/lib/gasClient'
+import VisualizadorArquivo from '@/components/VisualizadorArquivo'
 
 const CORES = { ok: '#16A34A', warn: '#D97706', bad: '#DC2626', nd: '#CBD5E1' }
 
@@ -24,6 +25,7 @@ export default function CertidoesPage() {
   const [modal, setModal] = useState(null)
   const [baixandoZip, setBaixandoZip] = useState(false)
   const [erroZip, setErroZip] = useState('')
+  const [verArquivo, setVerArquivo] = useState(null)
 
   const carregar = useCallback(() => {
     fetch('/api/certidoes')
@@ -125,7 +127,13 @@ export default function CertidoesPage() {
                 <div style={{ fontWeight: 600, color: '#145653', fontSize: 13 }}>{tipo.nome}</div>
                 {doc?.observacao && <div className="doc-obs">{doc.observacao}</div>}
                 {!empresaSel && doc && <div className="doc-obs">{doc.empresa_nome}</div>}
-                {doc?.link && <a href={doc.link} target="_blank" rel="noreferrer" className="drive-lnk">📄 abrir arquivo</a>}
+                {doc?.link && (
+                  <button className="drive-lnk" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                    title="Ver, baixar ou imprimir a certidão"
+                    onClick={ev => { ev.stopPropagation(); setVerArquivo({ url: doc.link, nome: tipo.nome }) }}>
+                    📄 ver / baixar
+                  </button>
+                )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 {cat.temValidade ? (
@@ -162,6 +170,10 @@ export default function CertidoesPage() {
           )
         })}
       </div>
+
+      {verArquivo && (
+        <VisualizadorArquivo url={verArquivo.url} nome={verArquivo.nome} onFechar={() => setVerArquivo(null)} />
+      )}
 
       {modal && (
         <ModalUpload

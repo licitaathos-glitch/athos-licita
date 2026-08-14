@@ -7,7 +7,10 @@ import { novoId } from '@/lib/uuid'
 // Campos gravados na aba Atas (a aba usa empresaId em camelCase)
 const CAMPOS = ['numeroAta','orgao','cnpjOrgao','uf','licitacao','processo','objeto',
   'representante','dataAssinatura','vigencia','vencimento','adesao','condPagamento',
-  'contato','emailOrgao','telefoneOrgao','observacoes','itensJson','licitacaoId']
+  'contato','emailOrgao','telefoneOrgao','observacoes','itensJson','licitacaoId',
+  // PDF da ata guardado no Drive: antes o arquivo era só lido pela IA e
+  // descartado, então não havia como rever ou baixar depois
+  'arquivoUrl','arquivoNome']
 
 // Colunas que a aba Atas precisa ter. adicionarLinha só grava colunas que existem
 // no cabeçalho — se faltar alguma (id, empresaId...), a ata é gravada sem ela e
@@ -52,6 +55,7 @@ export async function GET(req) {
           condPagamento: a.condPagamento || '', contato: a.contato || '',
           emailOrgao: a.emailOrgao || '', telefoneOrgao: a.telefoneOrgao || '',
           observacoes: a.observacoes || '', licitacaoId: a.licitacaoId || '',
+          arquivoUrl: a.arquivoUrl || '', arquivoNome: a.arquivoNome || '',
           itens, valorTotal,
           dias: dd, status: statusPorDias(dd),
         }

@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useApp } from '@/lib/AppContext'
 import { enviarAoGAS, lerBase64 } from '@/lib/gasClient'
+import VisualizadorArquivo from '@/components/VisualizadorArquivo'
 import { saldoDoItem, fmtBRL as fmtB } from '@/lib/comercial'
 import ModalEmpenho from '@/components/ModalEmpenho'
 
@@ -32,6 +33,7 @@ export default function AtasPage() {
   const [empenhos, setEmpenhos] = useState([])
   const [configs, setConfigs] = useState({})
   const [novoEmpenho, setNovoEmpenho] = useState(null)
+  const [verArquivo, setVerArquivo] = useState(null)
   const [erro, setErro] = useState('')
   const [busca, setBusca] = useState('')
   const [filtro, setFiltro] = useState('')
@@ -111,7 +113,15 @@ export default function AtasPage() {
             <div className="emp-card" style={{ cursor: 'pointer' }} onClick={() => setAberta(aberta === a.id ? null : a.id)}>
               <span className="emp-dot" style={{ background: CORES[a.status] }} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, color: '#145653' }}>Ata {a.numeroAta}</div>
+                <div style={{ fontWeight: 700, color: '#145653', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  Ata {a.numeroAta}
+                  {a.arquivoUrl && (
+                    <button className="iBtn" title="Ver e baixar o PDF da ata"
+                      onClick={ev => { ev.stopPropagation(); setVerArquivo({ url: a.arquivoUrl, nome: a.arquivoNome || `Ata ${a.numeroAta}` }) }}>
+                      📄
+                    </button>
+                  )}
+                </div>
                 <div style={{ fontSize: 11, color: '#94A3B8' }}>
                   {a.empresa_nome}{a.orgao ? ' · ' + a.orgao : ''}{a.uf ? '/' + a.uf : ''}
                 </div>
@@ -203,6 +213,11 @@ export default function AtasPage() {
 
                 {!somenteConsulta && (
                   <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+                    {a.arquivoUrl && (
+                      <button className="iBtn" onClick={() => setVerArquivo({ url: a.arquivoUrl, nome: a.arquivoNome || `Ata ${a.numeroAta}` })}>
+                        📄 Ver ata
+                      </button>
+                    )}
                     <button className="iBtn iBtn-up" onClick={() => setNovoEmpenho(a)}>+ Empenho</button>
                     <button className="iBtn" onClick={() => setEditando(a)}>✏️ Editar</button>
                     <button className="iBtn iBtn-del" onClick={async () => {
@@ -236,10 +251,15 @@ export default function AtasPage() {
         />
       )}
 
+      {verArquivo && (
+        <VisualizadorArquivo url={verArquivo.url} nome={verArquivo.nome} onFechar={() => setVerArquivo(null)} />
+      )}
+
       {editando && (
         <ModalAta
           ata={editando}
           empresaId={empresaSel || editando.empresa_id}
+          empresaNome={editando.empresa_nome || empresaNome}
           onFechar={() => setEditando(null)}
           onSalvo={() => { setEditando(null); carregar() }}
         />
@@ -248,7 +268,7 @@ export default function AtasPage() {
   )
 }
 
-function ModalAta({ ata, empresaId, onFechar, onSalvo }) {
+function ModalAta({ ata, empresaId, empresaNome, onFechar, onSalvo }) {
   const ed = !!ata.id
   const [f, setF] = useState({
     numeroAta: ata.numeroAta || '', uf: ata.uf || '', orgao: ata.orgao || '', cnpjOrgao: ata.cnpjOrgao || '',
@@ -304,13 +324,27 @@ function ModalAta({ ata, empresaId, onFechar, onSalvo }) {
         action: 'extrairDadosAta',
         base64, mimeType: file.type || 'application/pdf',
       })
+      // Guarda o PDF no Drive junto com a leitura — antes o arquivo era lido
+      // pela IA e descartado, e depois não havia como rever nem baixar a ata.
+      let arquivo = {}
+      try {
+        const up = await enviarAoGAS({
+          action: 'uploadAnexoEdital',
+          base64, mimeType: file.type || 'application/pdf',
+          nomeArquivo: file.name, empresaNome: empresaNome || '',
+        })
+        if (up.sucesso && up.driveFileUrl) arquivo = { arquivoUrl: up.driveFileUrl, arquivoNome: file.name }
+      } catch {}
+
       if (!r.sucesso) {
         setErro(r.erro || 'Não foi possível ler a ata. Preencha manualmente.')
+        if (arquivo.arquivoUrl) { setPdfNome(file.name); setF(o => ({ ...o, ...arquivo })) }
       } else {
         const d = r.dados || {}
         setPdfNome(file.name)
         setF(o => ({
           ...o,
+          ...arquivo,
           numeroAta: d.numeroAta || o.numeroAta,
           orgao: d.orgao || o.orgao,
           cnpjOrgao: d.cnpjOrgao || o.cnpjOrgao,
