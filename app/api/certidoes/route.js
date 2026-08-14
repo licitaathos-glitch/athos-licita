@@ -1,11 +1,19 @@
 import { NextResponse } from 'next/server'
-import { lerAba, adicionarLinha, atualizarLinha, excluirLinha } from '@/lib/google'
+import { lerAba, adicionarLinha, atualizarLinha, excluirLinha, garantirAba } from '@/lib/google'
 import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu, empresasComMenu } from '@/lib/auth'
 import { diasRestantes, statusPorDias, formatarData } from '@/lib/datas'
 import { rotuloTipo, temValidade } from '@/lib/tiposCertidao'
 import { novoId } from '@/lib/uuid'
 
+// Colunas que a aba Documentos precisa ter. adicionarLinha/atualizarLinha só
+// gravam colunas que existem no cabeçalho — sem isso, um campo novo (como o
+// link do arquivo no Drive) é descartado em silêncio e o documento fica sem
+// anexo sem ninguém perceber.
+const COLS_DOC = ['id', 'empresa_id', 'tipo_slug', 'validade', 'observacao',
+  'drive_file_id', 'drive_file_url', 'created_at']
+
 async function idsPermitidos(usuario) {
+  await garantirAba('Documentos', COLS_DOC)
   const todas = await lerAba('Empresas')
   const empresas = empresasComMenu(usuario, 'certidoes', todas.filter(e => e.id))
   return {
@@ -105,6 +113,18 @@ export async function POST(req) {
       created_at: new Date().toLocaleString('pt-BR'),
     })
     if (!r.ok) return NextResponse.json({ sucesso: false, erro: r.erro })
+
+    // Confere se o link do arquivo realmente entrou — era o ponto em que o
+    // anexo sumia sem aviso
+    if (campos.drive_file_url) {
+      const gravado = (await lerAba('Documentos')).find(d => String(d.id || '').trim() === id)
+      if (gravado && !String(gravado.drive_file_url || '').trim()) {
+        return NextResponse.json({
+          sucesso: true, id,
+          aviso: 'Documento salvo, mas o link do arquivo não entrou na planilha (confira a coluna drive_file_url da aba Documentos).',
+        })
+      }
+    }
     return NextResponse.json({ sucesso: true, id })
   } catch (e) {
     return NextResponse.json({ sucesso: false, erro: 'Erro ao salvar: ' + e.message }, { status: 500 })

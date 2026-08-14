@@ -127,12 +127,18 @@ export default function CertidoesPage() {
                 <div style={{ fontWeight: 600, color: '#145653', fontSize: 13 }}>{tipo.nome}</div>
                 {doc?.observacao && <div className="doc-obs">{doc.observacao}</div>}
                 {!empresaSel && doc && <div className="doc-obs">{doc.empresa_nome}</div>}
-                {doc?.link && (
+                {doc?.link ? (
                   <button className="drive-lnk" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
                     title="Ver, baixar ou imprimir a certidão"
                     onClick={ev => { ev.stopPropagation(); setVerArquivo({ url: doc.link, nome: tipo.nome }) }}>
                     📄 ver / baixar
                   </button>
+                ) : doc && (
+                  // Sem isso o documento simplesmente não mostrava nada e dava
+                  // a impressão de que o arquivo existia e a tela é que falhava
+                  <div style={{ fontSize: 11, color: '#B45309' }}>
+                    sem arquivo guardado — use "Atualizar" e anexe o PDF
+                  </div>
                 )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
