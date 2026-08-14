@@ -102,8 +102,17 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
   }, [fase, lic.empresa_id])
 
   // A decisão de participar já move a licitação para a fase correspondente
-  const chkDecidir = v => setFase(v === 'Sim' ? 'Inscricao' : v === 'Não' ? 'Descartado' : 'Em analise')
-  const chkDecisaoAtual = fase === 'Inscricao' ? 'Sim' : fase === 'Descartado' ? 'Não' : 'Pendente'
+  // A decisão de participar é um dado próprio da licitação (campo `participar`),
+  // não pode ser deduzida da aba que está aberta na tela: ao voltar para a aba
+  // "Em análise" de uma licitação já decidida, a fase visível vira 'Em analise'
+  // e a decisão aparecia como Pendente de novo — era o que fazia todas
+  // parecerem pendentes.
+  const [decisao, setDecisao] = useState(lic.participar || 'Pendente')
+  const chkDecidir = v => {
+    setDecisao(v)
+    setFase(v === 'Sim' ? 'Inscricao' : v === 'Não' ? 'Descartado' : 'Em analise')
+  }
+  const chkDecisaoAtual = decisao
 
   // ── Registrar evento: cria um lembrete no calendário ligado à licitação;
   // alguns tipos (suspensão/remarcação) também atualizam a data da sessão ──
@@ -269,6 +278,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
         itensJson: JSON.stringify(itens),
         checklistJson: JSON.stringify({ ...chkDados, _riscos: resumoRiscos }),
       }
+      corpo.participar = decisao
       if (destino === 'Descartado') corpo.participar = 'Não'
       // Reabrir uma licitação encerrada: limpa o desfecho para não voltar sozinha
       const eraFinal = ['Finalizada', 'Descartado'].includes(lic.fase)
@@ -486,6 +496,12 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
 
               <div className="form-sub">
                 <label>DECISÃO DE PARTICIPAÇÃO</label>
+                {decisao !== 'Pendente' && (
+                  <p className="dica-menus" style={{ marginTop: 0 }}>
+                    Já decidido: <strong>{decisao === 'Sim' ? 'vamos participar' : 'não vamos participar'}</strong>.
+                    Clicar de novo muda a decisão e a fase; é preciso salvar para valer.
+                  </p>
+                )}
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {[['Sim', '✅ Participar → Inscrição de proposta'], ['Não', '❌ Não participar → Descartado'], ['Pendente', '⏳ Pendente']].map(([v, l]) => (
                     <button key={v} className={'dec-btn' + (chkDecisaoAtual === v ? ' on' : '')} onClick={() => chkDecidir(v)}>{l}</button>
