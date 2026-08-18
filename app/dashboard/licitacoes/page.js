@@ -497,6 +497,15 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
   // O PNCP manda numeroItem, mas nem todo órgão preenche. Quem vier sem número
   // recebe a posição na lista, senão a coluna fica cheia de buracos e a
   // conferência com o edital deixa de funcionar.
+  // O PNCP NÃO expõe o lote como campo separado: quando a licitação é por
+  // lote, o "item" publicado já é o próprio lote. Por isso o grupo quase sempre
+  // volta vazio e precisa ser atribuído aqui. Estes dois atalhos evitam
+  // digitar item por item numa licitação de centenas de linhas.
+  const loteNaDescricao = txt => {
+    const m = String(txt || '').match(/\b(?:lote|grupo)\s*[:nº°\-]*\s*(\d{1,3}|[IVX]{1,5})\b/i)
+    return m ? m[1].toUpperCase() : ''
+  }
+
   const numerar = lista => lista
     .map((it, i) => ({ ...it, numero: String(it.numero ?? '').trim() || String(i + 1) }))
     .sort((a, b) => (parseInt(a.numero) || 0) - (parseInt(b.numero) || 0))
@@ -622,7 +631,27 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
                     style={{ width: 160, padding: '6px 10px', fontSize: 12 }} />
                 )}
                 <input placeholder="Grupo/lote (opcional)" value={grupoAtual} onChange={e => setGrupoAtual(e.target.value)}
-                  style={{ width: 160, padding: '6px 10px', fontSize: 12 }} title="Preenchido nos próximos itens adicionados" />
+                  style={{ width: 150, padding: '6px 10px', fontSize: 12 }}
+                  title="Preenchido nos próximos itens adicionados; use os botões ao lado para aplicar aos que já existem" />
+                {grupoAtual.trim() && (
+                  <button className="iBtn" title="Aplica o grupo digitado a todos os itens que estão aparecendo agora"
+                    onClick={() => setItens(a => a.map(it =>
+                      (!buscaItemLic || String(it.descricao || '').toLowerCase().includes(buscaItemLic.toLowerCase()))
+                        ? { ...it, grupo: grupoAtual.trim() } : it))}>
+                    aplicar a {itens.filter(it => !buscaItemLic || String(it.descricao || '').toLowerCase().includes(buscaItemLic.toLowerCase())).length} item(ns)
+                  </button>
+                )}
+                <button className="iBtn" title="Procura 'Lote 3' / 'Grupo II' na descrição de cada item e preenche o grupo"
+                  onClick={() => {
+                    let achou = 0
+                    setItens(a => a.map(it => {
+                      const g = loteNaDescricao(it.descricao)
+                      if (!g || it.grupo) return it
+                      achou++
+                      return { ...it, grupo: g }
+                    }))
+                    setOk(achou ? `Grupo preenchido em ${achou} item(ns) pela descrição.` : 'Nenhum item traz "lote" ou "grupo" na descrição.')
+                  }}>🔎 Detectar lote</button>
                 <button className="iBtn" onClick={importarItens} disabled={buscandoItens}>
                   {buscandoItens ? 'Importando...' : '⬇ Importar do PNCP'}
                 </button>
