@@ -190,7 +190,7 @@ export default function ModalDetalheLicitacao({
                         para o Excel somar sem precisar converter nada. */}
                     <button className="iBtn" onClick={() => exportarExcel(
                       itensBase.map((it, i) => ({
-                        '#': i + 1,
+                        'Nº': it.numero ?? (i + 1),
                         Grupo: it.grupo || '',
                         Descrição: it.descricao || '',
                         Qtd: numero(it.quantidade),
@@ -222,7 +222,7 @@ export default function ModalDetalheLicitacao({
                   <div key={gi} style={{ marginBottom: temGrupos ? 14 : 0 }}>
                     {temGrupos && <div style={{ fontSize: 12, fontWeight: 800, color: '#145653', marginBottom: 6 }}>📦 Grupo: {g}</div>}
                     <table className="itens-tbl">
-                      <thead><tr><th>Descrição</th><th>Qtd</th><th>Un</th>
+                      <thead><tr><th style={{ width: 46 }}>Nº</th><th>Descrição</th><th>Qtd</th><th>Un</th>
                         <th style={{ textAlign: 'right' }}>Vl. estimado</th>
                         {itensBase.some(it => it.meuValor) && <th style={{ textAlign: 'right' }}>Valor mínimo</th>}
                         {itensBase.some(it => it.lanceFinal) && <th style={{ textAlign: 'right' }}>Nosso lance</th>}
@@ -232,6 +232,7 @@ export default function ModalDetalheLicitacao({
                       <tbody>
                         {itensBase.filter(it => !temGrupos || (it.grupo || 'Sem grupo') === g).map((it, i) => (
                           <tr key={i} style={{ opacity: it.participar === false ? .45 : 1 }}>
+                            <td style={{ color: '#64748B', fontWeight: 600 }}>{it.numero ?? ''}</td>
                             <td style={{ maxWidth: 320 }}>{it.descricao}</td>
                             <td>{it.quantidade}</td><td>{it.unidade}</td>
                             <td style={{ textAlign: 'right' }}>{it.valorUnitarioRef ? Number(it.valorUnitarioRef).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'Sigiloso'}</td>

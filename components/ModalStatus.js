@@ -451,6 +451,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                         <tr>
                           <th style={{ width: 40 }}>Vou</th>
                           {itens.some(it => it.grupo) && <th style={{ width: 90 }}>Grupo</th>}
+                          <th style={{ width: 44 }}>Nº</th>
                           <th>Descrição</th>
                           <th style={{ width: 70 }}>Qtd</th>
                           <th style={{ width: 60 }}>Un</th>
@@ -476,6 +477,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                                 )}
                               </td>
                             )}
+                            <td style={{ color: '#64748B', fontWeight: 600, textAlign: 'center' }}>{it.numero ?? ''}</td>
                             <td>{it.descricao}</td>
                             <td style={{ textAlign: 'center' }}>{it.quantidade}</td>
                             <td style={{ textAlign: 'center' }}>{it.unidade}</td>
@@ -556,6 +558,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                       <tr>
                         <th style={{ width: 40 }}></th>
                         {itens.some(it => it.grupo) && <th style={{ width: 90 }}>Grupo</th>}
+                        <th style={{ width: 44 }}>Nº</th>
                         <th>Descrição</th>
                         <th style={{ width: 70 }}>Qtd</th>
                         <th style={{ width: 60 }}>Un</th>
@@ -583,6 +586,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                               )}
                             </td>
                           )}
+                          <td style={{ color: '#64748B', fontWeight: 600, textAlign: 'center' }}>{it.numero ?? ''}</td>
                           <td style={{ maxWidth: 320 }}>{it.descricao || '—'}</td>
                           <td>{it.quantidade || '—'}</td>
                           <td>{it.unidade || '—'}</td>

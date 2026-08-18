@@ -345,7 +345,7 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
       }).then(x => x.json())
       if (!r.sucesso) setErro(r.erro || 'Não foi possível importar os itens.')
       else if (r.dados?.itens?.length) {
-        setItens(r.dados.itens)
+        setItens(numerar(r.dados.itens))
         setOk(r.dados.itens.length + ' itens importados do PNCP.')
       }
       else setErro('O PNCP não retornou itens para esta licitação. Inclua manualmente.')
@@ -374,7 +374,7 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
           dataAbertura: d.dataAberturaISO || o.dataAbertura, dataLimite: d.dataLimiteISO || o.dataLimite,
           srp: d.srp || o.srp, link: d.link || o.link,
         }))
-        if (d.itens?.length) setItens(d.itens)
+        if (d.itens?.length) setItens(numerar(d.itens))
         if (!d.itens?.length && d.diagItens?.length) {
           setErro('Dados carregados, mas o PNCP não devolveu itens. [' + d.diagItens.slice(0, 2).join(' · ') + ']')
         }
@@ -493,6 +493,13 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
     } catch { setErro('Erro de conexão.') }
     setSalvando(false)
   }
+
+  // O PNCP manda numeroItem, mas nem todo órgão preenche. Quem vier sem número
+  // recebe a posição na lista, senão a coluna fica cheia de buracos e a
+  // conferência com o edital deixa de funcionar.
+  const numerar = lista => lista
+    .map((it, i) => ({ ...it, numero: String(it.numero ?? '').trim() || String(i + 1) }))
+    .sort((a, b) => (parseInt(a.numero) || 0) - (parseInt(b.numero) || 0))
 
   const setItem = (i, k, v) => setItens(a => a.map((it, j) => j === i ? { ...it, [k]: v } : it))
 
@@ -619,17 +626,21 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
                 <button className="iBtn" onClick={importarItens} disabled={buscandoItens}>
                   {buscandoItens ? 'Importando...' : '⬇ Importar do PNCP'}
                 </button>
-                <button className="iBtn" onClick={() => setItens(a => [...a, { grupo: grupoAtual, descricao: '', quantidade: '', unidade: 'UN', valorUnitarioRef: '' }])}>+ Item</button>
+                <button className="iBtn" onClick={() => setItens(a => [...a, {
+                  numero: String(a.reduce((m, x) => Math.max(m, parseInt(x.numero) || 0), 0) + 1),
+                  grupo: grupoAtual, descricao: '', quantidade: '', unidade: 'UN', valorUnitarioRef: '',
+                }])}>+ Item</button>
               </div>
             </div>
             {itens.length === 0 && <div style={{ fontSize: 12, color: '#94A3B8', padding: 8, textAlign: 'center', background: '#F8FAFC', borderRadius: 8 }}>Nenhum item. Em licitações por grupo, preencha "Grupo/lote" acima antes de adicionar os itens daquele grupo.</div>}
             {itens.length > 0 && (
               <div className="item-row-lic item-row-lic-hdr">
-                <span>Grupo</span><span>Descrição</span><span>Qtd</span><span>UN</span><span>Vl. unit.</span><span></span>
+                <span>Nº</span><span>Grupo</span><span>Descrição</span><span>Qtd</span><span>UN</span><span>Vl. unit.</span><span></span>
               </div>
             )}
             {itens.map((it, i) => (!buscaItemLic || String(it.descricao || '').toLowerCase().includes(buscaItemLic.toLowerCase())) && (
               <div className="item-row-lic" key={i}>
+                <input placeholder="Nº" value={it.numero ?? ''} onChange={e => setItem(i, 'numero', e.target.value)} />
                 <input placeholder="Grupo" value={it.grupo || ''} onChange={e => setItem(i, 'grupo', e.target.value)} />
                 <input placeholder="Descrição" value={it.descricao || ''} onChange={e => setItem(i, 'descricao', e.target.value)} />
                 <input placeholder="Qtd" type="number" value={it.quantidade || ''} onChange={e => setItem(i, 'quantidade', e.target.value)} />
