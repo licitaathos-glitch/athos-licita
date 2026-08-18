@@ -62,6 +62,18 @@ export async function POST(req, { params }) {
       status: 'Respondida', respondidoEm: new Date().toISOString(),
     })
     if (!r.ok) return NextResponse.json({ sucesso: false, erro: r.erro })
+
+    // Confere se o nº da cotação entrou de fato: atualizarLinha só grava
+    // colunas existentes no cabeçalho, e uma coluna faltando falha calada
+    if (numeroCotacaoFornecedor) {
+      const gravado = (await lerAba('Cotacoes')).find(x => x.token === params.token)
+      if (gravado && !String(gravado.numeroCotacaoFornecedor || '').trim()) {
+        return NextResponse.json({
+          sucesso: true,
+          aviso: 'Preços recebidos, mas o número da cotação não foi gravado. Avise o responsável.',
+        })
+      }
+    }
     return NextResponse.json({ sucesso: true })
   } catch (e) {
     return NextResponse.json({ sucesso: false, erro: 'Erro ao enviar: ' + e.message }, { status: 500 })

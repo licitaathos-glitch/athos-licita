@@ -39,6 +39,19 @@ export default function PainelCotacao({ lic, itens, setItens, marcados }) {
   // São sugeridos aqui porque o pedido de cotação também é o que avisa a empresa
   // sobre a oportunidade — o botão "Avisar empresa" separado deixou de existir.
   const [emailsEmpresa, setEmailsEmpresa] = useState([])
+  // Nº da cotação: às vezes o fornecedor responde pelo link, às vezes passa o
+  // número por telefone/e-mail — precisa dar para ver e para digitar aqui.
+  const [editandoNumero, setEditandoNumero] = useState(null)
+  const [numeroDigitado, setNumeroDigitado] = useState('')
+
+  async function salvarNumero(c) {
+    const r = await fetch('/api/licitacoes/cotacao', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: c.id, numeroCotacaoFornecedor: numeroDigitado.trim() }),
+    }).then(x => x.json()).catch(() => ({ sucesso: false, erro: 'Erro de conexão.' }))
+    if (!r.sucesso) { setErro(r.erro || 'Não consegui salvar o número.'); return }
+    setErro(''); setEditandoNumero(null); carregar()
+  }
 
   useEffect(() => {
     let vivo = true
@@ -145,11 +158,34 @@ export default function PainelCotacao({ lic, itens, setItens, marcados }) {
                     {copiado === c.id ? '✓ copiado' : '📋 copiar link'}
                   </button>
                 </div>
+                {/* Nº da cotação do fornecedor — sempre visível e editável,
+                    respondido pelo link ou informado por fora */}
+                <div style={{ marginTop: 6, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 11.5, color: '#64748B' }}>Nº da cotação:</span>
+                  {editandoNumero === c.id ? (
+                    <>
+                      <input autoFocus value={numeroDigitado} onChange={e => setNumeroDigitado(e.target.value)}
+                        placeholder="ex: 4521/2026"
+                        style={{ width: 150, padding: '4px 8px', fontSize: 12, border: '1px solid #E2E8F0', borderRadius: 7 }} />
+                      <button className="iBtn iBtn-up" onClick={() => salvarNumero(c)}>salvar</button>
+                      <button className="iBtn" onClick={() => setEditandoNumero(null)}>cancelar</button>
+                    </>
+                  ) : (
+                    <>
+                      <strong style={{ fontSize: 12.5, color: c.numeroCotacaoFornecedor ? '#145653' : '#94A3B8' }}>
+                        {c.numeroCotacaoFornecedor || 'não informado'}
+                      </strong>
+                      <button className="iBtn" onClick={() => { setEditandoNumero(c.id); setNumeroDigitado(c.numeroCotacaoFornecedor || '') }}>
+                        ✏️ {c.numeroCotacaoFornecedor ? 'alterar' : 'informar'}
+                      </button>
+                    </>
+                  )}
+                </div>
+
                 {c.status === 'Respondida' && (
                   <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 11.5, color: '#64748B' }}>
                       {c.respostaItens.filter(r => r.precoFornecedor).length} preço(s) recebido(s)
-                      {c.numeroCotacaoFornecedor && ' · nº ' + c.numeroCotacaoFornecedor}
                     </span>
                     {c.anexoDriveUrl && <a href={c.anexoDriveUrl} target="_blank" rel="noreferrer" className="iBtn">📎 anexo</a>}
                     <button className="iBtn iBtn-up" onClick={() => usarPrecos(c)}>usar estes preços</button>

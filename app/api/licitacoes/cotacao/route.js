@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { lerAba, adicionarLinha, garantirAba, excluirLinha } from '@/lib/google'
+import { lerAba, adicionarLinha, atualizarLinha, garantirAba, excluirLinha } from '@/lib/google'
 import { getUsuarioFromReq, podeEditar, podeAcessarMenu, empresasVisiveis } from '@/lib/auth'
 import { chamarGAS } from '@/lib/gas'
 import { novoId } from '@/lib/uuid'
@@ -87,6 +87,36 @@ export async function POST(req) {
     return NextResponse.json({ sucesso: true, id, token, link, avisoEmail })
   } catch (e) {
     return NextResponse.json({ sucesso: false, erro: 'Erro ao criar pedido: ' + e.message }, { status: 500 })
+  }
+}
+
+// Atualiza o nº da cotação pelo painel — o fornecedor às vezes passa o número
+// por telefone ou e-mail, sem usar o link, e ficava sem onde registrar.
+export async function PATCH(req) {
+  const usuario = await getUsuarioFromReq(req)
+  if (!usuario) return NextResponse.json({ sucesso: false, erro: 'Não autenticado.' }, { status: 401 })
+  if (!podeAcessarMenu(usuario, 'licitacoes')) return NextResponse.json({ sucesso: false, erro: 'Sem acesso.' }, { status: 403 })
+  if (!podeEditar(usuario)) return NextResponse.json({ sucesso: false, erro: 'Seu perfil é somente consulta.' }, { status: 403 })
+
+  try {
+    const { id, numeroCotacaoFornecedor } = await req.json()
+    if (!id) return NextResponse.json({ sucesso: false, erro: 'Informe o pedido de cotação.' })
+
+    await garantirAba('Cotacoes', COLS_COTACAO)
+    const r = await atualizarLinha('Cotacoes', 'id', id, {
+      numeroCotacaoFornecedor: numeroCotacaoFornecedor || '',
+    })
+    if (!r.ok) return NextResponse.json({ sucesso: false, erro: r.erro || 'Pedido não encontrado.' })
+
+    // Confere se entrou mesmo: atualizarLinha só grava colunas que existem no
+    // cabeçalho, e uma coluna faltando falharia calada
+    const gravado = (await lerAba('Cotacoes')).find(c => String(c.id || '').trim() === String(id).trim())
+    if (numeroCotacaoFornecedor && gravado && !String(gravado.numeroCotacaoFornecedor || '').trim()) {
+      return NextResponse.json({ sucesso: false, erro: 'O número não entrou na planilha — confira a coluna numeroCotacaoFornecedor na aba Cotacoes.' })
+    }
+    return NextResponse.json({ sucesso: true })
+  } catch (e) {
+    return NextResponse.json({ sucesso: false, erro: e.message }, { status: 500 })
   }
 }
 
