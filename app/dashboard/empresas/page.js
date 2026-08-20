@@ -117,8 +117,33 @@ function CardEmpresa({ empresa, config, onSalvar, onSalvarDados }) {
   const [dResponsavel, setDResponsavel] = useState(empresa.responsavel || '')
   const [dEmail, setDEmail] = useState(empresa.email || '')
   const [dTelefone, setDTelefone] = useState(empresa.telefone || '')
+
+  // Dados cadastrais completos — usados para preencher declarações e
+  // proposta de preços automaticamente a partir do modelo do edital.
+  const [dRazaoSocial, setDRazaoSocial] = useState(empresa.razao_social || '')
+  const [dNomeFantasia, setDNomeFantasia] = useState(empresa.nome_fantasia || '')
+  const [dIe, setDIe] = useState(empresa.inscricao_estadual || '')
+  const [dIm, setDIm] = useState(empresa.inscricao_municipal || '')
+  const [dEndereco, setDEndereco] = useState(empresa.endereco || '')
+  const [dNumero, setDNumero] = useState(empresa.numero || '')
+  const [dBairro, setDBairro] = useState(empresa.bairro || '')
+  const [dCidade, setDCidade] = useState(empresa.cidade || '')
+  const [dUf, setDUf] = useState(empresa.uf || '')
+  const [dCep, setDCep] = useState(empresa.cep || '')
+  const [dRepNome, setDRepNome] = useState(empresa.rep_nome || '')
+  const [dRepCpf, setDRepCpf] = useState(empresa.rep_cpf || '')
+  const [dRepRg, setDRepRg] = useState(empresa.rep_rg || '')
+  const [dRepCargo, setDRepCargo] = useState(empresa.rep_cargo || '')
+  const [dRepNacionalidade, setDRepNacionalidade] = useState(empresa.rep_nacionalidade || '')
+  const [dRepEstadoCivil, setDRepEstadoCivil] = useState(empresa.rep_estado_civil || '')
+  const [dBanco, setDBanco] = useState(empresa.banco || '')
+  const [dAgencia, setDAgencia] = useState(empresa.agencia || '')
+  const [dConta, setDConta] = useState(empresa.conta || '')
+
   const [salvandoDados, setSalvandoDados] = useState(false)
   const [msgDados, setMsgDados] = useState('')
+  const [extraindo, setExtraindo] = useState(false)
+  const [msgExtracao, setMsgExtracao] = useState('')
 
   const rotulo = MODELOS.find(m => m.id === atual.modelo)?.nome || 'Revenda'
 
@@ -133,9 +158,34 @@ function CardEmpresa({ empresa, config, onSalvar, onSalvarDados }) {
     setSalvandoDados(true); setMsgDados('')
     const r = await onSalvarDados(empresa.id, {
       nome: dNome, cnpj: dCnpj, responsavel: dResponsavel, email: dEmail, telefone: dTelefone,
+      razao_social: dRazaoSocial, nome_fantasia: dNomeFantasia,
+      inscricao_estadual: dIe, inscricao_municipal: dIm,
+      endereco: dEndereco, numero: dNumero, bairro: dBairro, cidade: dCidade, uf: dUf, cep: dCep,
+      rep_nome: dRepNome, rep_cpf: dRepCpf, rep_rg: dRepRg, rep_cargo: dRepCargo,
+      rep_nacionalidade: dRepNacionalidade, rep_estado_civil: dRepEstadoCivil,
+      banco: dBanco, agencia: dAgencia, conta: dConta,
     })
     setMsgDados(r.sucesso ? '✅ Dados atualizados.' : '❌ ' + (r.erro || 'Erro ao salvar.'))
     setSalvandoDados(false)
+  }
+
+  // Preenche os campos vazios (endereço, representante legal, etc.) a partir
+  // das certidões já anexadas no Drive desta empresa, via Gemini.
+  async function extrairDosDocumentos() {
+    setExtraindo(true); setMsgExtracao('')
+    try {
+      const r = await fetch('/api/empresas/extrair-cadastro', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empresaId: empresa.id }),
+      }).then(x => x.json())
+      if (!r.sucesso) { setMsgExtracao('❌ ' + (r.erro || 'Erro ao extrair.')); setExtraindo(false); return }
+      if (r.aviso) { setMsgExtracao('⚠️ ' + r.aviso); setExtraindo(false); return }
+      setMsgExtracao('✅ Preenchido a partir das certidões: ' + r.preenchidos.join(', '))
+      window.location.reload()
+    } catch {
+      setMsgExtracao('❌ Erro de conexão.')
+    }
+    setExtraindo(false)
   }
 
   return (
@@ -161,9 +211,16 @@ function CardEmpresa({ empresa, config, onSalvar, onSalvarDados }) {
 
       {aberto && (
         <div className="detalhe-card">
-          <div style={{ fontSize: 12.5, fontWeight: 700, color: '#145653', marginBottom: 10 }}>
-            ✏️ Dados cadastrais
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: '#145653' }}>
+              ✏️ Dados cadastrais
+            </div>
+            <button className="iBtn" onClick={e => { e.stopPropagation(); extrairDosDocumentos() }} disabled={extraindo}
+              title="Preenche os campos vazios abaixo lendo as certidões já anexadas desta empresa">
+              {extraindo ? '🤖 Lendo certidões... (15–40s)' : '🤖 Extrair dos documentos'}
+            </button>
           </div>
+          {msgExtracao && <p style={{ fontSize: 12, margin: '0 0 10px' }}>{msgExtracao}</p>}
           <div className="form-grid">
             <input placeholder="Nome da empresa" value={dNome} onChange={e => setDNome(e.target.value)} />
             <input placeholder="CNPJ" value={dCnpj} onChange={e => setDCnpj(e.target.value)} />
@@ -171,8 +228,52 @@ function CardEmpresa({ empresa, config, onSalvar, onSalvarDados }) {
             <input placeholder="E-mail (separe por vírgula se houver mais de um)" value={dEmail} onChange={e => setDEmail(e.target.value)} />
             <input placeholder="Telefone" value={dTelefone} onChange={e => setDTelefone(e.target.value)} />
           </div>
-          {msgDados && <p style={{ fontSize: 12, margin: '8px 0 0' }}>{msgDados}</p>}
-          <button className="btn-primary" onClick={salvarDados} disabled={salvandoDados}>
+
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: '#94A3B8', margin: '14px 0 6px', textTransform: 'uppercase' }}>
+            Razão social e inscrições
+          </div>
+          <div className="form-grid">
+            <input placeholder="Razão social completa" value={dRazaoSocial} onChange={e => setDRazaoSocial(e.target.value)} />
+            <input placeholder="Nome fantasia" value={dNomeFantasia} onChange={e => setDNomeFantasia(e.target.value)} />
+            <input placeholder="Inscrição estadual" value={dIe} onChange={e => setDIe(e.target.value)} />
+            <input placeholder="Inscrição municipal" value={dIm} onChange={e => setDIm(e.target.value)} />
+          </div>
+
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: '#94A3B8', margin: '14px 0 6px', textTransform: 'uppercase' }}>
+            Endereço
+          </div>
+          <div className="form-grid">
+            <input placeholder="Logradouro" value={dEndereco} onChange={e => setDEndereco(e.target.value)} />
+            <input placeholder="Número" value={dNumero} onChange={e => setDNumero(e.target.value)} />
+            <input placeholder="Bairro" value={dBairro} onChange={e => setDBairro(e.target.value)} />
+            <input placeholder="Cidade" value={dCidade} onChange={e => setDCidade(e.target.value)} />
+            <input placeholder="UF" maxLength={2} value={dUf} onChange={e => setDUf(e.target.value.toUpperCase())} />
+            <input placeholder="CEP" value={dCep} onChange={e => setDCep(e.target.value)} />
+          </div>
+
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: '#94A3B8', margin: '14px 0 6px', textTransform: 'uppercase' }}>
+            Representante legal
+          </div>
+          <div className="form-grid">
+            <input placeholder="Nome completo" value={dRepNome} onChange={e => setDRepNome(e.target.value)} />
+            <input placeholder="CPF" value={dRepCpf} onChange={e => setDRepCpf(e.target.value)} />
+            <input placeholder="RG" value={dRepRg} onChange={e => setDRepRg(e.target.value)} />
+            <input placeholder="Cargo/função" value={dRepCargo} onChange={e => setDRepCargo(e.target.value)} />
+            <input placeholder="Nacionalidade" value={dRepNacionalidade} onChange={e => setDRepNacionalidade(e.target.value)} />
+            <input placeholder="Estado civil" value={dRepEstadoCivil} onChange={e => setDRepEstadoCivil(e.target.value)} />
+          </div>
+
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: '#94A3B8', margin: '14px 0 6px', textTransform: 'uppercase' }}>
+            Dados bancários (para proposta de preços)
+          </div>
+          <div className="form-grid">
+            <input placeholder="Banco" value={dBanco} onChange={e => setDBanco(e.target.value)} />
+            <input placeholder="Agência" value={dAgencia} onChange={e => setDAgencia(e.target.value)} />
+            <input placeholder="Conta" value={dConta} onChange={e => setDConta(e.target.value)} />
+          </div>
+
+          {msgDados && <p style={{ fontSize: 12, margin: '10px 0 0' }}>{msgDados}</p>}
+          <button className="btn-primary" onClick={salvarDados} disabled={salvandoDados} style={{ marginTop: 10 }}>
             {salvandoDados ? 'Salvando...' : 'Salvar dados cadastrais'}
           </button>
 
