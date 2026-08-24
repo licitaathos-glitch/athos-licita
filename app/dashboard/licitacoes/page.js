@@ -300,6 +300,7 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
     objeto: lic.objeto || '', numeroEdital: lic.numeroEdital || '', numeroPNCP: lic.numeroPNCP || '',
     modalidade: lic.modalidade || '', portal: lic.portal || '', uf: lic.uf || '', orgao: lic.orgao || '', uasg: lic.uasg || '',
     valor: lic.valor || '', dataAbertura: brParaInput(lic.dataAbertura), dataLimite: brParaInput(lic.dataLimite),
+    dataSessao: brParaInput(lic.dataSessao),
     srp: lic.srp || 'Não', status: lic.status || 'Aberta', link: lic.link || '',
     anexoDriveId: lic.anexoDriveId || '', anexoDriveUrl: lic.anexoDriveUrl || '',
   })
@@ -471,8 +472,10 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
       // aceitar propostas, às vezes dias/semanas antes da sessão em si.
       // Só sincroniza quando não houver uma data de sessão ajustada à mão
       // no Andamento (ex: negociaram um novo dia após um adiamento).
-      const semDivergenciaManual = !lic.dataSessao || lic.dataSessao === lic.dataLimite || lic.dataSessao === lic.dataAbertura
-      const dataSessaoFinal = semDivergenciaManual ? (limite || abertura) : lic.dataSessao
+      // A data da sessão tem campo próprio no formulário: o que for digitado
+      // ali manda. Em branco, vale o encerramento das propostas (é quando a
+      // disputa do Pregão acontece) e, na falta dele, a abertura.
+      const dataSessaoFinal = inputParaBr(f.dataSessao) || limite || abertura
 
       const r = await fetch('/api/licitacoes', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -576,6 +579,10 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
             <div><label className="mini-lbl">VALOR ESTIMADO</label><input value={f.valor} onChange={e => set('valor', e.target.value)} placeholder="R$ 0,00" /></div>
             <div><label className="mini-lbl">ABERTURA DAS PROPOSTAS</label><input type="datetime-local" value={f.dataAbertura} onChange={e => set('dataAbertura', e.target.value)} /></div>
             <div><label className="mini-lbl">LIMITE DA PROPOSTA</label><input type="datetime-local" value={f.dataLimite} onChange={e => set('dataLimite', e.target.value)} /></div>
+            <div><label className="mini-lbl">DATA DA SESSÃO</label>
+              <input type="datetime-local" value={f.dataSessao} onChange={e => set('dataSessao', e.target.value)} />
+              <p className="dica-menus" style={{ margin: '2px 0 0' }}>Em branco, usa o limite da proposta</p>
+            </div>
             <div><label className="mini-lbl">SRP</label>
               <select value={f.srp} onChange={e => set('srp', e.target.value)}><option>Não</option><option>Sim</option></select>
             </div>
