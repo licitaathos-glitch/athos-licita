@@ -134,6 +134,16 @@ export async function POST(req) {
 
     const campos = {}
     CAMPOS.forEach(c => { if (b[c] !== undefined) campos[c] = b[c] })
+
+    // Coerência das datas, valendo para TODOS os caminhos de entrada (cadastro
+    // manual, Oportunidades, importação de planilha): sem data da sessão, vale
+    // o limite da proposta e, na falta dele, a abertura. É a mesma regra do
+    // Pregão Eletrônico — a disputa acontece no encerramento das propostas — e
+    // evita licitação aparecendo com "—" na coluna Data da sessão.
+    if (!String(campos.dataSessao ?? '').trim()) {
+      const derivada = String(campos.dataLimite ?? '').trim() || String(campos.dataAbertura ?? '').trim()
+      if (derivada) campos.dataSessao = derivada
+    }
     if (campos.itensJson !== undefined) {
       try { Object.assign(campos, chunkCampo('itensJson', campos.itensJson)) }
       catch (e) { return NextResponse.json({ sucesso: false, erro: e.message }) }
@@ -142,6 +152,18 @@ export async function POST(req) {
     if (b.id) {
       const r = await atualizarLinha('Licitacoes', 'id', b.id, campos)
       if (!r.ok) return NextResponse.json({ sucesso: false, erro: r.erro })
+
+      // Mesma conferência da criação: campo enviado que não voltou da planilha
+      // significa coluna ausente no cabeçalho, e falhava calado na edição
+      const atual = (await lerAba('Licitacoes')).find(l => String(l.id || '').trim() === String(b.id).trim())
+      const sumiram = atual ? Object.keys(campos)
+        .filter(c => String(campos[c] ?? '').trim() !== '' && String(atual[c] ?? '').trim() === '') : []
+      if (sumiram.length) {
+        return NextResponse.json({
+          sucesso: true, id: b.id,
+          aviso: 'Salvo, mas estes campos não entraram na planilha (confira o cabeçalho da aba Licitacoes): ' + sumiram.join(', '),
+        })
+      }
       return NextResponse.json({ sucesso: true, id: b.id })
     }
 

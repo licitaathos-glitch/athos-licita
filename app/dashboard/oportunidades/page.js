@@ -153,6 +153,8 @@ export default function OportunidadesPage() {
         numeroPNCP: op.numeroPNCP, numeroEdital: op.numeroEdital, objeto: op.objeto,
         orgao: op.orgao, uasg: op.uasg, uf: op.uf, valor: op.valor,
         dataPublicacao: op.dataPublicacao, dataAbertura: op.dataAbertura, dataLimite: op.dataLimite,
+        // Sem isso a licitação nascia sem data da sessão e aparecia com "—" na lista
+        dataSessao: op.dataLimite || op.dataAbertura || '',
         modalidade: op.modalidade, portal: op.portal, srp: op.srp,
         status: op.status, link: op.link, origem: 'pncp', ...extras,
       }),
