@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { lerAba, adicionarLinha, atualizarLinha, excluirLinha, garantirAba } from '@/lib/google'
+import { lerAba, adicionarLinha, atualizarLinha, excluirLinha, garantirAba, cabecalhoAba } from '@/lib/google'
 import { COLS_RESULTADO } from '@/lib/resultado'
 import { faseAutomatica, faseInferida } from '@/lib/fases'
 import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu, empresasComMenu } from '@/lib/auth'
@@ -159,9 +159,11 @@ export async function POST(req) {
       const sumiram = atual ? Object.keys(campos)
         .filter(c => String(campos[c] ?? '').trim() !== '' && String(atual[c] ?? '').trim() === '') : []
       if (sumiram.length) {
+        const h = await cabecalhoAba('Licitacoes')
         return NextResponse.json({
           sucesso: true, id: b.id,
-          aviso: 'Salvo, mas estes campos não entraram na planilha (confira o cabeçalho da aba Licitacoes): ' + sumiram.join(', '),
+          aviso: `Salvo, mas estes campos não entraram na planilha: ${sumiram.join(', ')}. `
+            + `Colunas existentes na aba Licitacoes: ${h.filter(Boolean).join(' | ')}`,
         })
       }
       return NextResponse.json({ sucesso: true, id: b.id })
@@ -203,9 +205,11 @@ export async function POST(req) {
     const perdidos = Object.keys(campos)
       .filter(c => String(campos[c] ?? '').trim() !== '' && String(gravada[c] ?? '').trim() === '')
     if (perdidos.length) {
+      const h = await cabecalhoAba('Licitacoes')
       return NextResponse.json({
         sucesso: true, id,
-        aviso: 'Salvo, mas estes campos não entraram na planilha (confira o cabeçalho da aba Licitacoes): ' + perdidos.join(', '),
+        aviso: `Salvo, mas estes campos não entraram na planilha: ${perdidos.join(', ')}. `
+          + `Colunas existentes na aba Licitacoes: ${h.filter(Boolean).join(' | ')}`,
       })
     }
     return NextResponse.json({ sucesso: true, id })

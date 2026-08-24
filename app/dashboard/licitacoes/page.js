@@ -490,6 +490,8 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
         }),
       }).then(x => x.json())
       if (r.sucesso) {
+        // Salvou, mas algum campo não entrou: mantém a janela aberta com o
+        // diagnóstico, senão o usuário fecha achando que deu tudo certo
         if (r.aviso) { setErro('⚠️ ' + r.aviso); setSalvando(false); return }
         onSalvo()
       } else setErro(r.erro || 'Erro ao salvar.')
