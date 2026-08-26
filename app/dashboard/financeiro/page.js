@@ -1,7 +1,7 @@
 'use client'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useApp } from '@/lib/AppContext'
-import { fmtBRL, STATUS_EMPENHO } from '@/lib/comercial'
+import { fmtBRL, STATUS_EMPENHO, num } from '@/lib/comercial'
 import ModalEmpenho from '@/components/ModalEmpenho'
 
 const MESES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']
@@ -23,13 +23,24 @@ export default function FinanceiroPage() {
   const [status, setStatus] = useState('')
   const [editando, setEditando] = useState(null)
 
+  // Estimativa (pipeline de licitações ganhas ainda sem empenho lançado).
+  // Usa /api/licitacoes e /api/atas — módulos que este usuário pode não ter
+  // acesso mesmo tendo acesso ao Financeiro, então falha em silêncio (o bloco
+  // simplesmente não aparece) em vez de quebrar a tela.
+  const [licitacoes, setLicitacoes] = useState(null)
+  const [atas, setAtas] = useState(null)
+
   const carregar = useCallback(() => {
     Promise.all([
       fetch('/api/empenhos').then(r => r.json()),
       fetch('/api/config-empresa').then(r => r.json()),
-    ]).then(([e, c]) => {
+      fetch('/api/licitacoes').then(r => r.json()).catch(() => ({ sucesso: false })),
+      fetch('/api/atas').then(r => r.json()).catch(() => ({ sucesso: false })),
+    ]).then(([e, c, l, a]) => {
       if (e.sucesso) setEmpenhos(e.empenhos); else setErro(e.erro || 'Erro ao carregar.')
       if (c.sucesso) setConfigs(c.configs)
+      if (l.sucesso) setLicitacoes(l.licitacoes)
+      if (a.sucesso) setAtas(a.atas)
     }).catch(() => setErro('Erro de conexão.'))
   }, [])
 
@@ -80,6 +91,50 @@ export default function FinanceiroPage() {
 
   const maxSerie = Math.max(1, ...serie.map(s => s.faturamento))
 
+  // Pipeline: licitações com resultado "Ganhamos" que ainda não têm nenhum
+  // empenho lançado — assim que o primeiro empenho entra, o número real do
+  // empenho passa a valer e a licitação some daqui.
+  const estimativas = useMemo(() => {
+    if (!licitacoes || !atas || !empenhos) return null
+
+    const licPorAta = {}
+    atas.forEach(a => { if (a.licitacaoId) licPorAta[a.id] = a.licitacaoId })
+    const licComEmpenho = new Set(empenhos.map(e => licPorAta[e.ataId]).filter(Boolean))
+
+    const ganhas = licitacoes
+      .filter(l => l.resultado === 'Ganhamos')
+      .filter(l => !empresaSel || l.empresa_id === empresaSel)
+      .filter(l => !licComEmpenho.has(l.id))
+
+    const linhas = ganhas.map(l => {
+      const cfg = configs[l.empresa_id] || { modelo: 'revenda' }
+      const itens = (l.itens || []).filter(it => it.participar !== false)
+      let faturamento = 0, custo = 0
+      itens.forEach(it => {
+        const qtd = num(it.quantidade)
+        const precoVenda = num(it.lanceFinal) || num(it.meuValor)
+        // Custo estimado = Valor mínimo cadastrado na Inscrição de proposta —
+        // mesma fonte usada em ModalEmpenho quando ainda não há cotação de
+        // fornecedor. Sem essa referência, custo fica igual ao preço de venda
+        // (margem zero) em vez de inventar lucro que não existe.
+        const custoUnit = num(it.meuValor) || precoVenda
+        faturamento += qtd * precoVenda
+        custo += qtd * custoUnit
+      })
+      const receita = cfg.modelo === 'comissao'
+        ? faturamento * (num(cfg.percentualComissao) / 100)
+        : faturamento - custo
+      const semReferencia = itens.some(it => !num(it.meuValor) && !num(it.lanceFinal))
+      return { id: l.id, orgao: l.orgao, numeroEdital: l.numeroEdital, empresa_nome: l.empresaNome || l.empresa_nome, modelo: cfg.modelo, faturamento, receita, semReferencia }
+    }).filter(x => x.faturamento > 0)
+
+    return {
+      linhas: linhas.sort((a, b) => b.receita - a.receita),
+      faturamento: linhas.reduce((s, x) => s + x.faturamento, 0),
+      receita: linhas.reduce((s, x) => s + x.receita, 0),
+    }
+  }, [licitacoes, atas, empenhos, configs, empresaSel])
+
   const porOrgao = useMemo(() => {
     const m = {}
     base.forEach(e => {
@@ -109,6 +164,43 @@ export default function FinanceiroPage() {
           <button className="btn-primary" style={{ marginTop: 0 }} onClick={() => setEditando({})}>+ Lançar empenho</button>
         )}
       </div>
+
+      {estimativas && estimativas.linhas.length > 0 && (
+        <div className="form-card" style={{ marginTop: 12, marginBottom: 16, border: '1px dashed #94A3B8' }}>
+          <div className="form-card-title">🔮 Estimativa — licitações ganhas, ainda sem empenho</div>
+          <p style={{ fontSize: 11.5, color: '#64748B', margin: '-4px 0 10px' }}>
+            Previsão com base no resultado da disputa, não é dinheiro garantido. Some daqui assim que o primeiro empenho for lançado.
+          </p>
+          <div className="kpi-grid kpi-4" style={{ marginBottom: 12 }}>
+            <div className="kpi"><div className="kpi-val kv-navy" style={{ fontSize: 20 }}>{fmtBRL(estimativas.faturamento)}</div><div className="kpi-label">Faturamento estimado</div></div>
+            <div className="kpi"><div className="kpi-val kv-green" style={{ fontSize: 20 }}>{fmtBRL(estimativas.receita)}</div><div className="kpi-label">Minha receita estimada</div></div>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="itens-tbl">
+              <thead><tr>
+                <th>Órgão</th><th>Edital</th><th>Empresa</th>
+                <th style={{ textAlign: 'right' }}>Faturamento est.</th><th style={{ textAlign: 'right' }}>Receita est.</th>
+              </tr></thead>
+              <tbody>
+                {estimativas.linhas.map(l => (
+                  <tr key={l.id}>
+                    <td style={{ maxWidth: 260 }}>{l.orgao}</td>
+                    <td>{l.numeroEdital}</td>
+                    <td>{l.empresa_nome}</td>
+                    <td style={{ textAlign: 'right' }}>{fmtBRL(l.faturamento)}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: '#16A34A' }}>
+                      {fmtBRL(l.receita)}{l.semReferencia ? ' ⚠️' : ''}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p style={{ fontSize: 10.5, color: '#94A3B8', marginTop: 8 }}>
+            ⚠️ = item sem valor mínimo nem lance registrado — entrou com valor zerado na conta.
+          </p>
+        </div>
+      )}
 
       <div className="kpi-grid kpi-4">
         <div className="kpi"><div className="kpi-val kv-navy" style={{ fontSize: 20 }}>{fmtBRL(kpi.faturamento)}</div><div className="kpi-label">Faturamento empenhado</div></div>
