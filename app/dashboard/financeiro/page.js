@@ -109,22 +109,34 @@ export default function FinanceiroPage() {
     const linhas = ganhas.map(l => {
       const cfg = configs[l.empresa_id] || { modelo: 'revenda' }
       const itens = (l.itens || []).filter(it => it.participar !== false)
-      let faturamento = 0, custo = 0
-      itens.forEach(it => {
-        const qtd = num(it.quantidade)
-        const precoVenda = num(it.lanceFinal) || num(it.meuValor)
-        // Custo estimado = Valor mínimo cadastrado na Inscrição de proposta —
-        // mesma fonte usada em ModalEmpenho quando ainda não há cotação de
-        // fornecedor. Sem essa referência, custo fica igual ao preço de venda
-        // (margem zero) em vez de inventar lucro que não existe.
-        const custoUnit = num(it.meuValor) || precoVenda
-        faturamento += qtd * precoVenda
-        custo += qtd * custoUnit
-      })
+      const temValorPorItem = itens.some(it => num(it.lanceFinal) || num(it.meuValor))
+
+      let faturamento = 0, custo = 0, semReferencia = false
+      if (temValorPorItem) {
+        itens.forEach(it => {
+          const qtd = num(it.quantidade)
+          const precoVenda = num(it.lanceFinal) || num(it.meuValor)
+          // Custo estimado = Valor mínimo cadastrado na Inscrição de proposta —
+          // mesma fonte usada em ModalEmpenho quando ainda não há cotação de
+          // fornecedor. Sem essa referência, custo fica igual ao preço de venda
+          // (margem zero) em vez de inventar lucro que não existe.
+          const custoUnit = num(it.meuValor) || precoVenda
+          faturamento += qtd * precoVenda
+          custo += qtd * custoUnit
+        })
+        semReferencia = itens.some(it => !num(it.meuValor) && !num(it.lanceFinal))
+      } else {
+        // Sem detalhamento por item (comum em representação/comissão, onde só
+        // se registra o lance total da licitação) — usa o valor agregado,
+        // mesma fonte que o Relatório mensal já usa nesse caso.
+        faturamento = num(l.nossoLance)
+        custo = faturamento // sem custo por item, margem fica conservadoramente zerada
+        semReferencia = faturamento === 0
+      }
+
       const receita = cfg.modelo === 'comissao'
         ? faturamento * (num(cfg.percentualComissao) / 100)
         : faturamento - custo
-      const semReferencia = itens.some(it => !num(it.meuValor) && !num(it.lanceFinal))
       return { id: l.id, orgao: l.orgao, numeroEdital: l.numeroEdital, empresa_nome: l.empresaNome || l.empresa_nome, modelo: cfg.modelo, faturamento, receita, semReferencia }
     }).filter(x => x.faturamento > 0)
 
