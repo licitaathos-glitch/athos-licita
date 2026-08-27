@@ -260,6 +260,7 @@ export default function AtasPage() {
           ata={editando}
           empresaId={empresaSel || editando.empresa_id}
           empresaNome={editando.empresa_nome || empresaNome}
+          licitacaoIdsComAta={atas.filter(a => a.licitacaoId && a.id !== editando.id).map(a => a.licitacaoId)}
           onFechar={() => setEditando(null)}
           onSalvo={() => { setEditando(null); carregar() }}
         />
@@ -268,7 +269,7 @@ export default function AtasPage() {
   )
 }
 
-function ModalAta({ ata, empresaId, empresaNome, onFechar, onSalvo }) {
+function ModalAta({ ata, empresaId, empresaNome, licitacaoIdsComAta = [], onFechar, onSalvo }) {
   const ed = !!ata.id
   const [f, setF] = useState({
     numeroAta: ata.numeroAta || '', uf: ata.uf || '', orgao: ata.orgao || '', cnpjOrgao: ata.cnpjOrgao || '',
@@ -293,7 +294,10 @@ function ModalAta({ ata, empresaId, empresaNome, onFechar, onSalvo }) {
       if (!r.sucesso) { setGanhas([]); return }
       setGanhas(r.licitacoes.filter(l =>
         String(l.empresa_id) === String(empresaId) &&
-        (l.fase === 'Finalizada' || l.fase === 'Finalizado') && l.resultado === 'Ganhamos'
+        (l.fase === 'Finalizada' || l.fase === 'Finalizado') && l.resultado === 'Ganhamos' &&
+        // já tem ata vinculada em outro registro — some da lista pra não
+        // deixar linkar (e duplicar) a mesma licitação de novo
+        !licitacaoIdsComAta.includes(l.id)
       ))
     }).catch(() => setGanhas([]))
   }, [empresaId])

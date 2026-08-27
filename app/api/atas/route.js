@@ -95,6 +95,17 @@ export async function POST(req) {
       return NextResponse.json({ sucesso: true, id: b.id })
     }
 
+    // Evita duplicar a mesma ata (nº + empresa) — antes não havia nenhuma
+    // checagem aqui, então o mesmo edital linkado de novo no dropdown criava
+    // uma segunda ata idêntica (caso Porto Ferreira).
+    if (b.numeroAta) {
+      const linhas = await lerAba('Atas')
+      const dup = linhas.find(a =>
+        String(a.numeroAta || '').trim().toUpperCase() === String(b.numeroAta).trim().toUpperCase() &&
+        String(a.empresaId || '').trim() === String(b.empresa_id).trim())
+      if (dup) return NextResponse.json({ sucesso: false, erro: `Já existe uma ata nº ${b.numeroAta} cadastrada para esta empresa.`, duplicada: true })
+    }
+
     const empresa = empresas.find(e => String(e.id).trim() === String(b.empresa_id).trim())
     const id = novoId()
     const r = await adicionarLinha('Atas', {

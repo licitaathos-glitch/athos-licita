@@ -147,6 +147,34 @@ export default function FinanceiroPage() {
     }
   }, [licitacoes, atas, empenhos, configs, empresaSel])
 
+  // Todas as atas/contratos da empresa — inclusive as que nunca tiveram uma
+  // licitação "Ganhamos" vinculada (ex: representações fechadas fora da
+  // plataforma). Mostra quanto já foi empenhado, quanto ainda pode ser
+  // faturado (saldo) e quanto já foi efetivamente entregue.
+  const atasResumo = useMemo(() => {
+    if (!atas || !empenhos) return null
+    const base = empresaSel ? atas.filter(a => a.empresa_id === empresaSel) : atas
+    const linhas = base.map(a => {
+      const empDaAta = empenhos.filter(e => e.ataId === a.id && e.status !== 'Cancelado')
+      const valorEmpenhado = empDaAta.reduce((s, e) => s + e.faturamento, 0)
+      const valorEntregue = empDaAta.filter(e => ['Entregue', 'Pago'].includes(e.status)).reduce((s, e) => s + e.faturamento, 0)
+      const saldoFaturavel = Math.max(0, a.valorTotal - valorEmpenhado)
+      return {
+        id: a.id, numeroAta: a.numeroAta, orgao: a.orgao, empresa_nome: a.empresa_nome,
+        valorTotal: a.valorTotal, valorEmpenhado, valorEntregue, saldoFaturavel,
+        dias: a.dias, status: a.status, semLicitacao: !a.licitacaoId,
+      }
+    }).filter(x => x.valorTotal > 0 || x.valorEmpenhado > 0)
+
+    return {
+      linhas: linhas.sort((x, y) => y.saldoFaturavel - x.saldoFaturavel),
+      valorTotal: linhas.reduce((s, x) => s + x.valorTotal, 0),
+      valorEmpenhado: linhas.reduce((s, x) => s + x.valorEmpenhado, 0),
+      valorEntregue: linhas.reduce((s, x) => s + x.valorEntregue, 0),
+      saldoFaturavel: linhas.reduce((s, x) => s + x.saldoFaturavel, 0),
+    }
+  }, [atas, empenhos, empresaSel])
+
   const porOrgao = useMemo(() => {
     const m = {}
     base.forEach(e => {
@@ -210,6 +238,57 @@ export default function FinanceiroPage() {
           </div>
           <p style={{ fontSize: 10.5, color: '#94A3B8', marginTop: 8 }}>
             ⚠️ = item sem valor mínimo nem lance registrado — entrou com valor zerado na conta.
+          </p>
+        </div>
+      )}
+
+      {atasResumo && atasResumo.linhas.length > 0 && (
+        <div className="form-card" style={{ marginTop: 12, marginBottom: 16 }}>
+          <div className="form-card-title">📋 Atas e contratos</div>
+          <p style={{ fontSize: 11.5, color: '#64748B', margin: '-4px 0 10px' }}>
+            Todas as atas — inclusive as sem licitação vinculada — com quanto já foi empenhado, quanto ainda dá pra faturar e quanto já foi entregue.
+          </p>
+          <div className="kpi-grid kpi-4" style={{ marginBottom: 12 }}>
+            <div className="kpi"><div className="kpi-val kv-navy" style={{ fontSize: 19 }}>{fmtBRL(atasResumo.valorTotal)}</div><div className="kpi-label">Total registrado em atas</div></div>
+            <div className="kpi"><div className="kpi-val kv-navy" style={{ fontSize: 19 }}>{fmtBRL(atasResumo.valorEmpenhado)}</div><div className="kpi-label">Já empenhado</div></div>
+            <div className="kpi"><div className="kpi-val kv-amber" style={{ fontSize: 19 }}>{fmtBRL(atasResumo.saldoFaturavel)}</div><div className="kpi-label">Saldo p/ faturar</div></div>
+            <div className="kpi"><div className="kpi-val kv-navy" style={{ fontSize: 19, color: '#8B5CF6' }}>{fmtBRL(atasResumo.valorEntregue)}</div><div className="kpi-label">Já entregue</div></div>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="itens-tbl">
+              <thead><tr>
+                <th>Ata / Órgão</th><th>Empresa</th>
+                <th style={{ textAlign: 'right' }}>Registrado</th>
+                <th style={{ textAlign: 'right' }}>Empenhado</th>
+                <th style={{ textAlign: 'right' }}>Saldo p/ faturar</th>
+                <th style={{ textAlign: 'right' }}>Entregue</th>
+                <th>Vigência</th>
+              </tr></thead>
+              <tbody>
+                {atasResumo.linhas.map(a => (
+                  <tr key={a.id}>
+                    <td style={{ maxWidth: 240 }}>
+                      Ata {a.numeroAta}{a.semLicitacao ? ' 🔗' : ''}
+                      <div style={{ fontSize: 10.5, color: '#94A3B8' }}>{a.orgao}</div>
+                    </td>
+                    <td>{a.empresa_nome}</td>
+                    <td style={{ textAlign: 'right' }}>{fmtBRL(a.valorTotal)}</td>
+                    <td style={{ textAlign: 'right' }}>{fmtBRL(a.valorEmpenhado)}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: a.saldoFaturavel > 0 ? '#D97706' : '#94A3B8' }}>{fmtBRL(a.saldoFaturavel)}</td>
+                    <td style={{ textAlign: 'right', color: '#8B5CF6' }}>{fmtBRL(a.valorEntregue)}</td>
+                    <td>
+                      {a.dias === null ? <span className="pill pill-gray">Indefinida</span>
+                        : a.dias < 0 ? <span className="pill pill-red">Vencida</span>
+                        : a.dias <= 60 ? <span className="pill pill-amber">Vence em {a.dias}d</span>
+                        : <span className="pill pill-green">Vigente</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p style={{ fontSize: 10.5, color: '#94A3B8', marginTop: 8 }}>
+            🔗 = ata sem licitação vinculada na plataforma (ex: representação fechada fora do fluxo de Licitações).
           </p>
         </div>
       )}
