@@ -1,8 +1,8 @@
 'use client'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { useApp } from '@/lib/AppContext'
 import { nomeResultado, corResultado, mesDe } from '@/lib/resultado'
-import { faseDe } from '@/lib/fases'
+import { faseDe, FASES } from '@/lib/fases'
 import { fmtBRL } from '@/lib/comercial'
 
 const MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro']
@@ -66,11 +66,12 @@ export default function RelatorioPage() {
     Promise.all([
       fetch('/api/licitacoes').then(r => r.json()),
       fetch('/api/empenhos').then(r => r.json()),
-    ]).then(([l, e]) => {
+      fetch(`/api/licitacoes/cotacao?empresaId=${empresaAtual}`).then(r => r.json()).catch(() => null),
+    ]).then(([l, e, c]) => {
       if (!l.sucesso) { setErro(l.erro || 'Erro ao carregar.'); return }
-      setDados({ lics: l.licitacoes, empenhos: e.sucesso ? e.empenhos : [] })
+      setDados({ lics: l.licitacoes, empenhos: e.sucesso ? e.empenhos : [], cotacoes: c?.sucesso ? c.cotacoes : [] })
     }).catch(() => setErro('Erro de conexão.'))
-  }, [])
+  }, [empresaAtual])
 
   useEffect(() => { carregar() }, [carregar])
 
@@ -81,6 +82,16 @@ export default function RelatorioPage() {
     if (!dados || !empresaSel) return null
     const todasDaEmpresa = dados.lics.filter(l => l.empresa_id === empresaSel)
     const empenhos = dados.empenhos.filter(e => e.empresa_id === empresaSel && mesDe(e.dataEmpenho) === mes)
+
+    // Nº de cotação de fornecedor por licitação — uma licitação pode ter
+    // pedido cotação a mais de um fornecedor; junta os números preenchidos.
+    const cotacoesPorLic = new Map()
+    ;(dados.cotacoes || []).forEach(c => {
+      if (!c.numeroCotacaoFornecedor) return
+      const lista = cotacoesPorLic.get(c.licitacaoId) || []
+      lista.push(c.numeroCotacaoFornecedor)
+      cotacoesPorLic.set(c.licitacaoId, lista)
+    })
 
     const comDesfecho = l => l.resultado && l.resultado !== 'Aguardando'
 
@@ -120,14 +131,28 @@ export default function RelatorioPage() {
     // ordenado por data (mais antiga primeiro), do jeito que vai pro cliente.
     const porId = new Map()
     ;[...lics, ...aguardando].forEach(l => porId.set(l.id, l))
+
+    // Reorganizado por fase (ordem do fluxo: Em análise → ... → Finalizada →
+    // Descartado), e dentro de cada fase por data — continua sendo UMA
+    // tabela só, com um separador visual entre fases, sem virar tabelas soltas.
+    const ordemFase = FASES.map(f => f.id)
     const todasNoRelatorio = [...porId.values()].sort((a, b) => {
+      const ia = ordemFase.indexOf(faseDe(a.fase || 'Em analise').id)
+      const ib = ordemFase.indexOf(faseDe(b.fase || 'Em analise').id)
+      if (ia !== ib) return ia - ib
       const da = dataRef(a).split(' ')[0].split('/').reverse().join('') || '00000000'
       const db = dataRef(b).split(' ')[0].split('/').reverse().join('') || '00000000'
       return da.localeCompare(db)
     })
 
+    // Licitações com detalhe item a item de vitória/derrota (seção 3):
+    // qualquer disputada (ganhamos, perdemos ou desclassificados) que tenha
+    // itens marcados como participando.
+    const comDetalheItens = disputadas.filter(l => (l.itens || []).some(it => it.participar))
+
     return {
       lics, disputadas, ganhas, perdidas, naoParticipamos, aguardando, todasNoRelatorio,
+      comDetalheItens, cotacoesPorLic,
       taxa,
       faturamento: empenhos.reduce((s, e) => s + e.faturamento, 0),
       receita: empenhos.reduce((s, e) => s + e.receita, 0),
@@ -225,48 +250,60 @@ export default function RelatorioPage() {
                 <thead>
                   <tr>
                     <th>Data</th><th>Portal</th><th>Edital / Objeto</th><th>UF</th>
-                    <th>Fase</th><th>Status</th><th>Nº proposta</th>
+                    <th>Fase</th><th>Status</th><th>Nº proposta</th><th>Nº cotação</th>
                     <th style={{ textAlign: 'right' }}>Valor estimado</th><th style={{ textAlign: 'right' }}>Nosso valor</th>
                     <th>Observações</th><th>Link</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {rel.todasNoRelatorio.map(l => {
+                  {rel.todasNoRelatorio.map((l, i, arr) => {
                     const nosso = valorNossoTotal(l)
                     const estimado = valorEstimadoTotal(l)
                     const fx = faseDe(l.fase || 'Em analise')
+                    const faseAnterior = i > 0 ? faseDe(arr[i - 1].fase || 'Em analise').id : null
+                    const cotNums = rel.cotacoesPorLic.get(l.id) || []
                     return (
-                    <tr key={l.id} style={l.resultado === 'Ganhamos' ? { background: '#DCFCE7' } : undefined}>
-                      <td style={{ whiteSpace: 'nowrap' }}>{(dataRef(l) || '').split(' ')[0] || '—'}</td>
-                      <td>{l.portal || '—'}</td>
-                      <td style={{ maxWidth: 320 }}>
-                        <strong>{l.numeroEdital || 'Sem nº'}</strong>{l.orgao ? ' - ' + l.orgao : ''}
-                        {l.uasg ? ' (UASG ' + l.uasg + ')' : ''}
-                        {l.objeto && <div style={{ color: '#64748B', fontWeight: 400 }}>{l.objeto}</div>}
-                      </td>
-                      <td>{l.uf || '—'}</td>
-                      <td>{fx.nome}</td>
-                      <td style={{ fontWeight: 700, color: corResultado(l.resultado) }}>{statusRelatorio(l)}</td>
-                      <td>{l.numeroProposta || '—'}</td>
-                      <td style={{ textAlign: 'right' }}>{estimado ? brl(estimado) : '—'}</td>
-                      <td style={{ textAlign: 'right' }}>{nosso ? brl(nosso) : '—'}</td>
-                      <td style={{ maxWidth: 260 }}>
-                        {l.motivo && <div>{l.motivo}</div>}
-                        {l.observacaoDisputa && <div>{l.observacaoDisputa}</div>}
-                        {!l.motivo && !l.observacaoDisputa && '—'}
-                      </td>
-                      <td>{l.link ? <a href={l.link} target="_blank" rel="noreferrer">abrir</a> : '—'}</td>
-                    </tr>
+                    <Fragment key={l.id}>
+                      {fx.id !== faseAnterior && (
+                        <tr className="rel-fase-sep" key={'fase-' + fx.id}>
+                          <td colSpan={12} style={{ background: fx.cor + '1A', color: fx.cor, fontWeight: 700, fontSize: 11.5 }}>
+                            {fx.nome.toUpperCase()}
+                          </td>
+                        </tr>
+                      )}
+                      <tr style={l.resultado === 'Ganhamos' ? { background: '#DCFCE7' } : undefined}>
+                        <td style={{ whiteSpace: 'nowrap' }}>{(dataRef(l) || '').split(' ')[0] || '—'}</td>
+                        <td>{l.portal || '—'}</td>
+                        <td style={{ maxWidth: 320 }}>
+                          <strong>{l.numeroEdital || 'Sem nº'}</strong>{l.orgao ? ' - ' + l.orgao : ''}
+                          {l.uasg ? ' (UASG ' + l.uasg + ')' : ''}
+                          {l.objeto && <div style={{ color: '#64748B', fontWeight: 400 }}>{l.objeto}</div>}
+                        </td>
+                        <td>{l.uf || '—'}</td>
+                        <td>{fx.nome}</td>
+                        <td style={{ fontWeight: 700, color: corResultado(l.resultado) }}>{statusRelatorio(l)}</td>
+                        <td>{l.numeroProposta || '—'}</td>
+                        <td>{cotNums.length ? cotNums.join(', ') : '—'}</td>
+                        <td style={{ textAlign: 'right' }}>{estimado ? brl(estimado) : '—'}</td>
+                        <td style={{ textAlign: 'right' }}>{nosso ? brl(nosso) : '—'}</td>
+                        <td style={{ maxWidth: 260 }}>
+                          {l.motivo && <div>{l.motivo}</div>}
+                          {l.observacaoDisputa && <div>{l.observacaoDisputa}</div>}
+                          {!l.motivo && !l.observacaoDisputa && '—'}
+                        </td>
+                        <td>{l.link ? <a href={l.link} target="_blank" rel="noreferrer">abrir</a> : '—'}</td>
+                      </tr>
+                    </Fragment>
                   )})}
                 </tbody>
               </table>
             </>
           )}
 
-          {rel.ganhas.length > 0 && (
+          {rel.comDetalheItens.length > 0 && (
             <>
-              <h2 className="rel-h2">3. Detalhamento das vitórias</h2>
-              {rel.ganhas.map(l => {
+              <h2 className="rel-h2">3. Detalhamento por item — vitórias e derrotas</h2>
+              {rel.comDetalheItens.map(l => {
                 const itensParticipando = (l.itens || []).filter(it => it.participar)
                 return (
                 <div className="rel-lic" key={l.id} style={{ borderLeftColor: corResultado(l.resultado) }}>
@@ -279,22 +316,42 @@ export default function RelatorioPage() {
                   </div>
                   {itensParticipando.length > 0 ? (
                     <table className="rel-tabela" style={{ marginTop: 6 }}>
-                      <thead><tr><th>Item</th><th style={{ textAlign: 'right' }}>Vl. estimado</th><th style={{ textAlign: 'right' }}>Valor que vencemos</th></tr></thead>
+                      <thead>
+                        <tr>
+                          <th>Item</th><th>Colocação</th><th>Situação</th>
+                          <th style={{ textAlign: 'right' }}>Vl. estimado</th>
+                          <th style={{ textAlign: 'right' }}>Nosso valor mínimo</th>
+                          <th style={{ textAlign: 'right' }}>Valor do 1º colocado</th>
+                        </tr>
+                      </thead>
                       <tbody>
-                        {itensParticipando.map((it, i) => (
-                          <tr key={i}>
-                            <td style={{ maxWidth: 320 }}>{it.descricao}</td>
-                            <td style={{ textAlign: 'right' }}>{it.valorUnitarioRef ? brl(it.valorUnitarioRef) : 'Sigiloso'}</td>
-                            <td style={{ textAlign: 'right' }}>{brl(valorVencidoItem(it))}</td>
-                          </tr>
-                        ))}
+                        {itensParticipando.map((it, i) => {
+                          const colocacao = Number(it.colocacao) || null
+                          const venceuItem = colocacao === 1 || (!colocacao && l.resultado === 'Ganhamos')
+                          const nossoValor = valorVencidoItem(it)
+                          // Preço do 1º colocado: se já ganhamos (colocação 1), é o nosso
+                          // próprio valor; senão é o preço do concorrente registrado no item.
+                          const valor1oColocado = venceuItem ? nossoValor : (Number(it.vencedorPreco) || null)
+                          return (
+                            <tr key={i} style={venceuItem ? { background: '#DCFCE7' } : undefined}>
+                              <td style={{ maxWidth: 280 }}>{it.descricao}</td>
+                              <td>{colocacao ? colocacao + 'º' : '—'}</td>
+                              <td style={{ fontWeight: 700, color: venceuItem ? '#16A34A' : '#DC2626' }}>
+                                {venceuItem ? 'Vencido' : 'Perdido'}
+                              </td>
+                              <td style={{ textAlign: 'right' }}>{it.valorUnitarioRef ? brl(it.valorUnitarioRef) : 'Sigiloso'}</td>
+                              <td style={{ textAlign: 'right' }}>{brl(nossoValor)}</td>
+                              <td style={{ textAlign: 'right' }}>{valor1oColocado ? brl(valor1oColocado) : '—'}{it.vencedorNome && !venceuItem ? <div style={{ fontWeight: 400, color: '#64748B' }}>{it.vencedorNome}</div> : null}</td>
+                            </tr>
+                          )
+                        })}
                       </tbody>
                     </table>
                   ) : (
                     <div className="rel-lic-disputa">
                       {l.valor && <>Valor estimado: <strong>{l.valor}</strong></>}
-                      {l.nossoLance && <> · Nosso lance: <strong>{brl(l.nossoLance)}</strong></>}
-                      {l.valorVencedor && <> · Vencedor: <strong>{brl(l.valorVencedor)}</strong>{l.empresaVencedora ? ' (' + l.empresaVencedora + ')' : ''}</>}
+                      {l.nossoLance && <> · Nosso valor mínimo: <strong>{brl(l.nossoLance)}</strong></>}
+                      {l.valorVencedor && <> · Valor do 1º colocado: <strong>{brl(l.valorVencedor)}</strong>{l.empresaVencedora ? ' (' + l.empresaVencedora + ')' : ''}</>}
                       {l.colocacao && <> · Nossa colocação: {l.colocacao}º</>}
                       {!l.valor && !l.nossoLance && !l.valorVencedor && !l.colocacao && (
                         <span style={{ color: '#94A3B8' }}>Sem itens marcados como participando nem valores de lance registrados nesta licitação — confira a fase "Inscrição de proposta" no Andamento.</span>

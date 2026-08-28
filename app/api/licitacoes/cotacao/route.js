@@ -14,13 +14,21 @@ export async function GET(req) {
 
   const { searchParams } = new URL(req.url)
   const licitacaoId = searchParams.get('licitacaoId')
-  if (!licitacaoId) return NextResponse.json({ sucesso: false, erro: 'Informe a licitação.' })
+  const empresaId = searchParams.get('empresaId')
+  if (!licitacaoId && !empresaId) return NextResponse.json({ sucesso: false, erro: 'Informe a licitação ou a empresa.' })
 
   try {
     await garantirAba('Cotacoes', COLS_COTACAO)
-    const linhas = (await lerAba('Cotacoes')).filter(c => c.licitacaoId === licitacaoId)
+    // licitacaoId: comportamento original, uma licitação por vez.
+    // empresaId (sem licitacaoId): modo em lote usado pelo relatório mensal,
+    // que precisa do número de cotação de todas as licitações da empresa de
+    // uma vez só, sem uma chamada por licitação.
+    const todas = await lerAba('Cotacoes')
+    const linhas = licitacaoId
+      ? todas.filter(c => c.licitacaoId === licitacaoId)
+      : todas.filter(c => c.empresaId === empresaId)
     const cotacoes = linhas.map(c => ({
-      id: c.id, destinatarioEmail: c.destinatarioEmail, status: c.status || 'Pendente',
+      id: c.id, licitacaoId: c.licitacaoId, destinatarioEmail: c.destinatarioEmail, status: c.status || 'Pendente',
       itens: parseItensCotacao(c.itensJson), respostaItens: parseItensCotacao(c.respostaItensJson),
       numeroCotacaoFornecedor: c.numeroCotacaoFornecedor || '', anexoDriveUrl: c.anexoDriveUrl || '',
       respondidoEm: c.respondidoEm || '', criadoEm: c.criadoEm || '', token: c.token,
