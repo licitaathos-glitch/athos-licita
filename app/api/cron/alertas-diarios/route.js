@@ -10,6 +10,15 @@ export const maxDuration = 300 // até 5 min — dá tempo para consultar o PNCP
 const ABA_ENVIADAS = 'Alertas_Oportunidades_Enviadas'
 const DESTINO_FIXO = 'licita.athos@gmail.com'
 
+// Além da caixa do escritório, manda para os e-mails cadastrados na empresa —
+// o alerta é sobre certidão e sessão dela, quem precisa agir muitas vezes é o
+// cliente. Aceita vários separados por vírgula ou ponto e vírgula.
+function destinatarios(empresa) {
+  const daEmpresa = String(empresa?.email || '')
+    .split(/[,;]/).map(x => x.trim()).filter(x => x.includes('@'))
+  return [...new Set([DESTINO_FIXO, ...daEmpresa])].join(',')
+}
+
 // Vercel Cron chama este endpoint às 08h (horário de Brasília) todo dia.
 // Protegido por CRON_SECRET — configure essa env var na Vercel para ativar
 // a proteção; sem ela, o endpoint responde 500 por segurança.
@@ -74,12 +83,14 @@ export async function GET(req) {
       if (html) {
         const env = await chamarGAS({
           action: 'enviarEmailGenerico',
-          para: DESTINO_FIXO,
+          para: destinatarios(empresa),
           assunto: `Alerta diário — ${empresa.nome}`,
           htmlBody: html,
         })
         resumo.push({
           empresa: empresa.nome, enviado: !!(env && env.sucesso),
+          para: destinatarios(empresa),
+          erroEnvio: env && env.sucesso ? undefined : (env?.erro || 'o Apps Script não confirmou o envio'),
           certidoes: certidoes.length, atas: atasVenc.length, sessoes: sessoes.length, oportunidades: oportunidades.length,
         })
         // registra as oportunidades já avisadas, para não repetir amanhã
