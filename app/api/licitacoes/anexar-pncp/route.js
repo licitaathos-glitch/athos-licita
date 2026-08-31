@@ -26,20 +26,41 @@ export async function POST(req) {
     // Nunca deixa o download do PNCP ficar pendurado sem resposta.
     // Tenta 3 vezes com uma pequena pausa — Connect Timeout costuma ser
     // instabilidade momentânea de rede, não o link em si.
-    async function baixar() {
+    // O PNCP responde 301 nesses endereços e o "redirect: follow" do Node não
+    // segue (foi o que impedia a extração de funcionar). Seguimos o Location
+    // na mão, até três saltos, sem sair do domínio do PNCP.
+    async function pegar(endereco) {
       const controlador = new AbortController()
       const timer = setTimeout(() => controlador.abort(), 15000)
       try {
-        return await fetch(url, {
+        return await fetch(endereco, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (compatible; AthosLicita/1.0)',
             'Accept': '*/*', 'Referer': 'https://pncp.gov.br/',
           },
-          redirect: 'follow', cache: 'no-store', signal: controlador.signal,
+          redirect: 'manual', cache: 'no-store', signal: controlador.signal,
         })
       } finally {
         clearTimeout(timer)
       }
+    }
+
+    async function baixar() {
+      let atual = url
+      let resp = await pegar(atual)
+      let saltos = 0
+      while (resp && [301, 302, 303, 307, 308].includes(resp.status) && saltos < 3) {
+        const destino = resp.headers.get('location')
+        if (!destino) break
+        const proxima = new URL(destino, atual).toString()
+        if (proxima === atual) break
+        const h = new URL(proxima).hostname
+        if (h !== 'pncp.gov.br' && !h.endsWith('.pncp.gov.br')) break
+        atual = proxima
+        saltos++
+        resp = await pegar(atual)
+      }
+      return resp
     }
     const espera = ms => new Promise(res => setTimeout(res, ms))
     let r, ultimoErro
