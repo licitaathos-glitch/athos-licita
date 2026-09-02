@@ -25,9 +25,18 @@ export async function POST(req) {
     const empresaAtual = empresas.find(e => String(e.id).trim() === String(empresaId).trim())
     if (!empresaAtual) return NextResponse.json({ sucesso: false, erro: 'Empresa não encontrada.' })
 
+    // Os dados cadastrais estão nos documentos societários, não em qualquer
+    // certidão. Manda só os que valem a pena, no máximo três — cada PDF a mais
+    // é mais tempo no Gemini, e o Apps Script tem limite de execução.
+    const PRIORIDADE = ['contrato_social', 'cartao_cnpj', 'cert_simpl', 'insc_est', 'insc_mun', 'alvara_func']
     const arquivos = documentos
       .filter(d => String(d.empresa_id || '').trim() === String(empresaId).trim() && d.drive_file_id)
       .map(d => ({ driveFileId: d.drive_file_id, tipo: d.tipo_slug }))
+      .sort((a, b) => {
+        const pa = PRIORIDADE.indexOf(a.tipo); const pb = PRIORIDADE.indexOf(b.tipo)
+        return (pa === -1 ? 99 : pa) - (pb === -1 ? 99 : pb)
+      })
+      .slice(0, 3)
 
     if (!arquivos.length) {
       return NextResponse.json({ sucesso: false, erro: 'Esta empresa não tem nenhuma certidão anexada no Drive ainda.' })

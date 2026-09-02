@@ -174,10 +174,18 @@ function CardEmpresa({ empresa, config, onSalvar, onSalvarDados }) {
   async function extrairDosDocumentos() {
     setExtraindo(true); setMsgExtracao('')
     try {
-      const r = await fetch('/api/empresas/extrair-cadastro', {
+      // Resposta vazia acontece quando a função da Vercel estoura o tempo —
+      // sem este tratamento a tela mostrava "Unexpected end of JSON input"
+      const resp = await fetch('/api/empresas/extrair-cadastro', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ empresaId: empresa.id }),
-      }).then(x => x.json())
+      })
+      const bruto = await resp.text()
+      let r
+      try { r = JSON.parse(bruto) } catch {
+        setMsgExtracao('❌ A leitura demorou demais e foi interrompida. Tente de novo — se repetir, deixe anexados só o contrato social e o cartão CNPJ.')
+        setExtraindo(false); return
+      }
       if (!r.sucesso) { setMsgExtracao('❌ ' + (r.erro || 'Erro ao extrair.')); setExtraindo(false); return }
       if (r.aviso) { setMsgExtracao('⚠️ ' + r.aviso); setExtraindo(false); return }
       setMsgExtracao('✅ Preenchido a partir das certidões: ' + r.preenchidos.join(', '))
