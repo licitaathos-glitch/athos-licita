@@ -170,7 +170,7 @@ function LicitacoesConteudo() {
           {perfil === 'adm' && (
             <a href="/dashboard/importar-licitacoes" className="btn-ghost">⬆ Importar planilha</a>
           )}
-          {!somenteConsulta && empresaSel && (
+          {!somenteConsulta && (
             <button className="btn-primary" style={{ marginTop: 0 }} onClick={() => setEditando({})}>+ Incluir licitação</button>
           )}
         </div>
@@ -182,9 +182,7 @@ function LicitacoesConteudo() {
         <div className="kpi"><div className="kpi-val kv-amber">{vaiParticipar}</div><div className="kpi-label">Vamos participar</div></div>
       </div>
 
-      {!empresaSel && !somenteConsulta && (
-        <div className="aviso-box">Selecione uma empresa no menu lateral para incluir licitações.</div>
-      )}
+
 
       <div className="filtro-bar">
         <input className="busca-input" placeholder="Buscar por objeto, órgão, edital, portal..." value={busca} onChange={e => setBusca(e.target.value)} />
@@ -285,15 +283,20 @@ function LicitacoesConteudo() {
       )}
 
       {editando && (
-        <ModalLic lic={editando} empresaId={empresaSel || editando.empresa_id} empresaNome={empresaNome}
+        <ModalLic lic={editando} empresaId={editando.empresa_id || empresaSel || ''} empresas={empresas}
           onFechar={() => setEditando(null)} onSalvo={() => { setEditando(null); carregar() }} />
       )}
     </div>
   )
 }
 
-function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
+function ModalLic({ lic, empresaId, empresas = [], onFechar, onSalvo }) {
   const ed = !!lic.id
+  // A empresa passou a ser escolhida aqui dentro, e pode ser trocada depois:
+  // antes vinha travada da barra lateral e, para corrigir, só excluindo e
+  // cadastrando de novo.
+  const [empresaEscolhida, setEmpresaEscolhida] = useState(empresaId || '')
+  const empresaNome = empresas.find(e => String(e.id) === String(empresaEscolhida))?.nome || ''
   const [linkPncp, setLinkPncp] = useState('')
   const [extraindo, setExtraindo] = useState(false)
   const [f, setF] = useState({
@@ -480,7 +483,7 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
       const r = await fetch('/api/licitacoes', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: lic.id || null, empresa_id: empresaId, ...f,
+          id: lic.id || null, empresa_id: empresaEscolhida, ...f,
           dataAbertura: abertura, dataLimite: limite,
           dataSessao: dataSessaoFinal,
           itensJson: JSON.stringify(itens.filter(it => String(it.descricao || '').trim())),
@@ -539,6 +542,19 @@ function ModalLic({ lic, empresaId, empresaNome, onFechar, onSalvo }) {
             </div>
             {ok && <div style={{ marginTop: 8, fontSize: 12.5, color: '#166534', fontWeight: 600 }}>✅ {ok}</div>}
             {erro && <div className="l-err" style={{ marginTop: 8 }}>{erro}</div>}
+          </div>
+
+          <div className="form-sub">
+            <label>EMPRESA QUE VAI PARTICIPAR</label>
+            <select value={empresaEscolhida} onChange={e => setEmpresaEscolhida(e.target.value)}>
+              <option value="">Selecione a empresa...</option>
+              {empresas.map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
+            </select>
+            {ed && String(empresaEscolhida) !== String(lic.empresa_id || '') && (
+              <p className="dica-menus" style={{ margin: '4px 0 0', color: '#B45309' }}>
+                ⚠️ Ao salvar, esta licitação sai de <strong>{lic.empresa_nome}</strong> e passa para a empresa escolhida acima.
+              </p>
+            )}
           </div>
 
           <div className="form-sub"><label>OBJETO</label><textarea rows={3} value={f.objeto} onChange={e => set('objeto', e.target.value)} /></div>

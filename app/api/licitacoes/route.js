@@ -7,6 +7,8 @@ import { novoId } from '@/lib/uuid'
 import { chunkCampo, juntarChunk, nomesChunk } from '@/lib/chunkCampo'
 import { COLS_COTACAO } from '@/lib/cotacao'
 
+// empresaId/empresaNome não entram em CAMPOS de propósito: só são alterados
+// no caminho explícito de troca de empresa, mais abaixo no POST.
 const CAMPOS = ['numeroPNCP','numeroEdital','objeto','orgao','uasg','uf','valor','dataAbertura',
   'dataLimite','dataSessao','modalidade','status','link','portal','srp','numeroProposta','anexoDriveId','anexoDriveUrl','anexosJson',
   'itensJson','checklistJson','resumoEmailsJson','participar', 'fase', ...COLS_RESULTADO]
@@ -150,6 +152,18 @@ export async function POST(req) {
     }
 
     if (b.id) {
+      // Trocar a empresa da licitação é edição normal, não recadastro: antes
+      // empresaId nunca entrava no update e a única saída era excluir e criar
+      // de novo, perdendo itens, registros e histórico. A permissão já foi
+      // conferida acima (o usuário precisa alcançar a empresa de destino).
+      const atualAntes = (await lerAba('Licitacoes')).find(l => String(l.id || '').trim() === String(b.id).trim())
+      const empresaDestino = empresas.find(e => String(e.id).trim() === String(b.empresa_id).trim())
+      if (empresaDestino && atualAntes &&
+          String(atualAntes.empresaId || '').trim() !== String(b.empresa_id).trim()) {
+        campos.empresaId = b.empresa_id
+        campos.empresaNome = empresaDestino.nome
+      }
+
       const r = await atualizarLinha('Licitacoes', 'id', b.id, campos)
       if (!r.ok) return NextResponse.json({ sucesso: false, erro: r.erro })
 
