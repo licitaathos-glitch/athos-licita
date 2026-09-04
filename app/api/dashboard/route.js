@@ -51,7 +51,12 @@ export async function GET(req) {
         .map(d => ({ tipo: String(d.tipo_slug || ''), validade: d.validade || '', dias: diffDias(d.validade) }))
         .filter(d => d.dias !== null && d.dias <= 7)
         .sort((a, b) => a.dias - b.dias)
-      return { id: e.id, nome: e.nome, cnpj: e.cnpj, responsavel: e.responsavel || '', vencidas, alerta, regulares, status, pendencias }
+      return {
+        id: e.id, nome: e.nome, cnpj: e.cnpj, responsavel: e.responsavel || '',
+        cidade: e.cidade || '', uf: e.uf || '', telefone: e.telefone || '', email: e.email || '',
+        rep_nome: e.rep_nome || '', rep_cargo: e.rep_cargo || '',
+        vencidas, alerta, regulares, status, pendencias,
+      }
     })
 
     return NextResponse.json({

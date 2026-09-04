@@ -10,13 +10,33 @@ export const maxDuration = 300 // até 5 min — dá tempo para consultar o PNCP
 const ABA_ENVIADAS = 'Alertas_Oportunidades_Enviadas'
 const DESTINO_FIXO = 'licita.athos@gmail.com'
 
-// Além da caixa do escritório, manda para os e-mails cadastrados na empresa —
-// o alerta é sobre certidão e sessão dela, quem precisa agir muitas vezes é o
-// cliente. Aceita vários separados por vírgula ou ponto e vírgula.
-function destinatarios(empresa) {
-  const daEmpresa = String(empresa?.email || '')
-    .split(/[,;]/).map(x => x.trim()).filter(x => x.includes('@'))
-  return [...new Set([DESTINO_FIXO, ...daEmpresa])].join(',')
+// Manda para os USUÁRIOS do sistema que enxergam essa empresa — mesma regra
+// de visibilidade de lib/auth.js#empresasVisiveis, mas invertida (empresa -> usuários):
+// - perfil admin: recebe alerta de todas as empresas
+// - perfil empresa: recebe só da própria empresa (empresa_id)
+// - perfil analista: recebe das empresas em empresas_permitidas (vazio = todas)
+// Antes disso usava o e-mail cadastrado NA empresa (contato comercial dela,
+// não um usuário do sistema) — trocado a pedido do Adriano em 04/09/2026.
+function usuariosDaEmpresa(empresaId, usuarios) {
+  return usuarios.filter(u => {
+    if (!u.email) return false
+    if (String(u.ativo ?? 'TRUE').trim().toUpperCase() === 'FALSE') return false
+    const perfil = String(u.perfil || '').trim().toLowerCase()
+    if (['admin', 'adm', 'administrador', 'administradora'].includes(perfil)) return true
+    if (perfil === 'empresa') return String(u.empresa_id || '').trim() === empresaId
+    if (perfil === 'analista') {
+      const permitidas = String(u.empresas_permitidas || '')
+        .split(',').map(s => s.trim()).filter(Boolean)
+      return !permitidas.length || permitidas.includes(empresaId)
+    }
+    return false
+  })
+}
+
+function destinatarios(empresaId, usuarios) {
+  const dosUsuarios = usuariosDaEmpresa(empresaId, usuarios)
+    .map(u => String(u.email).trim()).filter(e => e.includes('@'))
+  return [...new Set([DESTINO_FIXO, ...dosUsuarios])].join(',')
 }
 
 // Vercel Cron chama este endpoint às 08h (horário de Brasília) todo dia.
@@ -34,8 +54,8 @@ export async function GET(req) {
 
   const resumo = []
   try {
-    const [empresas, documentos, atas, licitacoes, criterios] = await Promise.all([
-      lerAba('Empresas'), lerAba('Documentos'), lerAba('Atas'), lerAba('Licitacoes'), lerAba(ABA_CRITERIOS),
+    const [empresas, documentos, atas, licitacoes, criterios, usuarios] = await Promise.all([
+      lerAba('Empresas'), lerAba('Documentos'), lerAba('Atas'), lerAba('Licitacoes'), lerAba(ABA_CRITERIOS), lerAba('Usuarios'),
     ])
     await garantirAba(ABA_ENVIADAS, ['chave', 'empresaId', 'numeroPNCP', 'enviadoEm'])
     const jaEnviadas = new Set((await lerAba(ABA_ENVIADAS)).map(e => e.chave))
@@ -81,15 +101,16 @@ export async function GET(req) {
       })
 
       if (html) {
+        const para = destinatarios(id, usuarios)
         const env = await chamarGAS({
           action: 'enviarEmailGenerico',
-          para: destinatarios(empresa),
+          para,
           assunto: `Alerta diário — ${empresa.nome}`,
           htmlBody: html,
         })
         resumo.push({
           empresa: empresa.nome, enviado: !!(env && env.sucesso),
-          para: destinatarios(empresa),
+          para,
           erroEnvio: env && env.sucesso ? undefined : (env?.erro || 'o Apps Script não confirmou o envio'),
           certidoes: certidoes.length, atas: atasVenc.length, sessoes: sessoes.length, oportunidades: oportunidades.length,
         })

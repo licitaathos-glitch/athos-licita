@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useApp } from '@/lib/AppContext'
 import PainelAgenda from '@/components/PainelAgenda'
 import PainelPendencias from '@/components/PainelPendencias'
+import CardEmpresaAtiva from '@/components/CardEmpresaAtiva'
 import ModalDetalheLicitacao from '@/components/ModalDetalheLicitacao'
 import { faseDe } from '@/lib/fases'
 import { rotuloTipo } from '@/lib/tiposCertidao'
@@ -65,6 +66,8 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {empresaSel && empresas[0] && <CardEmpresaAtiva empresa={empresas[0]} />}
+
       {/* Cada assunto na sua janela, no visual da agenda. Duas colunas no
           desktop, uma no celular — a página quebra em objetos independentes. */}
       <div className="dash-janelas">
@@ -100,7 +103,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="janela-dash">
+        {!empresaSel && <div className="janela-dash">
           <div className="janela-dash-hdr">
             <span>🏢 Empresas</span>
             <span className="janela-dash-cont">{empresas.length}</span>
@@ -144,7 +147,7 @@ export default function DashboardPage() {
               </div>
             ))}
           </div>
-        </div>
+        </div>}
       </div>
 
       {carregandoLic && (
