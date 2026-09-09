@@ -136,7 +136,12 @@ export default function RelatorioPage() {
     // Descartado), e dentro de cada fase por data — continua sendo UMA
     // tabela só, com um separador visual entre fases, sem virar tabelas soltas.
     const ordemFase = FASES.map(f => f.id)
-    const todasNoRelatorio = [...porId.values()].sort((a, b) => {
+    // A Seção 2 mostra tudo que ainda não foi disputado (Em análise,
+    // Inscrição, Aguardando, Descartado). As "Finalizada" saem daqui pra
+    // não repetir o que já é mostrado com detalhe na Seção 3.
+    const todasNoRelatorio = [...porId.values()]
+      .filter(l => faseDe(l.fase || 'Em analise').id !== 'Finalizada')
+      .sort((a, b) => {
       const ia = ordemFase.indexOf(faseDe(a.fase || 'Em analise').id)
       const ib = ordemFase.indexOf(faseDe(b.fase || 'Em analise').id)
       if (ia !== ib) return ia - ib
