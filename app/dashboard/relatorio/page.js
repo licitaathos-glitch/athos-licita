@@ -1,59 +1,14 @@
 'use client'
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { useApp } from '@/lib/AppContext'
-import { nomeResultado, corResultado, mesDe } from '@/lib/resultado'
-import { faseDe, FASES } from '@/lib/fases'
+import { nomeResultado, corResultado } from '@/lib/resultado'
+import { faseDe } from '@/lib/fases'
 import { fmtBRL } from '@/lib/comercial'
-
-const MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro']
-const brl = v => v ? 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '—'
-
-// Data que de fato representa "quando" a licitação acontece: a sessão, se
-// já tiver sido ajustada; senão o limite da proposta; senão a abertura.
-// Nunca usar dataAbertura sozinha — ela só marca o início do prazo.
-const dataRef = l => l.dataSessao || l.dataLimite || l.dataAbertura
-
-// Rótulo de status pro relatório, no mesmo espírito da planilha do Adriano
-// (VENCEDOR, PERDIDA, NÃO PARTICIPAÇÃO, PARTICIPAR...)
-const statusRelatorio = l => {
-  if (l.resultado === 'Ganhamos') return 'VENCEDOR'
-  if (['Perdemos', 'Desclassificados'].includes(l.resultado)) return 'PERDIDA'
-  if (l.resultado === 'Nao participamos') return 'NÃO PARTICIPAÇÃO'
-  if (l.resultado === 'Deserta') return 'DESERTA/FRACASSADA'
-  if (l.resultado === 'Cancelada') return 'CANCELADA/SUSPENSA'
-  return 'PARTICIPAR'
-}
-
-// Valor com que efetivamente disputamos um item (ganhando ou perdendo): o
-// lance final registrado na fase "Finalizada", ou o valor mínimo proposto
-// (convertendo % de desconto pro preço equivalente, quando for o caso).
-const valorVencidoItem = it => {
-  if (it.lanceFinal) return Number(it.lanceFinal) || 0
-  const estimado = Number(it.valorUnitarioRef) || 0
-  const v = Number(it.meuValor) || 0
-  return it.formaValor === 'desconto' ? estimado * (1 - v / 100) : v
-}
-
-// Valor da nossa proposta pra licitação inteira — soma dos itens
-// participando quando há itens cadastrados, senão o campo único de lance
-// (nossoLance), usado tanto pra vitórias quanto pra derrotas.
-const valorNossoTotal = l => {
-  const marcados = (l.itens || []).filter(it => it.participar)
-  if (marcados.length) {
-    return marcados.reduce((s, it) => s + (Number(it.quantidade) || 0) * valorVencidoItem(it), 0)
-  }
-  return Number(l.nossoLance) || 0
-}
-
-// Valor estimado só dos itens em que vamos/fomos participar — quando há
-// itens cadastrados. Sem itens, usa o campo único "valor" da licitação.
-const valorEstimadoTotal = l => {
-  const marcados = (l.itens || []).filter(it => it.participar)
-  if (marcados.length) {
-    return marcados.reduce((s, it) => s + (Number(it.quantidade) || 0) * (Number(it.valorUnitarioRef) || 0), 0)
-  }
-  return Number(String(l.valor || '').replace(/[^\d,.-]/g, '').replace(',', '.')) || 0
-}
+import {
+  MESES, brl, dataRef, statusRelatorio, valorVencidoItem, valorNossoTotal,
+  valorEstimadoTotal, calcularRelatorio,
+} from '@/lib/relatorio'
+import EnviarRelatorioEmail from '@/components/EnviarRelatorioEmail'
 
 export default function RelatorioPage() {
   const { empresaAtual, empresas } = useApp()
@@ -80,89 +35,7 @@ export default function RelatorioPage() {
 
   const rel = useMemo(() => {
     if (!dados || !empresaSel) return null
-    const todasDaEmpresa = dados.lics.filter(l => l.empresa_id === empresaSel)
-    const empenhos = dados.empenhos.filter(e => e.empresa_id === empresaSel && mesDe(e.dataEmpenho) === mes)
-
-    // Nº de cotação de fornecedor por licitação — uma licitação pode ter
-    // pedido cotação a mais de um fornecedor; junta os números preenchidos.
-    const cotacoesPorLic = new Map()
-    ;(dados.cotacoes || []).forEach(c => {
-      if (!c.numeroCotacaoFornecedor) return
-      const lista = cotacoesPorLic.get(c.licitacaoId) || []
-      lista.push(c.numeroCotacaoFornecedor)
-      cotacoesPorLic.set(c.licitacaoId, lista)
-    })
-
-    const comDesfecho = l => l.resultado && l.resultado !== 'Aguardando'
-
-    // Para quem já tem desfecho, o mês do relatório é definido pela DATA DE
-    // HOMOLOGAÇÃO (é o campo que a própria tela de Andamento explica: "é o
-    // mês em que a licitação entra no relatório, não o mês em que foi
-    // aberta"). Só cai pra sessão/limite/abertura se não tiver homologação
-    // registrada (ex: "Não participamos", que não passa por homologação).
-    const mesDoDesfecho = l => mesDe(l.dataHomologacao) || mesDe(dataRef(l))
-
-    // "Oportunidades analisadas" = o que teve desfecho neste mês (pela
-    // homologação) + o que ainda está pendente com sessão/limite/abertura
-    // neste mês — ou seja, todo mundo que fez parte do trabalho do mês.
-    const decididasNoMes = todasDaEmpresa.filter(l => comDesfecho(l) && mesDoDesfecho(l) === mes)
-    const pendentesNoMes = todasDaEmpresa.filter(l => !comDesfecho(l) && mesDe(dataRef(l)) === mes)
-    const lics = [...decididasNoMes, ...pendentesNoMes]
-
-    // O "em andamento" mostra o que ainda está sem desfecho até o último dia
-    // do mês do relatório (olhando pra trás) — nunca usa a data de hoje,
-    // porque o relatório pode ser gerado bem depois do mês em questão. Isso
-    // deixa de fora sessões futuras já agendadas além do mês do relatório.
-    const aguardando = todasDaEmpresa.filter(l => {
-      if (comDesfecho(l)) return false
-      const m = mesDe(dataRef(l))
-      return !m || m <= mes
-    })
-
-    const disputadas = lics.filter(l => ['Ganhamos', 'Perdemos', 'Desclassificados'].includes(l.resultado))
-    const ganhas = lics.filter(l => l.resultado === 'Ganhamos')
-    const perdidas = lics.filter(l => ['Perdemos', 'Desclassificados'].includes(l.resultado))
-    const naoParticipamos = lics.filter(l => l.resultado === 'Nao participamos')
-
-    const taxa = disputadas.length ? (ganhas.length / disputadas.length) * 100 : 0
-
-    // Lista única pro relatório: tudo que entrou no mês (decididas + pendentes
-    // do mês) mais o que ficou em andamento de meses anteriores — sem repetir,
-    // ordenado por data (mais antiga primeiro), do jeito que vai pro cliente.
-    const porId = new Map()
-    ;[...lics, ...aguardando].forEach(l => porId.set(l.id, l))
-
-    // Reorganizado por fase (ordem do fluxo: Em análise → ... → Finalizada →
-    // Descartado), e dentro de cada fase por data — continua sendo UMA
-    // tabela só, com um separador visual entre fases, sem virar tabelas soltas.
-    const ordemFase = FASES.map(f => f.id)
-    // A Seção 2 mostra tudo que ainda não foi disputado (Em análise,
-    // Inscrição, Aguardando, Descartado). As "Finalizada" saem daqui pra
-    // não repetir o que já é mostrado com detalhe na Seção 3.
-    const todasNoRelatorio = [...porId.values()]
-      .filter(l => faseDe(l.fase || 'Em analise').id !== 'Finalizada')
-      .sort((a, b) => {
-      const ia = ordemFase.indexOf(faseDe(a.fase || 'Em analise').id)
-      const ib = ordemFase.indexOf(faseDe(b.fase || 'Em analise').id)
-      if (ia !== ib) return ia - ib
-      const da = dataRef(a).split(' ')[0].split('/').reverse().join('') || '00000000'
-      const db = dataRef(b).split(' ')[0].split('/').reverse().join('') || '00000000'
-      return da.localeCompare(db)
-    })
-
-    // Licitações com detalhe item a item de vitória/derrota (seção 3):
-    // qualquer disputada (ganhamos, perdemos ou desclassificados) que tenha
-    // itens marcados como participando.
-    const comDetalheItens = disputadas.filter(l => (l.itens || []).some(it => it.participar))
-
-    return {
-      lics, disputadas, ganhas, perdidas, naoParticipamos, aguardando, todasNoRelatorio,
-      comDetalheItens, cotacoesPorLic,
-      taxa,
-      faturamento: empenhos.reduce((s, e) => s + e.faturamento, 0),
-      receita: empenhos.reduce((s, e) => s + e.receita, 0),
-      empenhos,
-    }
+    return calcularRelatorio({ lics: dados.lics, empenhos: dados.empenhos, cotacoes: dados.cotacoes, empresaSel, mes })
   }, [dados, empresaSel, mes])
 
   if (erro) return <div style={{ padding: 40, textAlign: 'center', color: '#DC2626' }}>{erro}</div>
@@ -198,6 +71,9 @@ export default function RelatorioPage() {
               🖨️ Imprimir / Salvar em PDF
             </button>
           </div>
+          {rel && empresaSel && (
+            <EnviarRelatorioEmail empresaId={empresaSel} empresa={empresa} mes={mes} />
+          )}
           <p style={{ fontSize: 11.5, color: '#94A3B8', marginTop: 10 }}>
             Na janela de impressão, escolha <strong>Destino: Salvar como PDF</strong> para gerar o arquivo que vai ao cliente.
           </p>
@@ -223,9 +99,24 @@ export default function RelatorioPage() {
             </div>
           </div>
 
+          <h2 className="rel-h2">1. Resumo do período</h2>
+          <p className="rel-texto">
+            Em {rotuloMes}, participamos de <strong>{rel.disputadas.length}</strong> licitaç{rel.disputadas.length === 1 ? 'ão' : 'ões'} com
+            resultado definido: vencemos <strong>{rel.ganhas.length}</strong> e perdemos <strong>{rel.perdidas.length}</strong>
+            {rel.disputadas.length > 0 && <> (taxa de sucesso de <strong>{rel.taxa.toFixed(0)}%</strong>)</>}.
+            {rel.naoParticipamos.length > 0 && <> Decidimos não participar de <strong>{rel.naoParticipamos.length}</strong> oportunidade{rel.naoParticipamos.length === 1 ? '' : 's'} analisada{rel.naoParticipamos.length === 1 ? '' : 's'}.</>}
+            {' '}Além disso, <strong>{rel.aguardando.length}</strong> licitaç{rel.aguardando.length === 1 ? 'ão segue' : 'ões seguem'} em andamento.
+          </p>
+          <div className="rel-kpis">
+            <div><strong>{rel.disputadas.length}</strong><span>participadas</span></div>
+            <div><strong>{rel.ganhas.length}</strong><span>vencidas</span></div>
+            <div><strong>{rel.perdidas.length}</strong><span>perdidas</span></div>
+            <div><strong>{rel.aguardando.length}</strong><span>em andamento</span></div>
+          </div>
+
           {(rel.faturamento > 0 || rel.receita > 0) && (
             <>
-              <h2 className="rel-h2">1. Resultado financeiro do período</h2>
+              <h2 className="rel-h2">2. Resultado financeiro do período</h2>
               <div className="rel-kpis">
                 <div><strong>{fmtBRL(rel.faturamento)}</strong><span>faturamento empenhado</span></div>
                 <div><strong>{rel.empenhos.length}</strong><span>notas de empenho</span></div>
@@ -250,7 +141,7 @@ export default function RelatorioPage() {
 
           {rel.todasNoRelatorio.length > 0 && (
             <>
-              <h2 className="rel-h2">2. Licitações do período</h2>
+              <h2 className="rel-h2">3. Licitações do período</h2>
               <table className="rel-tabela rel-tabela-larga">
                 <thead>
                   <tr>
@@ -307,7 +198,7 @@ export default function RelatorioPage() {
 
           {rel.comDetalheItens.length > 0 && (
             <>
-              <h2 className="rel-h2">3. Detalhamento por item — vitórias e derrotas</h2>
+              <h2 className="rel-h2">4. Detalhamento por item — vitórias e derrotas</h2>
               {rel.comDetalheItens.map(l => {
                 const itensParticipando = (l.itens || []).filter(it => it.participar)
                 return (
