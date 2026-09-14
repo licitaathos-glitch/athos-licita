@@ -7,20 +7,15 @@ export function idDoDrive(url) {
   return (s.match(/\/d\/([\w-]{10,})/) || s.match(/[?&]id=([\w-]{10,})/) || [])[1] || ''
 }
 
-export const urlPreview = url => {
-  const id = idDoDrive(url)
-  return id ? `https://drive.google.com/file/d/${id}/preview` : ''
-}
-
-export const urlDownload = url => {
-  const id = idDoDrive(url)
-  return id ? `https://drive.google.com/uc?export=download&id=${id}` : url
-}
+// Passa pelo próprio sistema em vez do Drive: os arquivos são privados, então
+// o preview do Google só funcionava para quem estivesse logado naquela conta
+// Google. Pelo /api/arquivo, quem autoriza é o login do Athos Licita.
+export const urlPreview = url => '/api/arquivo?url=' + encodeURIComponent(url)
+export const urlDownload = url => '/api/arquivo?baixar=1&url=' + encodeURIComponent(url)
 
 /**
- * Janela para ver o arquivo sem sair da tela, com opção de baixar, abrir no
- * Drive e imprimir. O arquivo fica no Drive pessoal e é privado — quem não
- * estiver logado nessa conta do Google vê o aviso de acesso em vez do PDF.
+ * Janela para ver o arquivo sem sair da tela, com opção de baixar e imprimir.
+ * O arquivo vem pelo /api/arquivo, que só responde a quem está logado.
  */
 export default function VisualizadorArquivo({ url, nome = 'Arquivo', onFechar }) {
   const preview = urlPreview(url)
@@ -39,23 +34,14 @@ export default function VisualizadorArquivo({ url, nome = 'Arquivo', onFechar })
         </div>
 
         <div style={{ padding: '10px 14px', display: 'flex', gap: 8, flexWrap: 'wrap', borderBottom: '1px solid #F1F5F9' }}>
-          <a href={urlDownload(url)} target="_blank" rel="noreferrer" className="iBtn iBtn-up">⬇ Baixar</a>
-          <a href={url} target="_blank" rel="noreferrer" className="iBtn">↗ Abrir no Drive</a>
+          <a href={urlDownload(url)} className="iBtn iBtn-up">⬇ Baixar</a>
+          <a href={urlPreview(url)} target="_blank" rel="noreferrer" className="iBtn">↗ Abrir em nova aba</a>
           <span style={{ fontSize: 11, color: '#94A3B8', alignSelf: 'center' }}>
-            Para imprimir, use o ícone de impressora do próprio visualizador
+            Para imprimir, use o ícone de impressora do visualizador
           </span>
         </div>
 
-        {preview ? (
-          <iframe src={preview} title={nome} style={{ flex: 1, minHeight: 460, width: '100%', border: 0 }} />
-        ) : (
-          <div className="modal-body">
-            <p style={{ fontSize: 13, color: '#64748B' }}>
-              Este arquivo não está no Google Drive, então não dá para exibir aqui.
-            </p>
-            <a href={url} target="_blank" rel="noreferrer" className="iBtn">↗ Abrir arquivo</a>
-          </div>
-        )}
+        <iframe src={preview} title={nome} style={{ flex: 1, minHeight: 460, width: '100%', border: 0 }} />
       </div>
     </div>
   )

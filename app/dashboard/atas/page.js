@@ -213,10 +213,16 @@ export default function AtasPage() {
 
                 {!somenteConsulta && (
                   <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-                    {a.arquivoUrl && (
+                    {a.arquivoUrl ? (
                       <button className="iBtn" onClick={() => setVerArquivo({ url: a.arquivoUrl, nome: a.arquivoNome || `Ata ${a.numeroAta}` })}>
                         📄 Ver ata
                       </button>
+                    ) : (
+                      // Ata antiga, cadastrada antes do arquivo passar a ser
+                      // guardado: some o botão e ninguém sabe por quê
+                      <span style={{ fontSize: 11, color: '#B45309', alignSelf: 'center' }}>
+                        sem PDF guardado — use "✏️ Editar" e anexe a ata
+                      </span>
                     )}
                     <button className="iBtn iBtn-up" onClick={() => setNovoEmpenho(a)}>+ Empenho</button>
                     <button className="iBtn" onClick={() => setEditando(a)}>✏️ Editar</button>
