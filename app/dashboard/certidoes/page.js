@@ -21,7 +21,11 @@ export default function CertidoesPage() {
 
   const [certidoes, setCertidoes] = useState(null)
   const [erro, setErro] = useState('')
-  const [catAtiva, setCatAtiva] = useState('fiscal')
+  // Todas as categorias numa página só, cada uma podendo ser recolhida —
+  // antes eram abas e só dava para ver um grupo por vez, o que obrigava a
+  // clicar de aba em aba para conferir a documentação inteira da empresa.
+  const [recolhidas, setRecolhidas] = useState({})
+  const alternar = slug => setRecolhidas(o => ({ ...o, [slug]: !o[slug] }))
   const [modal, setModal] = useState(null)
   const [baixandoZip, setBaixandoZip] = useState(false)
   const [erroZip, setErroZip] = useState('')
@@ -45,7 +49,6 @@ export default function CertidoesPage() {
 
   const vencidas = daEmpresa.filter(c => c.status === 'bad').length
   const alerta = daEmpresa.filter(c => c.status === 'warn').length
-  const cat = CATEGORIAS.find(c => c.slug === catAtiva)
 
   function docDoTipo(slug) {
     return daEmpresa.find(c => c.tipo_slug === slug)
@@ -102,22 +105,29 @@ export default function CertidoesPage() {
       )}
 
       <div className="filtro-bar">
-        {CATEGORIAS.map(c => {
-          const venc = daEmpresa.filter(d => c.tipos.some(t => t.slug === d.tipo_slug) && d.status === 'bad').length
-          return (
-            <button key={c.slug} className={'filtro-btn' + (catAtiva === c.slug ? ' active' : '')} onClick={() => setCatAtiva(c.slug)}>
-              {c.nome}{venc > 0 && <span className="filtro-badge">{venc}</span>}
-            </button>
-          )
-        })}
+        <button className="iBtn" onClick={() => setRecolhidas({})}>expandir todas</button>
+        <button className="iBtn" onClick={() => setRecolhidas(Object.fromEntries(CATEGORIAS.map(c => [c.slug, true])))}>
+          recolher todas
+        </button>
       </div>
 
-      <div className="cat-bloco">
-        <div className="cat-hdr">
+      {CATEGORIAS.map(cat => {
+        const vencidas = daEmpresa.filter(d => cat.tipos.some(t => t.slug === d.tipo_slug) && d.status === 'bad').length
+        const preenchidos = cat.tipos.filter(t => docDoTipo(t.slug)).length
+        const aberta = !recolhidas[cat.slug]
+        return (
+      <div className="cat-bloco" key={cat.slug}>
+        <div className="cat-hdr" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
+          onClick={() => alternar(cat.slug)}>
+          <span style={{ fontSize: 11, width: 12 }}>{aberta ? '▾' : '▸'}</span>
           {cat.nome}
-          {!cat.temValidade && <span style={{ fontWeight: 400, color: '#94A3B8', marginLeft: 8, fontSize: 11 }}>sem validade</span>}
+          {!cat.temValidade && <span style={{ fontWeight: 400, color: '#94A3B8', fontSize: 11 }}>sem validade</span>}
+          <span style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+            {vencidas > 0 && <span className="pill" style={{ background: '#FEE2E2', color: '#991B1B' }}>{vencidas} vencida(s)</span>}
+            <span style={{ fontSize: 11, fontWeight: 400, color: '#94A3B8' }}>{preenchidos}/{cat.tipos.length}</span>
+          </span>
         </div>
-        {cat.tipos.map(tipo => {
+        {aberta && cat.tipos.map(tipo => {
           const doc = docDoTipo(tipo.slug)
           const status = doc ? doc.status : 'nd'
           return (
@@ -176,6 +186,8 @@ export default function CertidoesPage() {
           )
         })}
       </div>
+        )
+      })}
 
       {verArquivo && (
         <VisualizadorArquivo url={verArquivo.url} nome={verArquivo.nome} onFechar={() => setVerArquivo(null)} />

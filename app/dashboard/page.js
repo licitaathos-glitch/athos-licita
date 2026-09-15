@@ -131,6 +131,30 @@ export default function DashboardPage() {
                 </div>
                 {empresaAberta === e.id && (
                   <div style={{ margin: '-2px 0 10px 16px' }}>
+                    {/* Dados de cadastro à mão: é o que se copia na hora de
+                        preencher proposta em portal, sem ir até Empresas */}
+                    <div style={{
+                      display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+                      gap: '4px 14px', background: '#F8FAFC', borderRadius: 8, padding: '8px 10px', marginBottom: 8,
+                    }}>
+                      {[
+                        ['CNPJ', e.cnpj],
+                        ['Razão social', e.razao_social],
+                        ['Inscrição estadual', e.inscricao_estadual],
+                        ['Inscrição municipal', e.inscricao_municipal],
+                        ['E-mail', e.email],
+                        ['Telefone', e.telefone],
+                        ['Responsável', e.responsavel],
+                        ['Representante legal', e.rep_nome],
+                        ['Cidade/UF', [e.cidade, e.uf].filter(Boolean).join('/')],
+                      ].filter(x => String(x[1] || '').trim()).map(([rot, val]) => (
+                        <div key={rot} style={{ fontSize: 11.5, minWidth: 0 }}>
+                          <span style={{ color: '#94A3B8' }}>{rot}: </span>
+                          <span style={{ color: '#2E2D2F', fontWeight: 600, wordBreak: 'break-word' }}>{val}</span>
+                        </div>
+                      ))}
+                    </div>
+
                     {(e.pendencias || []).length === 0
                       ? <p style={{ fontSize: 12, color: '#94A3B8', margin: '0 0 6px' }}>Nenhuma certidão vencida ou vencendo nos próximos 7 dias.</p>
                       : e.pendencias.map((p, i) => (

@@ -55,6 +55,10 @@ export async function GET(req) {
         id: e.id, nome: e.nome, cnpj: e.cnpj, responsavel: e.responsavel || '',
         cidade: e.cidade || '', uf: e.uf || '', telefone: e.telefone || '', email: e.email || '',
         rep_nome: e.rep_nome || '', rep_cargo: e.rep_cargo || '',
+        // Dados que o Adriano precisa ter à mão na hora de cadastrar proposta
+        // em portal — antes só apareciam entrando na tela de Empresas
+        razao_social: e.razao_social || '', inscricao_estadual: e.inscricao_estadual || '',
+        inscricao_municipal: e.inscricao_municipal || '',
         vencidas, alerta, regulares, status, pendencias,
       }
     })
