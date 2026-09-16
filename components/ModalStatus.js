@@ -748,6 +748,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                   <table className="tbl-proposta">
                     <thead>
                       <tr>
+                        <th style={{ width: 44 }}>Nº</th>
                         <th>Descrição</th>
                         <th style={{ width: 70 }}>Qtd</th>
                         <th style={{ width: 110 }}>Nosso lance</th>
@@ -760,6 +761,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                     <tbody>
                       {itens.map((it, i) => it.participar && (
                         <tr key={i}>
+                          <td style={{ color: '#64748B', fontWeight: 600, textAlign: 'center' }}>{it.numero ?? ''}</td>
                           <td style={{ maxWidth: 260 }}>{it.descricao || '—'}</td>
                           <td>{it.quantidade || '—'}</td>
                           <td><input type="number" step="0.01" value={it.lanceFinal || ''} placeholder={it.meuValor || '0,00'}

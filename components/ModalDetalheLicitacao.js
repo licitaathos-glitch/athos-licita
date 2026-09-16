@@ -156,6 +156,19 @@ export default function ModalDetalheLicitacao({
           </div>
           {l.objeto && <p style={{ marginTop: 10 }}><strong>Objeto:</strong> {l.objeto}</p>}
 
+          {/* A observação do andamento é onde fica o que foi combinado e o que
+              aconteceu na sessão — precisa aparecer ao abrir a licitação, não
+              só na lista, onde vem cortada */}
+          {l.observacaoDisputa && (
+            <div style={{
+              background: '#F8FAFC', borderLeft: '3px solid #B9A06B', borderRadius: 8,
+              padding: '9px 12px', marginTop: 10, whiteSpace: 'pre-wrap',
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', marginBottom: 2 }}>OBSERVAÇÕES</div>
+              <div style={{ fontSize: 12.5, color: '#2E2D2F' }}>{l.observacaoDisputa}</div>
+            </div>
+          )}
+
           {l.resultado && l.resultado !== 'Aguardando' && (
             <div className="bloco-disputa" style={{ borderColor: corResultado(l.resultado) }}>
               <strong style={{ color: corResultado(l.resultado) }}>🏁 {nomeResultado(l.resultado)}</strong>
