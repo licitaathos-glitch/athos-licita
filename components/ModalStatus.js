@@ -125,7 +125,23 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
   const [avisoEvento, setAvisoEvento] = useState('')
   // Nos tipos que remarcam (suspensão com retorno, remarcação), a data
   // informada é a nova data da sessão — vem marcado, mas dá para desmarcar.
-  const [atualizarSessao, setAtualizarSessao] = useState(true)
+  // Nasce DESMARCADA de propósito: trocar a data da sessão é decisão com peso,
+  // e vir marcada fazia a data mudar sem intenção em registros de rotina.
+  const [atualizarSessao, setAtualizarSessao] = useState(false)
+
+  // Itens tirados da proposta nesta sessão de edição, do mais recente para o
+  // mais antigo. Tirar item é um clique só e, sem desfazer, a única saída era
+  // voltar à fase Em análise e marcar tudo de novo.
+  const [retirados, setRetirados] = useState([])
+
+  function tirarItem(i) {
+    setRetirados(a => [{ indice: i, numero: itens[i]?.numero, descricao: itens[i]?.descricao }, ...a].slice(0, 20))
+    setItem(i, 'participar', false)
+  }
+  function desfazerRetirada(reg) {
+    setItem(reg.indice, 'participar', true)
+    setRetirados(a => a.filter(x => x !== reg))
+  }
   const [historico, setHistorico] = useState(null)
 
   const carregarHistorico = useCallback(() => {
@@ -551,6 +567,36 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                   </span>
                 </div>
               )}
+
+              {/* Desfazer a retirada: o × é um clique só e o item some da lista,
+                  então sem isso a saída era voltar à análise e remarcar tudo */}
+              {retirados.length > 0 && (
+                <div style={{
+                  background: '#FEF3C7', border: '1px solid #F59E0B', borderRadius: 8,
+                  padding: '8px 10px', marginBottom: 8,
+                }}>
+                  <div style={{ fontSize: 11.5, color: '#92400E', fontWeight: 700, marginBottom: 4 }}>
+                    {retirados.length} item(ns) tirado(s) da proposta agora
+                  </div>
+                  {retirados.slice(0, 5).map((reg, k) => (
+                    <div key={k} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '2px 0' }}>
+                      <span style={{ fontSize: 11.5, color: '#78350F', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {reg.numero ? `Nº ${reg.numero} — ` : ''}{reg.descricao}
+                      </span>
+                      <button className="iBtn" onClick={() => desfazerRetirada(reg)}>↩ desfazer</button>
+                    </div>
+                  ))}
+                  {retirados.length > 1 && (
+                    <button className="iBtn iBtn-up" style={{ marginTop: 6 }}
+                      onClick={() => {
+                        setItens(a => a.map((x, j) => retirados.some(r => r.indice === j) ? { ...x, participar: true } : x))
+                        setRetirados([])
+                      }}>
+                      ↩ desfazer todas as {retirados.length}
+                    </button>
+                  )}
+                </div>
+              )}
               {itens.length > 0 && (
                 <div style={{ overflowX: 'auto' }}>
                   <table className="tbl-proposta">
@@ -572,7 +618,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                         <tr key={i}>
                           <td style={{ textAlign: 'center' }}>
                             <button className="iBtn iBtn-del" title="Tirar este item da proposta"
-                              onClick={() => setItem(i, 'participar', false)}>×</button>
+                              onClick={() => tirarItem(i)}>×</button>
                           </td>
                           {itens.some(x => x.grupo) && (
                             <td>
@@ -580,7 +626,11 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                               {it.grupo && (
                                 <button className="iBtn" style={{ display: 'block', marginTop: 4, fontSize: 10, padding: '2px 6px' }}
                                   title="Tirar o grupo inteiro da proposta"
-                                  onClick={() => setItens(a => a.map(x => x.grupo === it.grupo ? { ...x, participar: false } : x))}>
+                                  onClick={() => {
+                                    const doGrupo = itens.map((x, j) => ({ x, j })).filter(o => o.x.grupo === it.grupo && o.x.participar)
+                                    setRetirados(a => [...doGrupo.map(o => ({ indice: o.j, numero: o.x.numero, descricao: o.x.descricao })), ...a].slice(0, 20))
+                                    setItens(a => a.map(x => x.grupo === it.grupo ? { ...x, participar: false } : x))
+                                  }}>
                                   tirar grupo
                                 </button>
                               )}
