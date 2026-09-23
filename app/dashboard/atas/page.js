@@ -282,6 +282,7 @@ function ModalAta({ ata, empresaId, empresaNome, licitacaoIdsComAta = [], onFech
   const ed = !!ata.id
   const [f, setF] = useState({
     tipoDocumento: ata.tipoDocumento || 'Ata',
+    arquivoUrl: ata.arquivoUrl || '', arquivoNome: ata.arquivoNome || '',
     numeroAta: ata.numeroAta || '', uf: ata.uf || '', orgao: ata.orgao || '', cnpjOrgao: ata.cnpjOrgao || '',
     licitacao: ata.licitacao || '', processo: ata.processo || '', objeto: ata.objeto || '',
     representante: ata.representante || '', dataAssinatura: brParaISO(ata.dataAssinatura),
@@ -347,8 +348,14 @@ function ModalAta({ ata, empresaId, empresaNome, licitacaoIdsComAta = [], onFech
           base64, mimeType: file.type || 'application/pdf',
           nomeArquivo: file.name, empresaNome: empresaNome || '',
         })
-        if (up.sucesso && up.driveFileUrl) arquivo = { arquivoUrl: up.driveFileUrl, arquivoNome: file.name }
-      } catch {}
+        // O Apps Script responde { ok: true, driveFileUrl }, não { sucesso }.
+        // Era por isso que o arquivo nunca ficava salvo: a condição nunca se
+        // cumpria, o PDF ia para o Drive e o endereço dele era descartado.
+        if ((up.ok || up.sucesso) && up.driveFileUrl) arquivo = { arquivoUrl: up.driveFileUrl, arquivoNome: file.name }
+        else setErro('O PDF foi lido, mas não consegui guardá-lo' + (up.erro ? ': ' + up.erro : '. Tente anexar de novo.'))
+      } catch (eUp) {
+        setErro('O PDF foi lido, mas não consegui guardá-lo: ' + (eUp.message || 'falha de conexão'))
+      }
 
       if (!r.sucesso) {
         setErro(r.erro || 'Não foi possível ler a ata. Preencha manualmente.')
