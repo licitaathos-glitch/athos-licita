@@ -5,7 +5,10 @@ import { diasRestantes, statusPorDias } from '@/lib/datas'
 import { novoId } from '@/lib/uuid'
 
 // Campos gravados na aba Atas (a aba usa empresaId em camelCase)
-const CAMPOS = ['numeroAta','orgao','cnpjOrgao','uf','licitacao','processo','objeto',
+// tipoDocumento: 'Ata' (registro de preços) ou 'Contrato'. O módulo nasceu só
+// para atas, mas o pós-vitória também pode ser contrato — a estrutura é a
+// mesma (itens, vigência, empenhos), muda o nome e a natureza do documento.
+const CAMPOS = ['tipoDocumento','numeroAta','orgao','cnpjOrgao','uf','licitacao','processo','objeto',
   'representante','dataAssinatura','vigencia','vencimento','adesao','condPagamento',
   'contato','emailOrgao','telefoneOrgao','observacoes','itensJson','licitacaoId',
   // PDF da ata guardado no Drive: antes o arquivo era só lido pela IA e
@@ -55,6 +58,7 @@ export async function GET(req) {
           condPagamento: a.condPagamento || '', contato: a.contato || '',
           emailOrgao: a.emailOrgao || '', telefoneOrgao: a.telefoneOrgao || '',
           observacoes: a.observacoes || '', licitacaoId: a.licitacaoId || '',
+          tipoDocumento: a.tipoDocumento || 'Ata',
           arquivoUrl: a.arquivoUrl || '', arquivoNome: a.arquivoNome || '',
           itens, valorTotal,
           dias: dd, status: statusPorDias(dd),

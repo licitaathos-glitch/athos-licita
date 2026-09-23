@@ -66,7 +66,7 @@ export default function AtasPage() {
     if (filtro === 'vencendo' && !(a.dias !== null && a.dias >= 0 && a.dias <= 60)) return false
     if (filtro === 'vencida' && !(a.dias !== null && a.dias < 0)) return false
     const q = busca.toLowerCase()
-    if (q && ![a.numeroAta, a.orgao, a.objeto, a.uf, a.licitacao].join(' ').toLowerCase().includes(q)) return false
+    if (q && ![a.numeroAta, a.orgao, a.objeto, a.uf, a.licitacao, a.tipoDocumento].join(' ').toLowerCase().includes(q)) return false
     return true
   })
 
@@ -78,11 +78,11 @@ export default function AtasPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h2 className="sec-title">Gestão de Atas</h2>
-          <p className="sec-sub">{empresaNome} · Atas de Registro de Preços{somenteConsulta ? ' · modo consulta' : ''}</p>
+          <h2 className="sec-title">Gestão de Atas e Contratos</h2>
+          <p className="sec-sub">{empresaNome} · Atas de Registro de Preços e contratos{somenteConsulta ? ' · modo consulta' : ''}</p>
         </div>
         {!somenteConsulta && empresaSel && (
-          <button className="btn-primary" style={{ marginTop: 0 }} onClick={() => setEditando({})}>+ Incluir ata</button>
+          <button className="btn-primary" style={{ marginTop: 0 }} onClick={() => setEditando({})}>+ Incluir ata/contrato</button>
         )}
       </div>
 
@@ -114,9 +114,12 @@ export default function AtasPage() {
               <span className="emp-dot" style={{ background: CORES[a.status] }} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 700, color: '#145653', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  Ata {a.numeroAta}
+                  {a.tipoDocumento === 'Contrato' ? 'Contrato' : 'Ata'} {a.numeroAta}
+                  {a.tipoDocumento === 'Contrato' && (
+                    <span className="pill" style={{ background: '#EDE9FE', color: '#6D28D9' }}>Contrato</span>
+                  )}
                   {a.arquivoUrl && (
-                    <button className="iBtn" title="Ver e baixar o PDF da ata"
+                    <button className="iBtn" title="Ver e baixar o PDF do documento"
                       onClick={ev => { ev.stopPropagation(); setVerArquivo({ url: a.arquivoUrl, nome: a.arquivoNome || `Ata ${a.numeroAta}` }) }}>
                       📄
                     </button>
@@ -214,8 +217,8 @@ export default function AtasPage() {
                 {!somenteConsulta && (
                   <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
                     {a.arquivoUrl ? (
-                      <button className="iBtn" onClick={() => setVerArquivo({ url: a.arquivoUrl, nome: a.arquivoNome || `Ata ${a.numeroAta}` })}>
-                        📄 Ver ata
+                      <button className="iBtn" onClick={() => setVerArquivo({ url: a.arquivoUrl, nome: a.arquivoNome || `${a.tipoDocumento || 'Ata'} ${a.numeroAta}` })}>
+                        📄 Ver {(a.tipoDocumento || 'Ata').toLowerCase()}
                       </button>
                     ) : (
                       // Ata antiga, cadastrada antes do arquivo passar a ser
@@ -227,7 +230,7 @@ export default function AtasPage() {
                     <button className="iBtn iBtn-up" onClick={() => setNovoEmpenho(a)}>+ Empenho</button>
                     <button className="iBtn" onClick={() => setEditando(a)}>✏️ Editar</button>
                     <button className="iBtn iBtn-del" onClick={async () => {
-                      if (!confirm('Excluir a ata ' + a.numeroAta + '?')) return
+                      if (!confirm(`Excluir ${a.tipoDocumento === 'Contrato' ? 'o contrato' : 'a ata'} ${a.numeroAta}?`)) return
                       const r = await fetch('/api/atas', {
                         method: 'DELETE', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ id: a.id }),
@@ -278,6 +281,7 @@ export default function AtasPage() {
 function ModalAta({ ata, empresaId, empresaNome, licitacaoIdsComAta = [], onFechar, onSalvo }) {
   const ed = !!ata.id
   const [f, setF] = useState({
+    tipoDocumento: ata.tipoDocumento || 'Ata',
     numeroAta: ata.numeroAta || '', uf: ata.uf || '', orgao: ata.orgao || '', cnpjOrgao: ata.cnpjOrgao || '',
     licitacao: ata.licitacao || '', processo: ata.processo || '', objeto: ata.objeto || '',
     representante: ata.representante || '', dataAssinatura: brParaISO(ata.dataAssinatura),
@@ -384,7 +388,7 @@ function ModalAta({ ata, empresaId, empresaNome, licitacaoIdsComAta = [], onFech
   const total = itens.reduce((s, it) => s + (Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0), 0)
 
   async function salvar() {
-    if (!f.numeroAta.trim()) { setErro('Nº da ata é obrigatório.'); return }
+    if (!f.numeroAta.trim()) { setErro(`Nº d${f.tipoDocumento === 'Contrato' ? 'o contrato' : 'a ata'} é obrigatório.`); return }
     setErro(''); setSalvando(true)
     try {
       const r = await fetch('/api/atas', {
@@ -409,7 +413,9 @@ function ModalAta({ ata, empresaId, empresaNome, licitacaoIdsComAta = [], onFech
         <div className="modal-hdr">
           <div>
             <div className="modal-hdr-sub">ATA DE REGISTRO DE PREÇOS</div>
-            <div className="modal-hdr-title">{ed ? 'Editar ata ' + ata.numeroAta : 'Incluir ata'}</div>
+            <div className="modal-hdr-title">
+              {ed ? `Editar ${(f.tipoDocumento || 'Ata').toLowerCase()} ${ata.numeroAta}` : 'Incluir ata ou contrato'}
+            </div>
           </div>
           <button className="modal-x" onClick={onFechar}>×</button>
         </div>
@@ -437,7 +443,14 @@ function ModalAta({ ata, empresaId, empresaNome, licitacaoIdsComAta = [], onFech
           </div>
 
           <div className="form-grid">
-            <div><label className="mini-lbl">Nº DA ATA *</label><input value={f.numeroAta} onChange={e => set('numeroAta', e.target.value)} placeholder="17/2026" /></div>
+            <div><label className="mini-lbl">TIPO *</label>
+              <select value={f.tipoDocumento} onChange={e => set('tipoDocumento', e.target.value)}>
+                <option value="Ata">Ata de Registro de Preços</option>
+                <option value="Contrato">Contrato</option>
+              </select>
+            </div>
+            <div><label className="mini-lbl">Nº D{f.tipoDocumento === 'Contrato' ? 'O CONTRATO' : 'A ATA'} *</label>
+              <input value={f.numeroAta} onChange={e => set('numeroAta', e.target.value)} placeholder="17/2026" /></div>
             <div><label className="mini-lbl">UF</label>
               <select value={f.uf} onChange={e => set('uf', e.target.value)}>
                 <option value="">Selecione</option>
