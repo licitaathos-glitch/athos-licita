@@ -12,10 +12,15 @@ export default function CardEmpresaAtiva({ empresa }) {
   if (!empresa) return null
   const cor = CORES[empresa.status] || CORES.nd
 
+  // Dados que se copia na hora de cadastrar proposta em portal. Campo vazio
+  // não entra na lista, para o cartão não ficar com buracos.
   const linhas = [
     empresa.cnpj && { icone: '🧾', texto: empresa.cnpj },
+    empresa.inscricao_estadual && { icone: '🏛️', texto: 'IE ' + empresa.inscricao_estadual },
+    empresa.inscricao_municipal && { icone: '🏙️', texto: 'IM ' + empresa.inscricao_municipal },
     (empresa.cidade || empresa.uf) && { icone: '📍', texto: [empresa.cidade, empresa.uf].filter(Boolean).join('/') },
     empresa.rep_nome && { icone: '👤', texto: empresa.rep_nome + (empresa.rep_cargo ? ' · ' + empresa.rep_cargo : '') },
+    empresa.email && { icone: '✉️', texto: empresa.email },
     empresa.telefone && { icone: '📞', texto: empresa.telefone },
   ].filter(Boolean)
 
