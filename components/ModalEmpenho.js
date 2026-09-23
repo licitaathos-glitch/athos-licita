@@ -39,7 +39,15 @@ export default function ModalEmpenho({ empenho = {}, ata, empresaId, modelo, per
   const [erro, setErro] = useState('')
   const [salvando, setSalvando] = useState(false)
 
-  const set = (k, v) => setF(o => ({ ...o, [k]: v }))
+  const set = (k, v) => setF(o => {
+    const novo = { ...o, [k]: v }
+    // Preencher a data já diz o que aconteceu: sem isso a pessoa informava o
+    // pagamento e o empenho continuava contando como "a receber", porque a
+    // situação tinha ficado em Empenhado.
+    if (k === 'dataPagamento' && v && ['Empenhado', 'Faturado', 'Entregue'].includes(novo.status)) novo.status = 'Pago'
+    if (k === 'dataFaturamento' && v && novo.status === 'Empenhado') novo.status = 'Faturado'
+    return novo
+  })
 
   // Custo de compra do item = valor mínimo apurado na cotação do pregão que
   // originou esta ata. Duas fontes, nesta ordem:
@@ -289,7 +297,11 @@ export default function ModalEmpenho({ empenho = {}, ata, empresaId, modelo, per
             <div><label className="mini-lbl">SITUAÇÃO</label>
               <select value={f.status} onChange={e => set('status', e.target.value)}>
                 {STATUS_EMPENHO.map(s => <option key={s}>{s}</option>)}
-              </select></div>
+              </select>
+              <p style={{ fontSize: 11, color: '#94A3B8', margin: '2px 0 0' }}>
+                É a situação que define o que entra em &ldquo;já recebido&rdquo;: só <strong>Pago</strong> conta.
+              </p>
+            </div>
             <div><label className="mini-lbl">NOTA FISCAL</label>
               <input value={f.notaFiscal} onChange={e => set('notaFiscal', e.target.value)} /></div>
             <div><label className="mini-lbl">DATA DO FATURAMENTO</label>

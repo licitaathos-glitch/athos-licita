@@ -61,11 +61,15 @@ export default function FinanceiroPage() {
     const soma = (arr, campo) => arr.reduce((s, e) => s + (e[campo] || 0), 0)
     const pagos = base.filter(e => e.status === 'Pago')
     const aReceber = base.filter(e => e.status !== 'Pago')
+    // Empenho com data de pagamento mas situação não-Pago: entra em "a receber"
+    // e desencontra o número do que já caiu na conta
+    const incoerentes = aReceber.filter(e => String(e.dataPagamento || '').trim())
     return {
       faturamento: soma(base, 'faturamento'),
       receita: soma(base, 'receita'),
       recebido: soma(pagos, 'receita'),
       aReceber: soma(aReceber, 'receita'),
+      incoerentes,
       faturadoAReceber: soma(aReceber, 'faturamento'),
       margemMedia: soma(base, 'faturamento') > 0 ? (soma(base, 'receita') / soma(base, 'faturamento')) * 100 : 0,
     }
@@ -299,6 +303,22 @@ export default function FinanceiroPage() {
         <div className="kpi"><div className="kpi-val kv-navy" style={{ fontSize: 20, color: '#16A34A' }}>{fmtBRL(kpi.recebido)}</div><div className="kpi-label">Já recebido</div></div>
         <div className="kpi"><div className="kpi-val kv-amber" style={{ fontSize: 20 }}>{fmtBRL(kpi.aReceber)}</div><div className="kpi-label">A receber</div></div>
       </div>
+
+      {/* Data de pagamento preenchida e situação ainda pendente: o valor conta
+          como "a receber" e o painel fica desencontrado da realidade */}
+      {kpi.incoerentes?.length > 0 && (
+        <div className="aviso-box" style={{ marginTop: 12 }}>
+          <strong>{kpi.incoerentes.length} empenho(s) com data de pagamento, mas situação diferente de &ldquo;Pago&rdquo;</strong> —
+          por isso continuam somando em &ldquo;A receber&rdquo;. Abra cada um e mude a situação para <strong>Pago</strong>:
+          <div style={{ marginTop: 6 }}>
+            {kpi.incoerentes.slice(0, 5).map(e => (
+              <button key={e.id} className="iBtn" style={{ marginRight: 6, marginBottom: 4 }} onClick={() => setEditando(e)}>
+                NE {e.numeroEmpenho || 's/ nº'} · {e.status} · pago em {e.dataPagamento}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {base.length === 0 && (
         <div className="aviso-box">
