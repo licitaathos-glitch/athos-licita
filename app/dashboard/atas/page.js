@@ -296,6 +296,7 @@ function ModalAta({ ata, empresaId, empresaNome, licitacaoIdsComAta = [], onFech
   const [salvando, setSalvando] = useState(false)
   const [lendoPdf, setLendoPdf] = useState(false)
   const [pdfNome, setPdfNome] = useState('')
+  const [resumoLeitura, setResumoLeitura] = useState('')
   const [ganhas, setGanhas] = useState(null)
 
   const set = (k, v) => setF(o => ({ ...o, [k]: v }))
@@ -385,6 +386,16 @@ function ModalAta({ ata, empresaId, empresaNome, licitacaoIdsComAta = [], onFech
           observacoes: d.observacoes || o.observacoes,
         }))
         if (Array.isArray(d.itens) && d.itens.length) setItens(d.itens)
+
+        // Diz o que a leitura de fato trouxe. Antes a tela mostrava sempre
+        // "dados preenchidos", mesmo quando quase tudo voltava vazio, e a
+        // impressão era de que o sistema tinha lido e errado.
+        const lidos = r.preenchidos ?? 0
+        const totalItens = r.qtdItens ?? (d.itens?.length || 0)
+        setResumoLeitura(`${lidos} de ${r.totalCampos ?? 14} campos e ${totalItens} item(ns) lidos`)
+        if (lidos <= 2 && !totalItens) {
+          setErro('Li o PDF, mas achei pouca informação (' + lidos + ' campo(s), nenhum item). Se a ata for digitalizada, não há texto para extrair — confira e complete à mão.')
+        }
       }
     } catch (ex) {
       setErro(ex.message || 'Erro ao enviar o PDF.')
@@ -432,7 +443,9 @@ function ModalAta({ ata, empresaId, empresaNome, licitacaoIdsComAta = [], onFech
             {lendoPdf
               ? <div>🤖 Gemini lendo a ata completa... (pode levar até 60s)</div>
               : pdfNome
-                ? <div>✅ {pdfNome}<div style={{ fontSize: 12, marginTop: 4 }}>dados preenchidos — confira antes de salvar</div></div>
+                ? <div>✅ {pdfNome}<div style={{ fontSize: 12, marginTop: 4 }}>
+                    {resumoLeitura || 'dados preenchidos'} — confira antes de salvar
+                  </div></div>
                 : <div>🤖 Preenchimento automático — envie o PDF da ata<div style={{ fontSize: 12, color: '#94A3B8', marginTop: 4 }}>o Gemini extrai todos os campos e itens · até 25 MB</div></div>}
           </label>
 
