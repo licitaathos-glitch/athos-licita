@@ -34,6 +34,8 @@ export async function POST(req) {
 
     const env = await chamarGAS({
       action: 'enviarEmailGenerico', para: destinatarioEmail,
+      // Resumo do edital é conversa com o cliente sobre participar ou não
+      responderPara: 'adriano@athoslicita.com',
       assunto: `Resumo da licitação — ${l.numeroEdital || 'edital'}`,
       htmlBody: html,
     })

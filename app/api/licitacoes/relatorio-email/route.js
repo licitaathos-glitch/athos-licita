@@ -51,6 +51,9 @@ export async function POST(req) {
 
     const env = await chamarGAS({
       action: 'enviarEmailGenerico', para: destinatarioEmail,
+      // O relatório vai para o cliente, e quem conversa com ele é o Adriano —
+      // a resposta não deve cair na caixa operacional de cotações e alertas
+      responderPara: 'adriano@athoslicita.com',
       assunto: `Relatório mensal — ${rotuloMes} — ${empresa.nome}`,
       htmlBody: html,
     }, 60)
