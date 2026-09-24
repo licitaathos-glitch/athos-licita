@@ -8,7 +8,9 @@ import { certidoesEmAlerta, atasEmAlerta, sessoesAmanha, montarEmailDiario } fro
 export const maxDuration = 300 // até 5 min — dá tempo para consultar o PNCP empresa por empresa
 
 const ABA_ENVIADAS = 'Alertas_Oportunidades_Enviadas'
-const DESTINO_FIXO = 'licita.athos@gmail.com'
+// Caixa que recebe todos os alertas de certidões, atas e sessões.
+// Pode ser trocada sem mexer no código pela variável ALERTAS_EMAIL na Vercel.
+const DESTINO_FIXO = process.env.ALERTAS_EMAIL || 'licitacoes@athoslicita.com'
 
 // Manda para os USUÁRIOS do sistema que enxergam essa empresa — mesma regra
 // de visibilidade de lib/auth.js#empresasVisiveis, mas invertida (empresa -> usuários):

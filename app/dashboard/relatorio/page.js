@@ -94,7 +94,7 @@ export default function RelatorioPage() {
             </div>
             <div className="rel-contato">
               Adriano Ribeiro Bragança<br />
-              licita.athos@gmail.com<br />
+              licitacoes@athoslicita.com<br />
               (21) 99763-9451
             </div>
           </div>
@@ -266,7 +266,7 @@ export default function RelatorioPage() {
 
           <div className="rel-rodape">
             Athos Licita · Consultoria em Licitações Públicas · Lei 14.133/2021<br />
-            licita.athos@gmail.com · (21) 99763-9451 · @athoslicita
+            licitacoes@athoslicita.com · (21) 99763-9451 · @athoslicita
           </div>
         </div>
       )}

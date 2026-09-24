@@ -57,7 +57,7 @@ function ResumoConteudo() {
           </div>
           <div className="rel-contato">
             Adriano Ribeiro Bragança<br />
-            licita.athos@gmail.com<br />
+            licitacoes@athoslicita.com<br />
             (21) 99763-9451
           </div>
         </div>

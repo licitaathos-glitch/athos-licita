@@ -88,7 +88,7 @@ export default function UsuariosPage() {
       <div className="form-card" style={{ marginBottom: 16 }}>
         <div className="form-card-title">📬 Alertas automáticos diários</div>
         <p className="dica-menus" style={{ marginTop: 0, marginBottom: 10 }}>
-          Roda sozinho todo dia às 08h e manda para licita.athos@gmail.com: certidões vencendo, atas vencendo,
+          Roda sozinho todo dia às 08h e manda para licitacoes@athoslicita.com (mais os e-mails cadastrados em cada empresa): certidões vencendo, atas vencendo,
           sessões de disputa amanhã e novas oportunidades do PNCP (para empresas com perfil de busca configurado em Oportunidades).
         </p>
         <button className="iBtn iBtn-up" onClick={testarAlertas} disabled={testandoAlerta}>
