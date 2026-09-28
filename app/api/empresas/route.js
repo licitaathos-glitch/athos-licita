@@ -12,6 +12,9 @@ export const COLS_EMPRESA = [
   'endereco', 'numero', 'bairro', 'cidade', 'uf', 'cep',
   'rep_nome', 'rep_cpf', 'rep_rg', 'rep_cargo', 'rep_nacionalidade', 'rep_estado_civil',
   'banco', 'agencia', 'conta',
+  // 'Ativa' (ou vazio) | 'Suspensa' | 'Inabilitada'. Fora de 'Ativa' a empresa
+  // some do resto do sistema, mas continua na tela de Empresas para reativar.
+  'status_empresa',
 ]
 
 const CAMPOS_EDITAVEIS = COLS_EMPRESA.filter(c => c !== 'id')
@@ -28,7 +31,10 @@ export async function GET(req) {
 
   await garantirAba('Empresas', COLS_EMPRESA)
   const todas = await lerAba('Empresas')
-  const empresas = empresasVisiveis(usuario, todas.filter(e => e.id))
+  // ?todas=1 é usado só pela tela de gerenciamento, para listar também as
+  // suspensas/inabilitadas. O filtro de acesso do usuário continua valendo.
+  const incluirInativas = new URL(req.url).searchParams.get('todas') === '1'
+  const empresas = empresasVisiveis(usuario, todas.filter(e => e.id), { incluirInativas })
   return NextResponse.json({ sucesso: true, empresas })
 }
 

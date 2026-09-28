@@ -32,7 +32,7 @@ export async function GET(req) {
         quando: l.dataSessao || l.dataLimite || l.dataAbertura || '',
         origemQuando: l.dataSessao ? 'sessão' : (l.dataLimite ? 'limite da proposta' : 'abertura'),
       }))
-      .filter(l => l.quando && !['Finalizada', 'Descartado'].includes(l.fase))
+      .filter(l => l.quando && !['Finalizada', 'Descartado', 'Excluida'].includes(l.fase))
 
     // Pedidos de cotação ainda sem resposta do fornecedor — o Dashboard mostra
     // isso num cartão próprio, é a fila que trava a montagem da proposta.

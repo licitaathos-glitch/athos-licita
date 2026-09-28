@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import ModalNovoRegistro from './ModalNovoRegistro'
 import { tipoEventoInfo } from '@/lib/tiposEvento'
 import { exportarExcel, numero } from '@/lib/exportarExcel'
-import { FASES } from '@/lib/fases'
+import { FASES, opcoesFase } from '@/lib/fases'
 import { nomeResultado, corResultado } from '@/lib/resultado'
 import { nomeStatus } from '@/lib/statusLicitacao'
 import Toggle from '@/components/Toggle'
@@ -300,7 +300,7 @@ export default function ModalDetalheLicitacao({
           {!somenteConsulta && <>
             <select className="mover-fase-sel" value={fx.id} title="Mover para outra fase"
               onChange={e => { if (e.target.value !== fx.id) onMover(l, e.target.value) }}>
-              {FASES.map(x => <option key={x.id} value={x.id}>{x.nome}</option>)}
+              {opcoesFase(fx.id).map(x => <option key={x.id} value={x.id}>{x.nome}</option>)}
             </select>
             <button className="iBtn" onClick={() => onStatus(l)}>📈 Andamento</button>
             <button className="iBtn" onClick={() => onEditar(l)}>✏️ Editar</button>

@@ -19,7 +19,7 @@ const COLS_LIC = ['id','empresaId','empresaNome','numeroPNCP','numeroEdital','ob
   'valor','dataPublicacao','dataAbertura','modalidade','status','link','origem','salvoEm',
   'dataLimite','dataSessao','portal','srp','numeroProposta','anexoDriveId','anexoDriveUrl','anexosJson',
   ...nomesChunk('itensJson'), 'checklistJson', 'resumoEmailsJson',
-  'participar', 'fase', ...COLS_RESULTADO]
+  'participar', 'fase', 'excluidaEm', ...COLS_RESULTADO]
 
 function parseItens(json) {
   try { const a = JSON.parse(json || '[]'); return Array.isArray(a) ? a : [] } catch { return [] }
@@ -246,7 +246,12 @@ export async function DELETE(req) {
     if (!ids.has(String(lic.empresaId || '').trim())) {
       return NextResponse.json({ sucesso: false, erro: 'Sem permissão.' }, { status: 403 })
     }
-    const r = await excluirLinha('Licitacoes', 'id', id)
+    // Exclusão é reversível: a linha fica na planilha na fase "Excluida", fora
+    // da lista principal e do relatório mensal, mas consultável na aba Excluída.
+    const r = await atualizarLinha('Licitacoes', 'id', id, {
+      fase: 'Excluida',
+      excluidaEm: new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
+    })
     if (!r.ok) return NextResponse.json({ sucesso: false, erro: r.erro })
     return NextResponse.json({ sucesso: true })
   } catch (e) {

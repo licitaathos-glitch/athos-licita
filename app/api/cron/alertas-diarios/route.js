@@ -3,6 +3,7 @@ import { lerAba, adicionarLinha, garantirAba } from '@/lib/google'
 import { chamarGAS } from '@/lib/gas'
 import { buscarPNCP } from '@/lib/pncp'
 import { ABA_CRITERIOS, aplicarPerfil, listaDe } from '@/lib/perfilBusca'
+import { empresaAtiva } from '@/lib/auth'
 import { certidoesEmAlerta, atasEmAlerta, sessoesAmanha, montarEmailDiario } from '@/lib/alertas'
 
 export const maxDuration = 300 // até 5 min — dá tempo para consultar o PNCP empresa por empresa
@@ -69,7 +70,8 @@ export async function GET(req) {
     const ataAlerta = atasEmAlerta(atas, 30)
     const sessaoAlerta = sessoesAmanha(licitacoes)
 
-    for (const empresa of empresas.filter(e => e.id)) {
+    // Empresa suspensa/inabilitada não gera nem recebe alerta
+    for (const empresa of empresas.filter(e => e.id && empresaAtiva(e))) {
       const id = String(empresa.id).trim()
       const certidoes = certAlerta.filter(c => c.empresaId === id)
       const atasVenc = ataAlerta.filter(a => a.empresaId === id)

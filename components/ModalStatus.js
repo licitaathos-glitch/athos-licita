@@ -1,6 +1,6 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
-import { FASES, FORMAS_VALOR, normalizarFase } from '@/lib/fases'
+import { FASES, opcoesFase, FORMAS_VALOR, normalizarFase } from '@/lib/fases'
 import { RESULTADOS, MOTIVOS_NAO_PARTICIPACAO, MOTIVOS_PERDA } from '@/lib/resultado'
 import { gerarResumoItens } from '@/lib/checklist'
 import { TIPOS_EVENTO, tipoEventoInfo } from '@/lib/tiposEvento'
@@ -335,7 +335,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
           <div className="form-sub">
             <label>FASE ATUAL</label>
             <div className="trilha">
-              {FASES.map(x => (
+              {opcoesFase(fase).map(x => (
                 <button key={x.id}
                   className={'trilha-item' + (fase === x.id ? ' on' : '')}
                   style={fase === x.id ? { background: x.cor, borderColor: x.cor } : { borderColor: x.cor + '55' }}

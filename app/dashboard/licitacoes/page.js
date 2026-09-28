@@ -123,8 +123,8 @@ function LicitacoesConteudo() {
     if (novaFase === 'Finalizada') extras.status = 'Encerrada'
     // Ao tirar de Finalizada/Descartado, limpa o desfecho — senão a licitação
     // volta sozinha para lá na próxima leitura e parece travada
-    const eraFinal = ['Finalizada', 'Descartado'].includes(lic.fase)
-    const virouAberta = !['Finalizada', 'Descartado'].includes(novaFase)
+    const eraFinal = ['Finalizada', 'Descartado', 'Excluida'].includes(lic.fase)
+    const virouAberta = !['Finalizada', 'Descartado', 'Excluida'].includes(novaFase)
     if (eraFinal && virouAberta) {
       extras.resultado = 'Aguardando'
       extras.motivo = ''
@@ -142,7 +142,7 @@ function LicitacoesConteudo() {
   }
 
   async function excluir(lic) {
-    if (!confirm('Excluir definitivamente a licitação "' + (lic.numeroEdital || lic.objeto || '').slice(0, 60) + '"?\n\nEsta ação não pode ser desfeita.')) return
+    if (!confirm('Excluir a licitação "' + (lic.numeroEdital || lic.objeto || '').slice(0, 60) + '"?\n\nEla sai da lista principal e do relatório mensal, mas fica guardada na aba "Excluída" — dá para restaurá-la depois.')) return
     const r = await fetch('/api/licitacoes', {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: lic.id }),
@@ -177,7 +177,7 @@ function LicitacoesConteudo() {
       </div>
 
       <div className="kpi-grid">
-        <div className="kpi"><div className="kpi-val kv-navy">{base.length}</div><div className="kpi-label">Licitações salvas</div></div>
+        <div className="kpi"><div className="kpi-val kv-navy">{base.filter(l => normalizarFase(l.fase) !== 'Excluida').length}</div><div className="kpi-label">Licitações salvas</div></div>
         <div className="kpi"><div className="kpi-val kv-green">{abertas}</div><div className="kpi-label">Abertas</div></div>
         <div className="kpi"><div className="kpi-val kv-amber">{vaiParticipar}</div><div className="kpi-label">Vamos participar</div></div>
       </div>
@@ -296,6 +296,12 @@ function ModalLic({ lic, empresaId, empresas = [], onFechar, onSalvo }) {
   // antes vinha travada da barra lateral e, para corrigir, só excluindo e
   // cadastrando de novo.
   const [empresaEscolhida, setEmpresaEscolhida] = useState(empresaId || '')
+  // Empresa suspensa/inabilitada sai da lista de ativas, mas se a licitação já
+  // era dela ela precisa continuar aparecendo — senão a edição mostraria o
+  // campo em branco e perderia o vínculo ao salvar.
+  const opcoesEmpresa = ed && lic.empresa_id && !empresas.some(e => String(e.id) === String(lic.empresa_id))
+    ? [...empresas, { id: lic.empresa_id, nome: (lic.empresa_nome || 'Empresa') + ' (inativa)' }]
+    : empresas
   const empresaNome = empresas.find(e => String(e.id) === String(empresaEscolhida))?.nome || ''
   const [linkPncp, setLinkPncp] = useState('')
   const [extraindo, setExtraindo] = useState(false)
@@ -548,7 +554,7 @@ function ModalLic({ lic, empresaId, empresas = [], onFechar, onSalvo }) {
             <label>EMPRESA QUE VAI PARTICIPAR</label>
             <select value={empresaEscolhida} onChange={e => setEmpresaEscolhida(e.target.value)}>
               <option value="">Selecione a empresa...</option>
-              {empresas.map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
+              {opcoesEmpresa.map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
             </select>
             {ed && String(empresaEscolhida) !== String(lic.empresa_id || '') && (
               <p className="dica-menus" style={{ margin: '4px 0 0', color: '#B45309' }}>

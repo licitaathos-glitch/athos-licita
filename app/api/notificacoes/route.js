@@ -21,7 +21,7 @@ export async function GET(req) {
     ])
 
     // Sessões e prazos das licitações que ainda estão em jogo
-    const emJogo = ['Finalizada', 'Descartado']
+    const emJogo = ['Finalizada', 'Descartado', 'Excluida']
     const sessoes = licitacoes
       .filter(l => l.id && podeVer(l.empresaId))
       .filter(l => !emJogo.includes(String(l.fase || '')))

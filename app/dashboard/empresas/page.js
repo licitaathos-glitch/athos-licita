@@ -18,14 +18,25 @@ export default function EmpresasPage() {
   const [erro, setErro] = useState('')
   const [salvando, setSalvando] = useState(false)
   const [configs, setConfigs] = useState({})
+  // Suspensas/inabilitadas ficam escondidas até marcar este filtro
+  const [mostrarInativas, setMostrarInativas] = useState(false)
 
   async function carregar() {
     const [r, c] = await Promise.all([
-      fetch('/api/empresas').then(x => x.json()),
+      fetch('/api/empresas?todas=1').then(x => x.json()),
       fetch('/api/config-empresa').then(x => x.json()),
     ])
     if (r.sucesso) setLista(r.empresas)
     if (c.sucesso) setConfigs(c.configs)
+  }
+
+  async function alterarStatus(empresa, novoStatus) {
+    const r = await fetch('/api/empresas', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: empresa.id, nome: empresa.nome, status_empresa: novoStatus }),
+    }).then(x => x.json())
+    if (r.sucesso) { carregar(); recarregarEmpresas() }
+    else alert(r.erro || 'Erro ao alterar o status.')
   }
 
   async function salvarConfig(empresaId, dados) {
@@ -92,18 +103,34 @@ export default function EmpresasPage() {
         </button>
       </div>
 
-      <div style={{ fontSize: 14, fontWeight: 700, color: '#145653', margin: '20px 0 12px' }}>
-        Empresas cadastradas ({lista.length})
-      </div>
-      {lista.map(e => (
-        <CardEmpresa key={e.id} empresa={e} config={configs[String(e.id)]} onSalvar={salvarConfig} onSalvarDados={salvarDados} />
-      ))}
+      {(() => {
+        const inativas = lista.filter(e => e.status_empresa && e.status_empresa !== 'Ativa')
+        const visiveis = mostrarInativas ? lista : lista.filter(e => !e.status_empresa || e.status_empresa === 'Ativa')
+        return (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '20px 0 12px' }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#145653' }}>
+                Empresas cadastradas ({visiveis.length})
+              </div>
+              {inativas.length > 0 && (
+                <button className="iBtn" onClick={() => setMostrarInativas(v => !v)}>
+                  {mostrarInativas ? 'ocultar' : 'mostrar'} suspensas/inabilitadas ({inativas.length})
+                </button>
+              )}
+            </div>
+            {visiveis.map(e => (
+              <CardEmpresa key={e.id} empresa={e} config={configs[String(e.id)]}
+                onSalvar={salvarConfig} onSalvarDados={salvarDados} onAlterarStatus={alterarStatus} />
+            ))}
+          </>
+        )
+      })()}
     </div>
   )
 }
 
 
-function CardEmpresa({ empresa, config, onSalvar, onSalvarDados }) {
+function CardEmpresa({ empresa, config, onSalvar, onSalvarDados, onAlterarStatus }) {
   const [aberto, setAberto] = useState(false)
   const [novaTarefa, setNovaTarefa] = useState(false)
   const atual = config || { modelo: 'revenda', percentualComissao: '', observacao: '' }
@@ -196,9 +223,13 @@ function CardEmpresa({ empresa, config, onSalvar, onSalvarDados }) {
     setExtraindo(false)
   }
 
+  const status = empresa.status_empresa && empresa.status_empresa !== 'Ativa' ? empresa.status_empresa : 'Ativa'
+  const corStatus = { Ativa: '#16A34A', Suspensa: '#D97706', Inabilitada: '#DC2626' }[status] || '#16A34A'
+
   return (
     <div>
-      <div className="emp-card" style={{ cursor: 'pointer' }} onClick={() => setAberto(a => !a)}>
+      <div className="emp-card" style={{ cursor: 'pointer', opacity: status === 'Ativa' ? 1 : .72, borderLeft: `3px solid ${corStatus}` }}
+        onClick={() => setAberto(a => !a)}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, color: '#145653' }}>{empresa.nome}</div>
           <div style={{ fontSize: 11, color: '#94A3B8' }}>
@@ -210,6 +241,14 @@ function CardEmpresa({ empresa, config, onSalvar, onSalvarDados }) {
         <span className="pill pill-gray">
           {rotulo}{atual.modelo === 'comissao' && atual.percentualComissao ? ' ' + atual.percentualComissao + '%' : ''}
         </span>
+        <select value={status} onClick={e => e.stopPropagation()}
+          onChange={e => onAlterarStatus(empresa, e.target.value)}
+          style={{ fontSize: 11.5, fontWeight: 700, borderRadius: 999, padding: '3px 10px',
+            border: `1px solid ${corStatus}`, color: corStatus, background: corStatus + '1A' }}>
+          <option value="Ativa">Ativa</option>
+          <option value="Suspensa">Suspensa</option>
+          <option value="Inabilitada">Inabilitada</option>
+        </select>
       </div>
 
       {novaTarefa && (
