@@ -4,6 +4,7 @@ import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu, empre
 import { diasRestantes, statusPorDias, formatarData } from '@/lib/datas'
 import { rotuloTipo, temValidade } from '@/lib/tiposCertidao'
 import { novoId } from '@/lib/uuid'
+import { analisarLinkDrive } from '@/lib/drive'
 
 // Colunas que a aba Documentos precisa ter. adicionarLinha/atualizarLinha só
 // gravam colunas que existem no cabeçalho — sem isso, um campo novo (como o
@@ -57,6 +58,9 @@ export async function GET(req) {
           status: comVal ? statusPorDias(dd) : 'nd',
           observacao: d.observacao || '',
           link: d.drive_file_url || '',
+          // O id gravado é mais confiável que o link, que já foi colado em vários formatos
+          drive_file_id: d.drive_file_id || '',
+          link_tipo: (d.drive_file_id ? { tipo: 'arquivo' } : analisarLinkDrive(d.drive_file_url)).tipo,
         }
       })
       .sort((a, b) => {

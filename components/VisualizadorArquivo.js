@@ -10,15 +10,16 @@ export function idDoDrive(url) {
 // Passa pelo próprio sistema em vez do Drive: os arquivos são privados, então
 // o preview do Google só funcionava para quem estivesse logado naquela conta
 // Google. Pelo /api/arquivo, quem autoriza é o login do Athos Licita.
-export const urlPreview = url => '/api/arquivo?url=' + encodeURIComponent(url)
-export const urlDownload = url => '/api/arquivo?baixar=1&url=' + encodeURIComponent(url)
+const qs = (url, id) => (id ? 'id=' + encodeURIComponent(id) + '&' : '') + 'url=' + encodeURIComponent(url || '')
+export const urlPreview = (url, id) => '/api/arquivo?' + qs(url, id)
+export const urlDownload = (url, id) => '/api/arquivo?baixar=1&' + qs(url, id)
 
 /**
  * Janela para ver o arquivo sem sair da tela, com opção de baixar e imprimir.
  * O arquivo vem pelo /api/arquivo, que só responde a quem está logado.
  */
-export default function VisualizadorArquivo({ url, nome = 'Arquivo', onFechar }) {
-  const preview = urlPreview(url)
+export default function VisualizadorArquivo({ url, driveId = '', nome = 'Arquivo', onFechar }) {
+  const preview = urlPreview(url, driveId)
 
   return (
     <div className="overlay" onClick={e => { if (e.target === e.currentTarget) onFechar() }}>
@@ -34,8 +35,8 @@ export default function VisualizadorArquivo({ url, nome = 'Arquivo', onFechar })
         </div>
 
         <div style={{ padding: '10px 14px', display: 'flex', gap: 8, flexWrap: 'wrap', borderBottom: '1px solid #F1F5F9' }}>
-          <a href={urlDownload(url)} className="iBtn iBtn-up">⬇ Baixar</a>
-          <a href={urlPreview(url)} target="_blank" rel="noreferrer" className="iBtn">↗ Abrir em nova aba</a>
+          <a href={urlDownload(url, driveId)} className="iBtn iBtn-up">⬇ Baixar</a>
+          <a href={urlPreview(url, driveId)} target="_blank" rel="noreferrer" className="iBtn">↗ Abrir em nova aba</a>
           <span style={{ fontSize: 11, color: '#94A3B8', alignSelf: 'center' }}>
             Para imprimir, use o ícone de impressora do visualizador
           </span>

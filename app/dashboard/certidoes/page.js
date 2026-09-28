@@ -137,12 +137,22 @@ export default function CertidoesPage() {
                 <div style={{ fontWeight: 600, color: '#145653', fontSize: 13 }}>{tipo.nome}</div>
                 {doc?.observacao && <div className="doc-obs">{doc.observacao}</div>}
                 {!empresaSel && doc && <div className="doc-obs">{doc.empresa_nome}</div>}
-                {doc?.link ? (
-                  <button className="drive-lnk" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-                    title="Ver, baixar ou imprimir a certidão"
-                    onClick={ev => { ev.stopPropagation(); setVerArquivo({ url: doc.link, nome: tipo.nome }) }}>
-                    📄 ver / baixar
-                  </button>
+                {(doc?.link || doc?.drive_file_id) ? (
+                  <div>
+                    <button className="drive-lnk" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                      title="Ver, baixar ou imprimir a certidão"
+                      onClick={ev => { ev.stopPropagation(); setVerArquivo({ url: doc.link, driveId: doc.drive_file_id, nome: tipo.nome }) }}>
+                      📄 ver / baixar
+                    </button>
+                    {/* Link guardado que não é de arquivo do Drive: o botão acima só
+                        vai explicar o problema. Aqui já se avisa e se diz a saída. */}
+                    {doc.link_tipo && doc.link_tipo !== 'arquivo' && (
+                      <div style={{ fontSize: 11, color: '#B45309' }}>
+                        ⚠️ o link guardado {doc.link_tipo === 'pasta' ? 'é de uma pasta' : doc.link_tipo === 'externo' ? 'não é do Google Drive' : 'não é válido'} —
+                        use "Atualizar" e anexe o PDF
+                      </div>
+                    )}
+                  </div>
                 ) : doc && (
                   // Sem isso o documento simplesmente não mostrava nada e dava
                   // a impressão de que o arquivo existia e a tela é que falhava
@@ -190,7 +200,7 @@ export default function CertidoesPage() {
       })}
 
       {verArquivo && (
-        <VisualizadorArquivo url={verArquivo.url} nome={verArquivo.nome} onFechar={() => setVerArquivo(null)} />
+        <VisualizadorArquivo url={verArquivo.url} driveId={verArquivo.driveId} nome={verArquivo.nome} onFechar={() => setVerArquivo(null)} />
       )}
 
       {modal && (
