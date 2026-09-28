@@ -3,7 +3,7 @@ import { lerAba, adicionarLinha, atualizarLinha, garantirAba, excluirLinha } fro
 import { getUsuarioFromReq, podeEditar, podeAcessarMenu, empresasVisiveis } from '@/lib/auth'
 import { chamarGAS } from '@/lib/gas'
 import { novoId } from '@/lib/uuid'
-import { COLS_COTACAO, parseItensCotacao } from '@/lib/cotacao'
+import { COLS_COTACAO, parseItensCotacao, idDoDrive } from '@/lib/cotacao'
 
 const SITE = 'https://athos-licita.vercel.app'
 
@@ -77,6 +77,41 @@ export async function POST(req) {
 
     const link = `${SITE}/cotacao/${token}`
     let avisoEmail = null
+
+    // Os anexos ficam PRIVADOS no Drive: quem clicava no link do e-mail caía na
+    // tela "solicitar acesso" do Google. Antes de enviar, libera para "qualquer
+    // pessoa com o link" só os arquivos que pertencem a esta licitação (edital
+    // e anexos são documentos públicos do processo). O link do arquivo é longo
+    // e não adivinhável; certidões e demais arquivos das empresas não são tocados.
+    try {
+      const lic = (await lerAba('Licitacoes')).find(l => String(l.id || '').trim() === String(licitacaoId).trim())
+      const permitidos = new Set()
+      if (lic) {
+        if (lic.anexoDriveId) permitidos.add(String(lic.anexoDriveId))
+        const dele = idDoDrive(lic.anexoDriveUrl); if (dele) permitidos.add(dele)
+        try {
+          ;(JSON.parse(lic.anexosJson || '[]') || []).forEach(a => {
+            const i = a.id || a.driveFileId || idDoDrive(a.url)
+            if (i) permitidos.add(String(i))
+          })
+        } catch {}
+      }
+      const pedidos = [editalAnexoUrl, ...((resumoPdf && resumoPdf.anexos) || []).map(a => a.url)]
+        .map(idDoDrive).filter(Boolean)
+      const ids = [...new Set(pedidos)].filter(i => permitidos.has(i))
+      if (ids.length) {
+        const lib = await chamarGAS({ action: 'liberarArquivosDrive', ids }, 40)
+        if (!lib || lib.ok === false || lib.erro) {
+          avisoEmail = 'Atenção: não consegui liberar os anexos no Drive (' + ((lib && lib.erro) || 'sem resposta') +
+            '). O fornecedor pode ver o pedido de acesso do Google.'
+        } else if (lib.falhas && lib.falhas.length) {
+          avisoEmail = `Atenção: ${lib.falhas.length} anexo(s) não puderam ser liberados e podem pedir acesso ao fornecedor.`
+        }
+      }
+    } catch (eLib) {
+      avisoEmail = 'Atenção: não consegui liberar os anexos no Drive (' + eLib.message + ').'
+    }
+
     try {
       const html = montarEmailPedido({
         empresa: empresa.nome, numeroEdital, objeto, itens, mensagem, link, editalAnexoUrl,
