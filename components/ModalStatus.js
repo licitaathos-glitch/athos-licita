@@ -788,11 +788,41 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
 
           {/* ── Disputa: lance, colocação e vencedor — por item quando houver itens ── */}
           {['Disputa', 'Finalizada'].includes(fase) && (
-            itens.length > 0 ? (
+            itens.length > 0 ? (() => {
+              // Em SRP com vários itens, cada um pode ir para um concorrente
+              // diferente — "Ganhamos"/"Perdemos" lá embaixo é um resumo do
+              // processo inteiro, mas item a item quem decide é a colocação:
+              // 1º lugar aqui é nosso, qualquer outra coisa (com concorrente
+              // registrado) foi para outra empresa. Sem nada preenchido ainda,
+              // fica pendente.
+              // Mesma regra que o relatório mensal já usa (lib/relatorioEmail.js):
+              // colocação 1 é nosso; qualquer outra colocação (ou concorrente
+              // registrado) foi perdido; e quando o item nem tem colocação
+              // preenchida, cai no resultado geral da licitação — importante
+              // pra disputa de item único, onde só se preenche "Como terminou?"
+              // lá embaixo e nunca a colocação item a item.
+              const resultadoItem = it => {
+                const col = Number(it.colocacao) || null
+                if (col === 1) return 'ganho'
+                if (col || String(it.vencedorNome || '').trim()) return 'perdido'
+                if (f.resultado === 'Ganhamos') return 'ganho'
+                if (['Perdemos', 'Desclassificados', 'Deserta', 'Cancelada'].includes(f.resultado)) return 'perdido'
+                return 'pendente'
+              }
+              const marcados = itens.filter(it => it.participar)
+              const ganhos = marcados.filter(it => resultadoItem(it) === 'ganho').length
+              const perdidos = marcados.filter(it => resultadoItem(it) === 'perdido').length
+              const ESTILO_RESULTADO = {
+                ganho:    { linha: '#F0FDF4', texto: '#16A34A', rotulo: '🏆 Ganhamos' },
+                perdido:  { linha: '#FEF2F2', texto: '#DC2626', rotulo: 'Perdemos' },
+                pendente: { linha: 'transparent', texto: '#94A3B8', rotulo: 'Pendente' },
+              }
+              return (
               <div className="form-sub">
                 <label>NOSSO LANCE E VENCEDOR POR ITEM</label>
                 <p className="dica-menus" style={{ marginTop: 0, marginBottom: 8 }}>
-                  Só os itens marcados na Inscrição de proposta aparecem aqui.
+                  Só os itens marcados na Inscrição de proposta aparecem aqui. Preencha a colocação de cada
+                  item — 1º lugar é nosso; qualquer outra colocação, o item foi para o concorrente ao lado.
                 </p>
                 <div style={{ overflowX: 'auto' }}>
                   <table className="tbl-proposta">
@@ -806,41 +836,59 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                         <th style={{ width: 70 }}>Colocação</th>
                         <th style={{ width: 160 }}>Empresa vencedora</th>
                         <th style={{ width: 110 }}>Preço vencedor</th>
+                        <th style={{ width: 110 }}>Resultado</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {itens.map((it, i) => it.participar && (
-                        <tr key={i}>
+                      {itens.map((it, i) => {
+                        if (!it.participar) return null
+                        const r = resultadoItem(it)
+                        const e = ESTILO_RESULTADO[r]
+                        return (
+                        <tr key={i} style={{ background: e.linha }}>
                           <td style={{ color: '#64748B', fontWeight: 600, textAlign: 'center' }}>{it.numero ?? ''}</td>
                           <td style={{ maxWidth: 260 }}>{it.descricao || '—'}</td>
                           <td>{it.quantidade || '—'}</td>
                           <td><input type="number" step="0.01" value={it.lanceFinal || ''} placeholder={it.meuValor || '0,00'}
-                            onChange={e => setItem(i, 'lanceFinal', e.target.value)} /></td>
+                            onChange={ev => setItem(i, 'lanceFinal', ev.target.value)} /></td>
                           <td style={{ fontWeight: 700, color: '#1B2E4B', whiteSpace: 'nowrap' }}>
                             {moeda((Number(it.lanceFinal || it.meuValor) || 0) * (Number(it.quantidade) || 0))}
                           </td>
                           <td><input type="number" min="1" value={it.colocacao || ''} placeholder="1"
-                            onChange={e => setItem(i, 'colocacao', e.target.value)} /></td>
+                            onChange={ev => setItem(i, 'colocacao', ev.target.value)} /></td>
                           <td><input value={it.vencedorNome || ''} placeholder="Nome do concorrente"
-                            onChange={e => setItem(i, 'vencedorNome', e.target.value)} /></td>
+                            onChange={ev => setItem(i, 'vencedorNome', ev.target.value)} /></td>
                           <td><input type="number" step="0.01" value={it.vencedorPreco || ''}
-                            onChange={e => setItem(i, 'vencedorPreco', e.target.value)} /></td>
+                            onChange={ev => setItem(i, 'vencedorPreco', ev.target.value)} /></td>
+                          <td style={{ fontWeight: 700, color: e.texto, whiteSpace: 'nowrap', textAlign: 'center' }}>
+                            {e.rotulo}
+                          </td>
                         </tr>
-                      ))}
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
-                <div className="totais-proposta" style={{ marginTop: 10 }}>
+                <div className="totais-proposta" style={{ marginTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 10 }}>
                   <div>
                     <span className="lic-campo-lbl">VALOR TOTAL DA CONTRATAÇÃO (NOSSOS LANCES)</span>
                     <span className="lic-campo-val" style={{ color: '#16A34A', fontSize: 16 }}>
-                      {moeda(itens.filter(it => it.participar).reduce((s, it) =>
+                      {moeda(marcados.reduce((s, it) =>
                         s + (Number(it.lanceFinal || it.meuValor) || 0) * (Number(it.quantidade) || 0), 0))}
                     </span>
                   </div>
+                  {marcados.length > 0 && (
+                    <div style={{ fontSize: 12.5, color: '#374151' }}>
+                      <strong style={{ color: '#16A34A' }}>{ganhos} ganho(s)</strong>
+                      {' · '}<strong style={{ color: '#DC2626' }}>{perdidos} perdido(s)</strong>
+                      {marcados.length - ganhos - perdidos > 0 && <> · {marcados.length - ganhos - perdidos} pendente(s)</>}
+                      {' '}de {marcados.length} item(ns)
+                    </div>
+                  )}
                 </div>
               </div>
-            ) : (
+              )
+            })() : (
               <div className="form-grid">
                 <div><label className="mini-lbl">NOSSA COLOCAÇÃO</label>
                   <input type="number" min="1" value={f.colocacao} onChange={e => set('colocacao', e.target.value)} placeholder="1" /></div>
