@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { lerAba, atualizarLinha, garantirAba } from '@/lib/google'
 import { chamarGAS } from '@/lib/gas'
 import { COLS_COTACAO, parseItensCotacao } from '@/lib/cotacao'
+import { chunkCampo, juntarChunk } from '@/lib/chunkCampo'
 
 export const maxDuration = 60
 
@@ -22,8 +23,8 @@ export async function GET(req, { params }) {
         empresaNome: c.empresaNome, numeroEdital: c.numeroEdital, objeto: c.objeto,
         mensagem: c.mensagem, status: c.status || 'Pendente',
         editalAnexoUrl: c.editalAnexoUrl || '', resumoTexto: c.resumoTexto || '',
-        itens: parseItensCotacao(c.itensJson),
-        respostaItens: parseItensCotacao(c.respostaItensJson),
+        itens: parseItensCotacao(juntarChunk(c, 'itensJson')),
+        respostaItens: parseItensCotacao(juntarChunk(c, 'respostaItensJson')),
         numeroCotacaoFornecedor: c.numeroCotacaoFornecedor || '',
         anexoDriveUrl: c.anexoDriveUrl || '',
       },
@@ -54,8 +55,14 @@ export async function POST(req, { params }) {
       if (up && up.ok) { anexoDriveId = up.driveFileId; anexoDriveUrl = up.driveFileUrl }
     }
 
+    let camposResposta
+    try {
+      camposResposta = chunkCampo('respostaItensJson', JSON.stringify(precos))
+    } catch (e) {
+      return NextResponse.json({ sucesso: false, erro: e.message })
+    }
     const r = await atualizarLinha('Cotacoes', 'token', params.token, {
-      respostaItensJson: JSON.stringify(precos),
+      ...camposResposta,
       numeroCotacaoFornecedor: numeroCotacaoFornecedor || '',
       respondidoPor: respondidoPor || '',
       anexoDriveId, anexoDriveUrl,

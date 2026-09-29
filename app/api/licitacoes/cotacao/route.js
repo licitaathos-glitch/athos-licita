@@ -4,6 +4,7 @@ import { getUsuarioFromReq, podeEditar, podeAcessarMenu, empresasVisiveis } from
 import { chamarGAS } from '@/lib/gas'
 import { novoId } from '@/lib/uuid'
 import { COLS_COTACAO, parseItensCotacao, idDoDrive } from '@/lib/cotacao'
+import { chunkCampo, juntarChunk } from '@/lib/chunkCampo'
 
 const SITE = 'https://athos-licita.vercel.app'
 
@@ -29,7 +30,7 @@ export async function GET(req) {
       : todas.filter(c => c.empresaId === empresaId)
     const cotacoes = linhas.map(c => ({
       id: c.id, licitacaoId: c.licitacaoId, destinatarioEmail: c.destinatarioEmail, status: c.status || 'Pendente',
-      itens: parseItensCotacao(c.itensJson), respostaItens: parseItensCotacao(c.respostaItensJson),
+      itens: parseItensCotacao(juntarChunk(c, 'itensJson')), respostaItens: parseItensCotacao(juntarChunk(c, 'respostaItensJson')),
       numeroCotacaoFornecedor: c.numeroCotacaoFornecedor || '', anexoDriveUrl: c.anexoDriveUrl || '',
       respondidoEm: c.respondidoEm || '', criadoEm: c.criadoEm || '', token: c.token,
     }))
@@ -63,16 +64,23 @@ export async function POST(req) {
     const id = novoId()
     const token = novoId()
 
-    const r = await adicionarLinha('Cotacoes', {
+    const camposCotacao = {
       id, licitacaoId, empresaId, empresaNome: empresa.nome,
       numeroEdital: numeroEdital || '', objeto: objeto || '',
-      itensJson: JSON.stringify(itens), destinatarioEmail, mensagem: mensagem || '',
+      destinatarioEmail, mensagem: mensagem || '',
       editalAnexoUrl: editalAnexoUrl || '', resumoTexto: resumoTexto || '',
       linkLicitacao: linkLicitacao || '', dataSessao: dataSessao || '', srp: srp || '',
-      token, status: 'Pendente', respostaItensJson: '[]',
+      token, status: 'Pendente',
       numeroCotacaoFornecedor: '', anexoDriveId: '', anexoDriveUrl: '',
       respondidoPor: '', respondidoEm: '', criadoEm: new Date().toISOString(),
-    })
+    }
+    try {
+      Object.assign(camposCotacao, chunkCampo('itensJson', JSON.stringify(itens)))
+      Object.assign(camposCotacao, chunkCampo('respostaItensJson', '[]'))
+    } catch (e) {
+      return NextResponse.json({ sucesso: false, erro: e.message })
+    }
+    const r = await adicionarLinha('Cotacoes', camposCotacao)
     if (!r.ok) return NextResponse.json({ sucesso: false, erro: r.erro })
 
     const link = `${SITE}/cotacao/${token}`
