@@ -257,14 +257,29 @@ function montarEmailPedido({ empresa, numeroEdital, objeto, itens, mensagem, lin
       <a href="${esc(a.url)}" style="color:#145653;font-weight:700">📎 ${esc(a.nome || 'Anexo')}</a></p>`).join('')}` : ''
 
   // ── Itens: quantidade, valor estimado unitário e total ────────────────
+  // Acima de 50 itens a lista linha a linha vira um e-mail enorme e pesado de
+  // rolar — e o fornecedor preenche o preço pelo link, não pelo corpo do
+  // e-mail. Nesses casos o e-mail traz só o resumo (quantos itens, valor
+  // total estimado) e manda direto pro link; a lista completa, item a item,
+  // continua no formulário público. Em licitação pequena, a tabela toda
+  // continua aparecendo como sempre.
+  const LIMITE_ITENS_TABELA_EMAIL = 50
+  const tabelaCompleta = itens.length <= LIMITE_ITENS_TABELA_EMAIL
+
   let totalEstimado = 0
   let algumEstimado = false
-  const linhas = itens.map(it => {
+  itens.forEach(it => {
+    const qtd = Number(it.quantidade) || 0
+    const unit = Number(it.valorUnitarioRef)
+    const temUnit = !isNaN(unit) && String(it.valorUnitarioRef ?? '').trim() !== ''
+    if (temUnit) { algumEstimado = true; totalEstimado += unit * qtd }
+  })
+
+  const linhas = !tabelaCompleta ? '' : itens.map(it => {
     const qtd = Number(it.quantidade) || 0
     const unit = Number(it.valorUnitarioRef)
     const temUnit = !isNaN(unit) && String(it.valorUnitarioRef ?? '').trim() !== ''
     const totalItem = temUnit ? unit * qtd : null
-    if (temUnit) { algumEstimado = true; totalEstimado += totalItem }
     return `<tr>
       <td style="padding:7px 10px;border-bottom:1px solid #F1F5F9;font-size:12.5px">${esc(it.descricao || '')}</td>
       <td style="padding:7px 10px;border-bottom:1px solid #F1F5F9;font-size:12.5px;text-align:center">${esc(it.quantidade || '')}</td>
@@ -274,10 +289,18 @@ function montarEmailPedido({ empresa, numeroEdital, objeto, itens, mensagem, lin
     </tr>`
   }).join('')
 
-  const rodapeTotal = algumEstimado ? `<tr>
+  const rodapeTotal = tabelaCompleta && algumEstimado ? `<tr>
       <td colspan="4" style="padding:9px 10px;font-size:12.5px;font-weight:800;color:#145653;text-align:right">Valor total estimado dos itens</td>
       <td style="padding:9px 10px;font-size:13px;font-weight:800;color:#145653;text-align:right">${brl(totalEstimado)}</td>
     </tr>` : ''
+
+  // Licitação grande: um bloco de resumo no lugar da tabela item a item
+  const blocoItensResumido = `<table width="100%" style="border-collapse:collapse;background:#F8FAFC;border-radius:10px;margin-bottom:18px"><tr>
+      <td style="padding:16px 18px">
+        <p style="margin:0 0 6px;font-size:13.5px;color:#2E2D2F"><strong>${itens.length} itens</strong> aguardando preço — a lista completa, com quantidade e valor estimado de cada um, está no formulário do link abaixo.</p>
+        ${algumEstimado ? `<p style="margin:0;font-size:14px;font-weight:800;color:#145653">Valor total estimado: ${brl(totalEstimado)}</p>` : ''}
+      </td>
+    </tr></table>`
 
   return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F3EFE7;font-family:-apple-system,sans-serif">
   <table width="100%"><tr><td align="center" style="padding:28px 14px">
@@ -306,7 +329,7 @@ function montarEmailPedido({ empresa, numeroEdital, objeto, itens, mensagem, lin
       ${blocoAnexos}
 
       ${h2('Itens para cotação')}
-      <table width="100%" style="border-collapse:collapse;margin-bottom:18px">
+      ${tabelaCompleta ? `<table width="100%" style="border-collapse:collapse;margin-bottom:18px">
         <thead><tr style="background:#F8FAFC">
           <th style="padding:8px 10px;font-size:10.5px;color:#64748B;text-align:left">DESCRIÇÃO</th>
           <th style="padding:8px 10px;font-size:10.5px;color:#64748B">QTD</th>
@@ -315,7 +338,7 @@ function montarEmailPedido({ empresa, numeroEdital, objeto, itens, mensagem, lin
           <th style="padding:8px 10px;font-size:10.5px;color:#64748B;text-align:right">VL. TOTAL ESTIMADO</th>
         </tr></thead>
         <tbody>${linhas}${rodapeTotal}</tbody>
-      </table>
+      </table>` : blocoItensResumido}
 
       <p style="text-align:center;margin:0 0 10px">
         <a href="${esc(link)}" style="display:inline-block;background:#B9A06B;color:#145653;font-weight:800;font-size:15px;padding:13px 28px;border-radius:10px;text-decoration:none">Enviar minha cotação</a>
