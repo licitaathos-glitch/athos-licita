@@ -119,7 +119,7 @@ function ResumoConteudo() {
                     <td style={{ maxWidth: 380 }}>{it.descricao}</td>
                     <td>{it.quantidade}</td>
                     <td>{it.unidade}</td>
-                    <td style={{ textAlign: 'right' }}>{it.valorUnitarioRef ? brl(it.valorUnitarioRef) : 'Sigiloso'}</td>
+                    <td style={{ textAlign: 'right' }}>{it.valorUnitarioRef ? brl(it.valorUnitarioRef) : 'Não informado'}</td>
                   </tr>
                 ))}
               </tbody>

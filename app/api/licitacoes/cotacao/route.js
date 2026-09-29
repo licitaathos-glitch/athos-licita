@@ -284,7 +284,7 @@ function montarEmailPedido({ empresa, numeroEdital, objeto, itens, mensagem, lin
       <td style="padding:7px 10px;border-bottom:1px solid #F1F5F9;font-size:12.5px">${esc(it.descricao || '')}</td>
       <td style="padding:7px 10px;border-bottom:1px solid #F1F5F9;font-size:12.5px;text-align:center">${esc(it.quantidade || '')}</td>
       <td style="padding:7px 10px;border-bottom:1px solid #F1F5F9;font-size:12.5px;text-align:center">${esc(it.unidade || '')}</td>
-      <td style="padding:7px 10px;border-bottom:1px solid #F1F5F9;font-size:12.5px;text-align:right">${temUnit ? brl(unit) : 'Sigiloso'}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #F1F5F9;font-size:12.5px;text-align:right">${temUnit ? brl(unit) : 'Não informado'}</td>
       <td style="padding:7px 10px;border-bottom:1px solid #F1F5F9;font-size:12.5px;text-align:right">${totalItem !== null ? brl(totalItem) : '—'}</td>
     </tr>`
   }).join('')

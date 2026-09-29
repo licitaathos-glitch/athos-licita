@@ -498,7 +498,9 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                             <td style={{ textAlign: 'center' }}>{it.quantidade}</td>
                             <td style={{ textAlign: 'center' }}>{it.unidade}</td>
                             <td style={{ textAlign: 'right' }}>
-                              {it.valorUnitarioRef ? moeda(it.valorUnitarioRef) : 'Sigiloso'}
+                              {it.valorUnitarioRef
+                                ? moeda(it.valorUnitarioRef)
+                                : <span title="Sem valor estimado registrado neste item — pode ser sigilo do edital ou só não ter sido capturado. Dá pra preencher em Editar.">Não informado</span>}
                             </td>
                           </tr>
                         ))}
@@ -641,7 +643,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
                           <td>{it.quantidade || '—'}</td>
                           <td>{it.unidade || '—'}</td>
                           <td style={{ color: '#64748B' }}>
-                            {it.valorUnitarioRef ? moeda(it.valorUnitarioRef) : 'Sigiloso'}
+                            {it.valorUnitarioRef ? moeda(it.valorUnitarioRef) : 'Não informado'}
                           </td>
                           <td>
                             <input type="number" step="0.01" value={it.meuValor}

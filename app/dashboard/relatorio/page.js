@@ -235,7 +235,7 @@ export default function RelatorioPage() {
                               <td style={{ fontWeight: 700, color: venceuItem ? '#16A34A' : '#DC2626' }}>
                                 {venceuItem ? 'Vencido' : 'Perdido'}
                               </td>
-                              <td style={{ textAlign: 'right' }}>{it.valorUnitarioRef ? brl(it.valorUnitarioRef) : 'Sigiloso'}</td>
+                              <td style={{ textAlign: 'right' }}>{it.valorUnitarioRef ? brl(it.valorUnitarioRef) : 'Não informado'}</td>
                               <td style={{ textAlign: 'right' }}>{brl(nossoValor)}</td>
                               <td style={{ textAlign: 'right' }}>{valor1oColocado ? brl(valor1oColocado) : '—'}{it.vencedorNome && !venceuItem ? <div style={{ fontWeight: 400, color: '#64748B' }}>{it.vencedorNome}</div> : null}</td>
                             </tr>
