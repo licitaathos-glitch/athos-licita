@@ -35,7 +35,11 @@ export default function VisualizadorArquivo({ url, driveId = '', nome = 'Arquivo
         </div>
 
         <div style={{ padding: '10px 14px', display: 'flex', gap: 8, flexWrap: 'wrap', borderBottom: '1px solid #F1F5F9' }}>
-          <a href={urlDownload(url, driveId)} className="iBtn iBtn-up">⬇ Baixar</a>
+          {/* target="_blank": se o arquivo falhar (apagado no Drive, Apps
+              Script fora do ar), o aviso abre numa aba nova em vez de
+              substituir a tela inteira — antes parecia que "não acontecia
+              nada", porque o app sumia de vista sem se perceber o motivo. */}
+          <a href={urlDownload(url, driveId)} target="_blank" rel="noreferrer" className="iBtn iBtn-up">⬇ Baixar</a>
           <a href={urlPreview(url, driveId)} target="_blank" rel="noreferrer" className="iBtn">↗ Abrir em nova aba</a>
           <span style={{ fontSize: 11, color: '#94A3B8', alignSelf: 'center' }}>
             Para imprimir, use o ícone de impressora do visualizador

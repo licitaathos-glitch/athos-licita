@@ -11,14 +11,29 @@ const LIMITE_BYTES = 4.3 * 1024 * 1024
 
 const esc = t => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
-// Página legível dentro do próprio visualizador. Antes qualquer falha aparecia
-// como um JSON cru ({"erro":"..."}) dentro do quadro, sem dizer o que fazer.
+// Página legível — dentro do quadro de visualização, ou (Baixar/Abrir em nova
+// aba) sozinha numa aba própria. Antes qualquer falha aparecia como um JSON
+// cru ({"erro":"..."}) sem dizer o que houve nem o que fazer; com o link de
+// Baixar agora abrindo em aba nova, essa página passou a ser tudo o que a
+// pessoa vê quando algo falha — por isso o visual precisa deixar claro que é
+// o Athos Licita avisando um problema, não a aba/app quebrado.
 function aviso(titulo, texto, { link, valor } = {}) {
-  const html = `<!doctype html><meta charset="utf-8"><body style="font-family:-apple-system,Segoe UI,sans-serif;padding:26px;color:#2E2D2F;max-width:640px">
-    <h3 style="margin:0 0 8px;color:#B45309">${esc(titulo)}</h3>
-    <p style="font-size:14px;line-height:1.55;margin:0 0 12px">${texto}</p>
-    ${valor ? `<p style="font-size:12px;color:#64748B;word-break:break-all;background:#F8FAFC;padding:8px 10px;border-radius:8px;margin:0 0 12px"><strong>Link guardado:</strong> ${esc(valor)}</p>` : ''}
-    ${link ? `<p style="margin:0"><a href="${esc(link)}" target="_blank" rel="noreferrer" style="color:#145653;font-weight:700">↗ Abrir o link em outra aba</a></p>` : ''}
+  const html = `<!doctype html><meta charset="utf-8">
+  <title>${esc(titulo)} — Athos Licita</title>
+  <body style="margin:0;font-family:-apple-system,Segoe UI,sans-serif;background:#F3EFE7;color:#2E2D2F">
+    <div style="background:#145653;padding:16px 24px">
+      <span style="color:#B9A06B;font-weight:800;font-size:12px;letter-spacing:.08em">ATHOS LICITA</span>
+    </div>
+    <div style="max-width:640px;margin:0 auto;padding:32px 24px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <span style="font-size:22px">⚠️</span>
+        <h3 style="margin:0;color:#B45309;font-size:17px">${esc(titulo)}</h3>
+      </div>
+      <p style="font-size:14px;line-height:1.6;margin:0 0 14px">${texto}</p>
+      ${valor ? `<p style="font-size:12px;color:#64748B;word-break:break-all;background:#fff;padding:10px 12px;border-radius:8px;margin:0 0 14px;border:1px solid #E7E1D5"><strong>Link guardado:</strong> ${esc(valor)}</p>` : ''}
+      ${link ? `<p style="margin:0 0 18px"><a href="${esc(link)}" target="_blank" rel="noreferrer" style="color:#145653;font-weight:700">↗ Abrir o link em outra aba</a></p>` : ''}
+      <p style="font-size:12px;color:#94A3B8;margin:0">Pode fechar esta aba e voltar para o sistema — nada foi perdido, só este arquivo não pôde ser aberto agora.</p>
+    </div>
   </body>`
   return new NextResponse(html, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } })
 }
@@ -28,7 +43,9 @@ function aviso(titulo, texto, { link, valor } = {}) {
 // arquivos) e quem autoriza é o login do sistema.
 export async function GET(req) {
   const usuario = await getUsuarioFromReq(req)
-  if (!usuario) return NextResponse.json({ erro: 'Não autenticado.' }, { status: 401 })
+  // Mesmo aqui, aviso() legível em vez de JSON cru — sessão expirada no meio
+  // do uso é rara, mas quando acontece precisa ser tão clara quanto o resto
+  if (!usuario) return aviso('Sessão expirada', 'Faça login de novo no Athos Licita e tente abrir o arquivo outra vez.')
 
   const { searchParams } = new URL(req.url)
   const url = (searchParams.get('url') || '').trim()

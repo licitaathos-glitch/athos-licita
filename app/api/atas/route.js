@@ -3,6 +3,7 @@ import { lerAba, adicionarLinha, atualizarLinha, excluirLinha, garantirAba } fro
 import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu, empresasComMenu } from '@/lib/auth'
 import { diasRestantes, statusPorDias } from '@/lib/datas'
 import { novoId } from '@/lib/uuid'
+import { analisarLinkDrive } from '@/lib/drive'
 
 // Campos gravados na aba Atas (a aba usa empresaId em camelCase)
 // tipoDocumento: 'Ata' (registro de preços) ou 'Contrato'. O módulo nasceu só
@@ -60,6 +61,10 @@ export async function GET(req) {
           observacoes: a.observacoes || '', licitacaoId: a.licitacaoId || '',
           tipoDocumento: a.tipoDocumento || 'Ata',
           arquivoUrl: a.arquivoUrl || '', arquivoNome: a.arquivoNome || '',
+          // Mesmo aviso antecipado das Certidões: só de olhar a lista já dá
+          // pra saber se o link guardado tem cara de arquivo de verdade,
+          // antes de a pessoa clicar e descobrir na hora errada
+          arquivoLinkTipo: a.arquivoUrl ? analisarLinkDrive(a.arquivoUrl).tipo : '',
           itens, valorTotal,
           dias: dd, status: statusPorDias(dd),
         }

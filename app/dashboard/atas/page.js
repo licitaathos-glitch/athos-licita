@@ -119,9 +119,10 @@ export default function AtasPage() {
                     <span className="pill" style={{ background: '#EDE9FE', color: '#6D28D9' }}>Contrato</span>
                   )}
                   {a.arquivoUrl && (
-                    <button className="iBtn" title="Ver e baixar o PDF do documento"
+                    <button className="iBtn" title={a.arquivoLinkTipo !== 'arquivo' ? 'O link guardado pode não abrir — clique pra ver o motivo' : 'Ver e baixar o PDF do documento'}
+                      style={a.arquivoLinkTipo !== 'arquivo' ? { borderColor: '#F59E0B', color: '#B45309' } : undefined}
                       onClick={ev => { ev.stopPropagation(); setVerArquivo({ url: a.arquivoUrl, nome: a.arquivoNome || `Ata ${a.numeroAta}` }) }}>
-                      📄
+                      {a.arquivoLinkTipo !== 'arquivo' ? '⚠️ 📄' : '📄'}
                     </button>
                   )}
                 </div>
@@ -216,10 +217,21 @@ export default function AtasPage() {
 
                 {!somenteConsulta && (
                   <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-                    {a.arquivoUrl ? (
-                      <button className="iBtn" onClick={() => setVerArquivo({ url: a.arquivoUrl, nome: a.arquivoNome || `${a.tipoDocumento || 'Ata'} ${a.numeroAta}` })}>
-                        📄 Ver {(a.tipoDocumento || 'Ata').toLowerCase()}
-                      </button>
+    {a.arquivoUrl ? (
+                      <div>
+                        <button className="iBtn" onClick={() => setVerArquivo({ url: a.arquivoUrl, nome: a.arquivoNome || `${a.tipoDocumento || 'Ata'} ${a.numeroAta}` })}>
+                          📄 Ver {(a.tipoDocumento || 'Ata').toLowerCase()}
+                        </button>
+                        {/* Aviso antecipado: o link guardado não tem cara de
+                            arquivo do Drive, então "Ver" provavelmente vai
+                            explicar o problema em vez de mostrar o PDF */}
+                        {a.arquivoLinkTipo && a.arquivoLinkTipo !== 'arquivo' && (
+                          <div style={{ fontSize: 11, color: '#B45309', marginTop: 3 }}>
+                            ⚠️ o link guardado {a.arquivoLinkTipo === 'pasta' ? 'é de uma pasta' : a.arquivoLinkTipo === 'externo' ? 'não é do Google Drive' : 'não é válido'} —
+                            use "Editar" e anexe o PDF de novo
+                          </div>
+                        )}
+                      </div>
                     ) : (
                       // Ata antiga, cadastrada antes do arquivo passar a ser
                       // guardado: some o botão e ninguém sabe por quê
