@@ -226,6 +226,10 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
         })
         setChkDados(novoChkDados)
         if (g._riscos) setResumoRiscos(g._riscos)
+        // Quando algum anexo ficou de fora (grande demais, ou além dos dois
+        // documentos lidos), diz quais foram lidos — antes isso era silencioso
+        // e o resumo parecia ser do edital inteiro.
+        if (r.aviso) setAvisoIA(r.aviso)
 
         // Salva na hora — sem isso, o resumo só existia na tela e sumia do
         // PDF/e-mail/detalhe até alguém lembrar de clicar em "Salvar status".
