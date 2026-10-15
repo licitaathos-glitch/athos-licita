@@ -125,12 +125,18 @@ export async function POST(req) {
         empresa: empresa.nome, numeroEdital, objeto, itens, mensagem, link, editalAnexoUrl,
         linkLicitacao, dataSessao, srp, resumo: resumoPdf || {},
       })
+      const nomePdf = `Resumo da licitação ${numeroEdital || ''}`.trim().replace(/[\\/:*?"<>|]/g, '-') + '.pdf'
       const env = await chamarGAS({
         action: 'enviarEmailGenerico', para: destinatarioEmail,
         assunto: `Pedido de cotação — ${numeroEdital || 'licitação'} (${empresa.nome})`,
         htmlBody: html,
-      })
+        anexos: [{
+          nome: nomePdf,
+          html: montarResumoPdfHtml({ empresa: empresa.nome, numeroEdital, objeto, itens, srp, dataSessao, resumo: resumoPdf || {}, linkLicitacao }),
+        }],
+      }, 60)
       if (!env || env.sucesso === false || env.erro) avisoEmail = (env && env.erro) || 'Não foi possível enviar o e-mail.'
+      else if (env.avisoAnexo) avisoEmail = 'O e-mail foi enviado, mas SEM o PDF do resumo: ' + env.avisoAnexo
     } catch (e) {
       avisoEmail = 'O pedido foi salvo, mas o e-mail não pôde ser enviado: ' + e.message
     }
@@ -212,6 +218,73 @@ const brl = v => (v === 0 || (v && !isNaN(Number(v))))
 // "Resumo (PDF)" da licitação (informações básicas, objeto, qualificação/
 // prazos/condições, observações, anexos), acrescenta a tabela de itens com
 // valor estimado unitário e total, e termina no botão de enviar a cotação.
+
+// ── Resumo da licitação em PDF (vai ANEXO no e-mail) ──────────────────────
+// O corpo do e-mail só trazia o resumo quando a IA já tinha lido o edital; sem
+// isso o bloco sumia em silêncio e a empresa recebia um e-mail que prometia um
+// "resumo completo" sem ele. O PDF sai SEMPRE, com o que existir, e diz com
+// todas as letras quando a leitura do edital ainda não foi feita. O Apps Script
+// converte este HTML em PDF (ação enviarEmailGenerico, campo `anexos`).
+function montarResumoPdfHtml({ empresa, numeroEdital, objeto, itens, srp, dataSessao, resumo = {}, linkLicitacao }) {
+  const LIMITE_ITENS_PDF = 150
+  const h = t => `<h2 style="font-size:12px;color:#145653;text-transform:uppercase;letter-spacing:.04em;margin:18px 0 6px;padding-bottom:4px;border-bottom:2px solid #B9A06B">${esc(t)}</h2>`
+  const par = t => `<p style="font-size:11.5px;line-height:1.5;margin:0 0 8px">${esc(t)}</p>`
+
+  const basicas = [
+    ['Licitação', numeroEdital], ['Órgão', resumo.orgao], ['UASG', resumo.uasg], ['UF', resumo.uf],
+    ['Modalidade', resumo.modalidade], ['Portal', resumo.portal], ['Nº PNCP', resumo.numeroPNCP],
+    ['Registro de preços (SRP)', srp === 'Sim' ? 'Sim' : 'Não'], ['Valor estimado', resumo.valorEstimado],
+    ['Abertura das propostas', resumo.dataAbertura], ['Limite da proposta', resumo.dataLimite],
+    ['Sessão de disputa', dataSessao], ['Prazo sugerido para sua proposta', doisDiasAntes(dataSessao)],
+  ].filter(x => x[1]).map(x => `<tr><td style="padding:3px 0;font-size:11px;color:#6B7280;width:170px;vertical-align:top">${esc(x[0])}</td><td style="padding:3px 0;font-size:11.5px;font-weight:bold">${esc(x[1])}</td></tr>`).join('')
+
+  const itensResumo = Array.isArray(resumo.itensResumo) ? resumo.itensResumo : []
+  const temLeitura = !!(resumo.analiseGeral || itensResumo.length)
+  const blocoLeitura = temLeitura
+    ? (resumo.analiseGeral ? par(resumo.analiseGeral) : '') + itensResumo.map(it =>
+        `<p style="font-size:11px;line-height:1.45;margin:0 0 7px"><strong style="color:#145653;text-transform:uppercase">${esc(it.label)}</strong><br>${esc(it.resposta)}${it.detalhe ? ' — ' + esc(it.detalhe) : ''}</p>`).join('')
+    : `<p style="font-size:11.5px;line-height:1.5;margin:0 0 8px;color:#92400E;background:#FEF3C7;padding:8px 10px">O resumo de qualificação, prazos e condições ainda não foi elaborado para esta licitação. Consulte o edital completo (links em "Anexos") para essas exigências.</p>`
+
+  const anexos = (Array.isArray(resumo.anexos) ? resumo.anexos : []).filter(a => a && a.url)
+  const blocoAnexos = anexos.length
+    ? anexos.map(a => `<p style="font-size:11px;margin:0 0 4px">• ${esc(a.nome || 'Anexo')}<br><span style="color:#145653;font-size:10px">${esc(a.url)}</span></p>`).join('')
+    : par('Nenhum anexo cadastrado.')
+
+  let total = 0, algum = false
+  itens.forEach(it => {
+    const unit = Number(it.valorUnitarioRef); const tem = !isNaN(unit) && String(it.valorUnitarioRef ?? '').trim() !== ''
+    if (tem) { algum = true; total += unit * (Number(it.quantidade) || 0) }
+  })
+  const linhas = itens.slice(0, LIMITE_ITENS_PDF).map(it => {
+    const unit = Number(it.valorUnitarioRef); const tem = !isNaN(unit) && String(it.valorUnitarioRef ?? '').trim() !== ''
+    return `<tr><td style="padding:4px 6px;border-bottom:1px solid #E5E7EB;font-size:10px;text-align:center">${esc(it.numero ?? '')}</td>
+      <td style="padding:4px 6px;border-bottom:1px solid #E5E7EB;font-size:10px">${esc(it.descricao || '')}</td>
+      <td style="padding:4px 6px;border-bottom:1px solid #E5E7EB;font-size:10px;text-align:center">${esc(it.quantidade || '')}</td>
+      <td style="padding:4px 6px;border-bottom:1px solid #E5E7EB;font-size:10px;text-align:center">${esc(it.unidade || '')}</td>
+      <td style="padding:4px 6px;border-bottom:1px solid #E5E7EB;font-size:10px;text-align:right">${tem ? brl(unit) : 'Não informado'}</td></tr>`
+  }).join('')
+  const restante = itens.length - LIMITE_ITENS_PDF
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:Arial,Helvetica,sans-serif;color:#2E2D2F;margin:24px">
+    <p style="margin:0;font-size:10px;font-weight:bold;color:#B9A06B;letter-spacing:.1em">ATHOS LICITA</p>
+    <h1 style="font-size:17px;color:#145653;margin:4px 0 2px">Resumo da licitação ${esc(numeroEdital || '')}</h1>
+    <p style="font-size:10.5px;color:#6B7280;margin:0 0 6px">Preparado para ${esc(empresa)} — pedido de cotação</p>
+    ${h('Informações básicas')}<table style="border-collapse:collapse;width:100%"><tbody>${basicas}
+      ${linkLicitacao ? `<tr><td style="padding:3px 0;font-size:11px;color:#6B7280">Link da licitação</td><td style="padding:3px 0;font-size:10px;color:#145653">${esc(linkLicitacao)}</td></tr>` : ''}</tbody></table>
+    ${objeto ? h('Objeto') + par(objeto) : ''}
+    ${h('Qualificação, prazos e condições')}${blocoLeitura}
+    ${resumo.observacoes ? h('Observações') + par(resumo.observacoes) : ''}
+    ${h('Anexos')}${blocoAnexos}
+    ${h(`Itens para cotação (${itens.length})`)}
+    <table style="border-collapse:collapse;width:100%"><thead><tr style="background:#F3EFE7">
+      <th style="padding:5px 6px;font-size:9.5px;text-align:center">Nº</th><th style="padding:5px 6px;font-size:9.5px;text-align:left">DESCRIÇÃO</th>
+      <th style="padding:5px 6px;font-size:9.5px">QTD</th><th style="padding:5px 6px;font-size:9.5px">UN</th>
+      <th style="padding:5px 6px;font-size:9.5px;text-align:right">VL. UNIT. ESTIMADO</th></tr></thead><tbody>${linhas}</tbody></table>
+    ${restante > 0 ? par(`… e mais ${restante} item(ns). A lista completa está no formulário do link de cotação.`) : ''}
+    ${algum ? `<p style="font-size:12px;font-weight:bold;color:#145653;text-align:right;margin:8px 0 0">Valor total estimado dos itens: ${brl(total)}</p>` : ''}
+  </body></html>`
+}
+
 function montarEmailPedido({ empresa, numeroEdital, objeto, itens, mensagem, link, editalAnexoUrl,
   linkLicitacao, dataSessao, srp, resumo = {} }) {
 
@@ -313,8 +386,13 @@ function montarEmailPedido({ empresa, numeroEdital, objeto, itens, mensagem, lin
       <p style="font-size:13.5px;color:#2E2D2F;line-height:1.6;margin:0 0 14px">
         Prezados,<br /><br />
         Identifiquei uma licitação na qual há possibilidade de participação pela <strong>${esc(empresa)}</strong>. ${linhaSRP}
-        Abaixo vai o resumo completo do edital e, ao final, os itens para os quais precisamos do seu melhor preço.
+        ${(resumo.analiseGeral || (Array.isArray(resumo.itensResumo) && resumo.itensResumo.length))
+          ? 'Abaixo vai o resumo do edital e, ao final, os itens para os quais precisamos do seu melhor preço.'
+          : 'Abaixo vão as informações da licitação e, ao final, os itens para os quais precisamos do seu melhor preço.'}
       </p>
+      <table width="100%" style="border-collapse:collapse;margin:0 0 14px"><tr><td style="background:#F0F6F5;border:1px solid #B9D3D0;border-radius:8px;padding:11px 14px;font-size:13px;color:#145653">
+        📎 <strong>Resumo da licitação em anexo (PDF)</strong> — informações, objeto, exigências e a lista de itens para guardar e consultar.
+      </td></tr></table>
       ${mensagem ? `<p style="font-size:13px;color:#2E2D2F;background:#F8FAFC;padding:10px 14px;border-radius:8px;margin:0 0 14px">${esc(mensagem)}</p>` : ''}
 
       ${h2('Informações básicas')}

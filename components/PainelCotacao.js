@@ -200,10 +200,16 @@ export default function PainelCotacao({ lic, itens, setItens, marcados }) {
       {aberto && (
         <div style={{ background: '#F8FAFC', borderRadius: 10, padding: 12, marginTop: 10 }}>
           <p className="dica-menus" style={{ marginTop: 0 }}>
-            O e-mail leva o mesmo conteúdo do Resumo (PDF) desta licitação e um link público (sem senha)
+            O e-mail leva o resumo da licitação <strong>também em PDF anexo</strong> e um link público (sem senha)
             para preencher o preço dos {marcados.length} item(ns) marcados acima.
-            {!resumoTexto && ' Ainda não há resumo da IA — rode "Resumir com IA" na fase Em análise para o e-mail sair completo.'}
           </p>
+          {!resumoTexto && (
+            <p style={{ fontSize: 12, color: '#92400E', background: '#FEF3C7', border: '1px solid #F59E0B', borderRadius: 8, padding: '8px 10px', margin: '0 0 8px' }}>
+              ⚠️ Esta licitação ainda não tem a leitura do edital pela IA. O PDF vai só com as informações básicas,
+              o objeto, os anexos e a lista de itens — sem qualificação, prazos e condições. Rode
+              &ldquo;Resumir com IA&rdquo; na fase Em análise antes de enviar, se quiser o resumo completo.
+            </p>
+          )}
           <div className="form-sub" style={{ marginTop: 8 }}>
             <label>E-MAIL DE DESTINO</label>
             <input value={email} onChange={e => setEmail(e.target.value)}
