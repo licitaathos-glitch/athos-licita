@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { chamarGAS } from '@/lib/gas'
 import { getUsuarioFromReq, podeEditar, podeAcessarMenu } from '@/lib/auth'
+import { normalizarUrlPNCP } from '@/lib/pncpArquivos'
 
 export const maxDuration = 60
 
@@ -13,7 +14,10 @@ export async function POST(req) {
     if (!podeAcessarMenu(usuario, 'licitacoes')) return NextResponse.json({ sucesso: false, erro: 'Sem acesso ao módulo.' }, { status: 403 })
     if (!podeEditar(usuario)) return NextResponse.json({ sucesso: false, erro: 'Seu perfil é somente consulta.' }, { status: 403 })
 
-    const { url, nomeArquivo, empresaNome } = await req.json()
+    const corpo = await req.json()
+    const { nomeArquivo, empresaNome } = corpo
+    // Tira a porta interna (:58442) que a API do PNCP põe nos endereços dos documentos
+    const url = corpo.url ? normalizarUrlPNCP(corpo.url) : ''
     if (!url) return NextResponse.json({ sucesso: false, erro: 'URL do documento não informada.' })
     let host = ''
     try { host = new URL(url).hostname.toLowerCase() } catch {
