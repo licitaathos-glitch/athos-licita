@@ -1,5 +1,5 @@
 'use client'
-import { Suspense, useCallback, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { anexarArquivoPNCP } from '@/lib/anexoPncpClient'
 import { useSearchParams } from 'next/navigation'
 import { useApp } from '@/lib/AppContext'
@@ -320,10 +320,16 @@ function ModalLic({ lic, empresaId, empresas = [], onFechar, onSalvo }) {
   const [novoPortal, setNovoPortal] = useState('')
   const [buscandoItens, setBuscandoItens] = useState(false)
   const [buscandoAnexosPNCP, setBuscandoAnexosPNCP] = useState(false)
+  const [progAnexos, setProgAnexos] = useState(null)   // etapa + situação de cada documento
+  const pararAnexosRef = useRef(false)
+  const anexosRef = useRef([])
   const [anexos, setAnexos] = useState(() => {
     if (Array.isArray(lic.anexos) && lic.anexos.length) return lic.anexos
     return lic.anexoDriveUrl ? [{ nome: 'Edital', url: lic.anexoDriveUrl, id: lic.anexoDriveId || '' }] : []
   })
+  // O laço que anexa os documentos do PNCP é assíncrono e precisa enxergar a
+  // lista ATUAL, não a do render em que ele começou
+  anexosRef.current = anexos
   const [enviandoAnexo, setEnviandoAnexo] = useState(false)
   const [erro, setErro] = useState('')
   const [ok, setOk] = useState('')
@@ -397,40 +403,79 @@ function ModalLic({ lic, empresaId, empresas = [], onFechar, onSalvo }) {
 
   // Depois de extrair os dados, tenta já trazer e anexar os documentos
   // publicados no PNCP sozinho — sem precisar esperar até o Andamento.
+  //
+  // Antes era uma etapa só, "Buscando...", que cobria a lista E o download de
+  // cada arquivo em sequência, sem prazo e sem mostrar nada até o último
+  // terminar: com o PNCP lento, a tela parecia travada por minutos. Agora cada
+  // etapa tem prazo, cada arquivo aparece (e é anexado) assim que chega, a falha
+  // de um não derruba os outros, e dá para parar.
   async function buscarEAnexarPNCP(link) {
     setBuscandoAnexosPNCP(true)
+    pararAnexosRef.current = false
+    setProgAnexos({ etapa: 'listando', itens: [] })
+    const marcar = (i, patch) => setProgAnexos(p => p && ({ ...p, itens: p.itens.map((x, j) => j === i ? { ...x, ...patch } : x) }))
+    const base = 'Dados extraídos do PNCP — confira antes de salvar.'
+
     try {
-      const r = await fetch('/api/licitacoes/arquivos-pncp', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ link }),
-      }).then(x => x.json())
+      // 1) lista de documentos
+      let r
+      const ctl = new AbortController()
+      const t = setTimeout(() => ctl.abort(), 75000)
+      try {
+        r = await fetch('/api/licitacoes/arquivos-pncp', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ link }), signal: ctl.signal,
+        }).then(x => x.json())
+      } catch (e) {
+        setOk(`${base} Não consegui listar os documentos (${e.name === 'AbortError' ? 'o PNCP não respondeu em 75 s' : 'falha de conexão'}). Tente de novo em "Extrair arquivos do edital" ou anexe manualmente.`)
+        setProgAnexos(null); setBuscandoAnexosPNCP(false)
+        return
+      } finally { clearTimeout(t) }
+
       if (!r.sucesso || !r.arquivos?.length) {
-        setOk('Dados extraídos do PNCP — confira antes de salvar. Não encontrei documentos publicados para anexar sozinho; anexe manualmente se precisar.')
-        setBuscandoAnexosPNCP(false)
+        setOk(`${base} Não encontrei documentos para anexar sozinho${r.erro ? ' — ' + r.erro : ''}. Anexe manualmente se precisar.`)
+        setProgAnexos(null); setBuscandoAnexosPNCP(false)
         return
       }
-      const enviados = []
-      for (const a of r.arquivos) {
+
+      // Edital primeiro: se algo falhar no meio, o mais importante já chegou
+      const nomeDe = a => a.nomeArquivo || a.titulo || 'documento'
+      const lista = [...r.arquivos].sort((a, b) => Number(/edital/i.test(nomeDe(b))) - Number(/edital/i.test(nomeDe(a))))
+      setProgAnexos({ etapa: 'anexando', itens: lista.map(a => ({ nome: nomeDe(a), status: 'espera' })) })
+
+      // 2) um arquivo por vez, cada um aparece e é anexado ao chegar
+      let certos = 0, parou = false
+      for (let i = 0; i < lista.length; i++) {
+        if (pararAnexosRef.current) { parou = true; break }
+        const a = lista[i], nome = nomeDe(a)
+        if (anexosRef.current.some(x => x.nome === nome)) { marcar(i, { status: 'ok', erro: 'já estava anexado' }); certos++; continue }
+        marcar(i, { status: 'enviando' })
         try {
-          const up = await anexarArquivoPNCP({
-            url: a.url, nomeArquivo: a.nomeArquivo || a.titulo, empresaNome,
-          })
-          if (up.sucesso) enviados.push({ nome: up.nome || a.titulo, url: up.url, id: up.id })
-        } catch {}
+          const up = await anexarArquivoPNCP({ url: a.url, nomeArquivo: nome, empresaNome })
+          if (up.sucesso) {
+            certos++
+            marcar(i, { status: 'ok' })
+            setAnexos(l => {
+              const todos = [...l, { nome: up.nome || nome, url: up.url, id: up.id }]
+              if (!l.length) { set('anexoDriveId', up.id || ''); set('anexoDriveUrl', up.url || '') }
+              return todos
+            })
+          } else {
+            marcar(i, { status: 'falhou', erro: up.erro || 'erro desconhecido' })
+          }
+        } catch (e) {
+          marcar(i, { status: 'falhou', erro: e.message })
+        }
       }
-      if (enviados.length) {
-        setAnexos(l => {
-          const todos = [...l, ...enviados]
-          set('anexoDriveId', todos[0].id || '')
-          set('anexoDriveUrl', todos[0].url || '')
-          return todos
-        })
-        setOk(`Dados extraídos do PNCP — confira antes de salvar. ${enviados.length} arquivo(s) do edital já anexado(s) automaticamente.`)
-      } else {
-        setOk('Dados extraídos do PNCP — confira antes de salvar. Encontrei documentos, mas não consegui anexar sozinho; anexe manualmente se precisar.')
-      }
-    } catch {
-      setOk('Dados extraídos do PNCP — confira antes de salvar. Não consegui buscar os arquivos automaticamente; anexe manualmente se precisar.')
+
+      setProgAnexos(p => p && ({ ...p, etapa: 'fim' }))
+      const falhas = lista.length - certos
+      setOk(certos
+        ? `${base} ${certos} de ${lista.length} arquivo(s) do edital anexado(s)${parou ? ' (você parou a busca)' : ''}${falhas && !parou ? ` — ${falhas} falharam, veja o motivo abaixo` : ''}.`
+        : `${base} Encontrei ${lista.length} documento(s), mas não consegui anexar nenhum${parou ? ' (você parou a busca)' : ''} — veja o motivo abaixo.`)
+    } catch (e) {
+      setOk(`${base} Não consegui buscar os arquivos automaticamente (${e.message}); anexe manualmente se precisar.`)
+      setProgAnexos(null)
     }
     setBuscandoAnexosPNCP(false)
   }
@@ -633,9 +678,24 @@ function ModalLic({ lic, empresaId, empresas = [], onFechar, onSalvo }) {
                 }}>
                 {buscandoAnexosPNCP ? 'Buscando...' : '📎 Extrair arquivos do edital'}
               </button>
+              {buscandoAnexosPNCP && progAnexos?.etapa === 'anexando' && (
+                <button className="iBtn iBtn-del" onClick={() => { pararAnexosRef.current = true }}>Parar</button>
+              )}
             </div>
-            {buscandoAnexosPNCP && (
-              <p className="dica-menus" style={{ margin: '0 0 8px' }}>🔎 Buscando arquivos do edital no PNCP...</p>
+            {progAnexos && (
+              <div style={{ background: '#F8FAFC', borderRadius: 8, padding: '8px 10px', margin: '0 0 8px', fontSize: 12 }}>
+                {progAnexos.etapa === 'listando' && <div>🔎 Consultando a lista de documentos no PNCP… (pode levar até 1 minuto)</div>}
+                {progAnexos.itens.map((x, i) => (
+                  <div key={i} style={{ padding: '2px 0', color: x.status === 'falhou' ? '#B45309' : '#2E2D2F' }}>
+                    {{ espera: '⏳', enviando: '⬆️', ok: '✅', falhou: '❌' }[x.status]} {x.nome}
+                    {x.status === 'enviando' && <span style={{ color: '#64748B' }}> — baixando do PNCP e gravando no Drive…</span>}
+                    {x.erro && <span style={{ color: x.status === 'falhou' ? '#B45309' : '#64748B' }}> — {x.erro}</span>}
+                  </div>
+                ))}
+                {progAnexos.etapa === 'fim' && (
+                  <button className="iBtn" style={{ marginTop: 6 }} onClick={() => setProgAnexos(null)}>ocultar</button>
+                )}
+              </div>
             )}
             {anexos.map((a, i) => (
               <div className="anexo-item" key={i}>

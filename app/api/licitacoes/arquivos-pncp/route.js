@@ -18,7 +18,13 @@ export async function POST(req) {
     const partes = parseLinkPNCP(link || '')
     if (!partes) return NextResponse.json({ sucesso: false, erro: 'Link não reconhecido.' })
 
-    const direto = await buscarArquivosPNCP(partes)
+    // Teto de 20 s no caminho direto: sem isso ele podia consumir quase o minuto
+    // inteiro da função, e o caminho pelo Apps Script nem chegava a rodar
+    let tAbort
+    const direto = await Promise.race([
+      buscarArquivosPNCP(partes),
+      new Promise(res => { tAbort = setTimeout(() => res({ sucesso: false, erro: 'o PNCP não respondeu em 20 s ao servidor' }), 20000) }),
+    ]).finally(() => clearTimeout(tAbort))
     if (direto.sucesso) return NextResponse.json(direto)
 
     // Mesmo problema da extração: o PNCP responde "301 sem Location" para a

@@ -29,9 +29,16 @@ export async function POST(req) {
     // O PNCP responde 301 nesses endereços e o "redirect: follow" do Node não
     // segue (foi o que impedia a extração de funcionar). Seguimos o Location
     // na mão, até três saltos, sem sair do domínio do PNCP.
+    // Orçamento total de tempo: a função da Vercel é encerrada aos 60 s sem
+    // devolver JSON, e o navegador só descobria isso depois de esperar tudo.
+    // Respondendo com erro limpo em ~42 s, o cliente já pode tentar o Apps Script.
+    const fim = Date.now() + 42000
+    const estouro = () => { const e = new Error('tempo esgotado'); e.name = 'AbortError'; return e }
     async function pegar(endereco) {
+      const restante = fim - Date.now()
+      if (restante < 2000) throw estouro()
       const controlador = new AbortController()
-      const timer = setTimeout(() => controlador.abort(), 15000)
+      const timer = setTimeout(() => controlador.abort(), Math.min(15000, restante))
       try {
         return await fetch(endereco, {
           headers: {
@@ -66,7 +73,10 @@ export async function POST(req) {
     let r, ultimoErro
     for (let tentativa = 1; tentativa <= 3; tentativa++) {
       try { r = await baixar(); break }
-      catch (e) { ultimoErro = e; if (tentativa < 3) await espera(800) }
+      catch (e) {
+        ultimoErro = e
+        if (tentativa < 3 && fim - Date.now() > 4000) await espera(800); else break
+      }
     }
     if (!r) {
       const causa = ultimoErro.cause?.message || ultimoErro.cause?.code || ''
@@ -76,7 +86,18 @@ export async function POST(req) {
     }
     if (!r.ok) return NextResponse.json({ sucesso: false, erro: `O PNCP respondeu HTTP ${r.status} ao baixar o arquivo.` })
 
-    const buffer = Buffer.from(await r.arrayBuffer())
+    // O corpo do arquivo também tem prazo — antes só o início da resposta tinha
+    let buffer
+    try {
+      let t
+      const corpo = await Promise.race([
+        r.arrayBuffer(),
+        new Promise((_, rej) => { t = setTimeout(() => rej(estouro()), Math.max(3000, fim - Date.now())) }),
+      ]).finally(() => clearTimeout(t))
+      buffer = Buffer.from(corpo)
+    } catch (e) {
+      return NextResponse.json({ sucesso: false, erro: 'O PNCP não respondeu a tempo ao baixar o conteúdo do arquivo (tempo esgotado).' })
+    }
     if (buffer.length > 25 * 1024 * 1024) {
       return NextResponse.json({ sucesso: false, erro: 'Arquivo maior que 25 MB — baixe manualmente e anexe.' })
     }
