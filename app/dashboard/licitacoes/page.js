@@ -234,6 +234,7 @@ function LicitacoesConteudo() {
             Status: l.status || '',
             Resultado: nomeResultado(l.resultado) || '',
             'Nº proposta': l.numeroProposta || '',
+            'Nº cotação': l.numerosCotacao || '',
             Itens: (l.itens || []).length,
             Observações: l.observacaoDisputa || '',
             Link: l.link || '',

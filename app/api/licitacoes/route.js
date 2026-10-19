@@ -35,8 +35,12 @@ async function mapaCotacoes() {
     for (const c of await lerAba('Cotacoes')) {
       const lid = String(c.licitacaoId || '').trim()
       if (!lid) continue
-      if (!mapa[lid]) mapa[lid] = { pendentes: 0, respondidas: 0, total: 0 }
+      if (!mapa[lid]) mapa[lid] = { pendentes: 0, respondidas: 0, total: 0, numeros: [] }
       mapa[lid].total++
+      // Nº da cotação que o fornecedor informou (ex.: Montana) — é a chave que
+      // o cliente usa na planilha de controle dele
+      const num = String(c.numeroCotacaoFornecedor || '').trim()
+      if (num && !mapa[lid].numeros.includes(num)) mapa[lid].numeros.push(num)
       if (String(c.status || 'Pendente').trim() === 'Respondida') mapa[lid].respondidas++
       else mapa[lid].pendentes++
     }
@@ -107,6 +111,8 @@ export async function GET(req) {
         cotacoesPendentes: (cotacoes[String(l.id).trim()] || {}).pendentes || 0,
         cotacoesRespondidas: (cotacoes[String(l.id).trim()] || {}).respondidas || 0,
         cotacoesTotal: (cotacoes[String(l.id).trim()] || {}).total || 0,
+        numerosCotacao: ((cotacoes[String(l.id).trim()] || {}).numeros || []).join(', '),
+        numeroProposta: l.numeroProposta || '',
         cotacaoEtapa: etapaCotacao(cotacoes[String(l.id).trim()], parseItens(juntarChunk(l, 'itensJson'))),
         salvoEm: l.salvoEm || '',
       }))
