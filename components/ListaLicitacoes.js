@@ -19,6 +19,12 @@ const SELO_COTACAO = {
     texto: '✅ Preço cadastrado', classe: 'pill-green',
     ajuda: () => 'Todos os itens participando já têm valor mínimo definido',
   },
+  // Pedido enviado sem resposta pela plataforma, mas o valor mínimo já foi
+  // lançado em todos os itens: a cotação veio por fora e foi digitada à mão
+  manual: {
+    texto: '✍️ Cotação manual', classe: 'pill-green',
+    ajuda: l => `Valor mínimo lançado em todos os itens sem resposta pela plataforma (${l.cotacoesPendentes} pedido(s) enviado(s)) — cotação feita por fora`,
+  },
 }
 import ModalDetalheLicitacao from '@/components/ModalDetalheLicitacao'
 

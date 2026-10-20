@@ -5,7 +5,7 @@ import { faseAutomatica, faseInferida } from '@/lib/fases'
 import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu, empresasComMenu } from '@/lib/auth'
 import { novoId } from '@/lib/uuid'
 import { chunkCampo, juntarChunk, nomesChunk } from '@/lib/chunkCampo'
-import { COLS_COTACAO } from '@/lib/cotacao'
+import { COLS_COTACAO, etapaCotacao } from '@/lib/cotacao'
 
 // empresaId/empresaNome não entram em CAMPOS de propósito: só são alterados
 // no caminho explícito de troca de empresa, mais abaixo no POST.
@@ -48,22 +48,7 @@ async function mapaCotacoes() {
   } catch { return {} }
 }
 
-// Etapa do preco/cotacao, para o selo da lista:
-//   'pendente'    — pedido de cotacao enviado, fornecedor ainda nao respondeu
-//   'precificada' — todos os itens participando ja tem Valor minimo preenchido
-//                   (vale mesmo sem pedido de cotacao — o preco pode ter sido
-//                   definido direto na Inscricao de proposta)
-//   'respondida'  — fornecedor respondeu, mas ainda falta preco em algum item
-function etapaCotacao(cot, itens) {
-  const participando = itens.filter(it => it.participar)
-  const comValor = participando.filter(it => String(it.meuValor ?? '').trim() !== '')
-  const precificada = participando.length > 0 && comValor.length === participando.length
-
-  if (cot && cot.pendentes > 0) return 'pendente'
-  if (precificada) return 'precificada'
-  if (cot && cot.total > 0) return 'respondida'
-  return ''
-}
+// Etapa do preço/cotação (selo da lista): regra em lib/cotacao.js
 
 async function contexto(usuario) {
   await garantirAba('Licitacoes', COLS_LIC)

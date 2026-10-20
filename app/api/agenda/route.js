@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { lerAba } from '@/lib/google'
 import { getUsuarioFromReq, empresasVisiveis } from '@/lib/auth'
 import { faseAutomatica, faseInferida } from '@/lib/fases'
+import { etapaCotacao } from '@/lib/cotacao'
+import { juntarChunk } from '@/lib/chunkCampo'
 
 // Agenda de sessões — versão enxuta da lista de licitações, sem itens nem
 // checklist, para o Dashboard carregar rápido. A janela de dias é calculada
@@ -14,7 +16,8 @@ export async function GET(req) {
     const todasEmpresas = await lerAba('Empresas')
     const permitidas = new Set(empresasVisiveis(usuario, todasEmpresas.filter(e => e.id)).map(e => String(e.id).trim()))
 
-    const licitacoes = (await lerAba('Licitacoes'))
+    const linhasLic = await lerAba('Licitacoes')
+    const licitacoes = linhasLic
       .filter(l => l.id && (!l.empresaId || permitidas.has(String(l.empresaId).trim())))
       .map(l => ({
         id: l.id,
@@ -40,8 +43,31 @@ export async function GET(req) {
     try {
       const porId = {}
       licitacoes.forEach(l => { porId[String(l.id).trim()] = l })
-      cotacoes = (await lerAba('Cotacoes'))
+      const brutaPorId = {}
+      linhasLic.forEach(l => { if (l.id) brutaPorId[String(l.id).trim()] = l })
+      const todasCot = await lerAba('Cotacoes')
+
+      // Resumo dos pedidos por licitação, para saber se ela já foi precificada à
+      // mão — nesse caso o pedido sem resposta não é mais uma pendência
+      const resumoCot = {}
+      todasCot.forEach(c => {
+        const lid = String(c.licitacaoId || '').trim(); if (!lid) return
+        const r = resumoCot[lid] || (resumoCot[lid] = { pendentes: 0, respondidas: 0, total: 0 })
+        r.total++
+        if (String(c.status || 'Pendente').trim() === 'Respondida') r.respondidas++; else r.pendentes++
+      })
+      const ehManual = lid => {
+        const bruta = brutaPorId[lid]; if (!bruta || !resumoCot[lid]) return false
+        let itens = []
+        try { itens = JSON.parse(juntarChunk(bruta, 'itensJson') || '[]') } catch {}
+        return etapaCotacao(resumoCot[lid], itens) === 'manual'
+      }
+      const cacheManual = {}
+      const manual = lid => (lid in cacheManual ? cacheManual[lid] : (cacheManual[lid] = ehManual(lid)))
+
+      cotacoes = todasCot
         .filter(c => c.id && String(c.status || 'Pendente').trim() !== 'Respondida')
+        .filter(c => !manual(String(c.licitacaoId || '').trim()))
         .filter(c => !c.empresaId || permitidas.has(String(c.empresaId).trim()))
         .map(c => {
           const lic = porId[String(c.licitacaoId || '').trim()]
