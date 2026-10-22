@@ -16,7 +16,7 @@ const itemVisivel = (it, busca, somenteSel) => {
   return !busca || String(it.descricao || '').toLowerCase().includes(busca.toLowerCase())
 }
 
-export default function ModalStatus({ lic, onFechar, onSalvo }) {
+export default function ModalStatus({ lic, onFechar, onSalvo, onAtualizado }) {
   const [fase, setFase] = useState(normalizarFase(lic.fase || 'Em analise'))
   const [resumoEmail, setResumoEmail] = useState('')
   const [resumoEmailAberto, setResumoEmailAberto] = useState(false)
@@ -228,22 +228,32 @@ export default function ModalStatus({ lic, onFechar, onSalvo }) {
         if (g._riscos) setResumoRiscos(g._riscos)
         // Quando algum anexo ficou de fora (grande demais, ou além dos dois
         // documentos lidos), diz quais foram lidos — antes isso era silencioso
-        // e o resumo parecia ser do edital inteiro.
-        if (r.aviso) setAvisoIA(r.aviso)
+        // e o resumo parecia ser do edital inteiro. A mensagem de salvamento
+        // abaixo se soma a esta, em vez de apagá-la.
+        const lidos = r.aviso ? r.aviso + ' ' : ''
 
         // Salva na hora — sem isso, o resumo só existia na tela e sumia do
         // PDF/e-mail/detalhe até alguém lembrar de clicar em "Salvar status".
+        // Confere a RESPOSTA do servidor: antes só falha de rede era detectada,
+        // então uma recusa (sem acesso à empresa, erro na planilha) aparecia como
+        // "salvo" sem estar. E avisa a lista de fora, que senão continuava com a
+        // licitação sem resumo e parecia que nada tinha sido gravado.
         try {
-          await fetch('/api/licitacoes', {
+          const rs = await fetch('/api/licitacoes', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               id: lic.id, empresa_id: lic.empresa_id, objeto: lic.objeto,
               checklistJson: JSON.stringify({ ...novoChkDados, _riscos: g._riscos || resumoRiscos }),
             }),
-          })
-          setAvisoIA('✅ Edital lido e resumo salvo — já aparece no PDF, no detalhe e no e-mail.')
+          }).then(x => x.json())
+          if (rs && rs.sucesso && !rs.aviso) {
+            setAvisoIA(lidos + '✅ Resumo salvo — já aparece no PDF, no detalhe e no e-mail. Pode decidir agora.')
+            if (onAtualizado) onAtualizado()
+          } else {
+            setAvisoIA(lidos + '⚠️ Edital lido, mas o resumo NÃO foi salvo: ' + ((rs && (rs.aviso || rs.erro)) || 'o servidor não confirmou') + ' — clique em "Salvar status" antes de sair.')
+          }
         } catch {
-          setAvisoIA('⚠️ Edital lido, mas houve um erro ao salvar automaticamente — clique em "Salvar status" antes de sair.')
+          setAvisoIA(lidos + '⚠️ Edital lido, mas o resumo NÃO foi salvo (falha de conexão) — clique em "Salvar status" antes de sair.')
         }
       }
     } catch (e) {

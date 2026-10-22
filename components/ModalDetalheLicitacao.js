@@ -48,7 +48,27 @@ export default function ModalDetalheLicitacao({
         })
       }
       setRecarga(n => n + 1)
+      window.dispatchEvent(new Event('athos:registros-mudaram'))
     } catch {}
+  }
+
+  // Concluir (ou reabrir) a tarefa sem sair da janela de registros. O POST de
+  // tarefas regrava a linha inteira, então manda o registro completo — não só o status.
+  async function alternarConclusao(r) {
+    const concluir = !r.feita
+    setRegistros(lst => lst.map(x => (x.chave === r.chave ? { ...x, feita: concluir } : x)))
+    try {
+      const resp = await fetch('/api/tarefas', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...r.bruto, status: concluir ? 'Concluída' : 'Pendente', concluidoEm: '' }),
+      }).then(x => x.json())
+      if (!resp.sucesso) throw new Error(resp.erro || 'o servidor não aceitou')
+      window.dispatchEvent(new Event('athos:registros-mudaram'))
+    } catch (e) {
+      // volta ao estado anterior: a tela nunca mostra como feito o que não foi gravado
+      setRegistros(lst => lst.map(x => (x.chave === r.chave ? { ...x, feita: !concluir } : x)))
+      alert(`Não consegui ${concluir ? 'concluir' : 'reabrir'} a tarefa: ${e.message}`)
+    }
   }
 
   useEffect(() => {
@@ -72,6 +92,7 @@ export default function ModalDetalheLicitacao({
             data: String(t.prazo || '').slice(0, 10), hora: String(t.prazo || '').slice(11, 16),
             titulo: t.titulo, obs: t.descricao || '',
             feita: t.status === 'Concluída',
+            bruto: t,
           })),
       ].sort((a, b) => String(b.data + b.hora).localeCompare(String(a.data + a.hora)))
       setRegistros(meus)
@@ -367,7 +388,7 @@ export default function ModalDetalheLicitacao({
                     {r.tipo === 'tarefa' ? (r.feita ? '✅' : '✔️') : tipoEventoInfo(r.tipoEvento).ico}
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 700, color: '#2E2D2F' }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: r.feita ? '#94A3B8' : '#2E2D2F', textDecoration: r.feita ? 'line-through' : 'none' }}>
                       {dataBR}{r.hora ? ` às ${r.hora}` : ''} — {r.titulo}
                       {r.tipo === 'tarefa' && r.feita && <span className="pill pill-green" style={{ marginLeft: 6 }}>feita</span>}
                     </div>
@@ -375,6 +396,13 @@ export default function ModalDetalheLicitacao({
                       <strong style={{ color: '#64748B' }}>Observação:</strong> {r.obs || 'sem observação'}
                     </div>
                   </div>
+                  {!somenteConsulta && r.tipo === 'tarefa' && (
+                    <button className={'iBtn' + (r.feita ? '' : ' iBtn-up')}
+                      title={r.feita ? 'Voltar a tarefa para pendente' : 'Marcar a tarefa como concluída'}
+                      onClick={() => alternarConclusao(r)}>
+                      {r.feita ? '↩ reabrir' : '✓ concluir'}
+                    </button>
+                  )}
                   {!somenteConsulta && (
                     <button className="iBtn iBtn-del" title="Excluir registro"
                       onClick={() => excluirRegistro(r)}>×</button>

@@ -49,7 +49,7 @@ function LicitacoesConteudo() {
   // Eventos e tarefas de todas as licitações, agrupados por licitação, para a
   // lista mostrar os registros embaixo de cada uma.
   const [registrosPorLic, setRegistrosPorLic] = useState({})
-  useEffect(() => {
+  const carregarRegistros = useCallback(() => {
     Promise.all([
       fetch('/api/calendario/eventos').then(r => r.json()).catch(() => ({})),
       fetch('/api/tarefas').then(r => r.json()).catch(() => ({})),
@@ -75,6 +75,14 @@ function LicitacoesConteudo() {
       setRegistrosPorLic(mapa)
     })
   }, [])
+
+  // A janela de Registros (dentro da ficha) avisa quando conclui ou exclui algo,
+  // para o resumo embaixo de cada licitação na lista não ficar desatualizado
+  useEffect(() => {
+    carregarRegistros()
+    window.addEventListener('athos:registros-mudaram', carregarRegistros)
+    return () => window.removeEventListener('athos:registros-mudaram', carregarRegistros)
+  }, [carregarRegistros])
 
   const carregar = useCallback(() => {
     fetch('/api/licitacoes').then(r => r.json())
@@ -280,7 +288,8 @@ function LicitacoesConteudo() {
 
       {modalStatus && (
         <ModalStatus lic={modalStatus} onFechar={() => setModalStatus(null)}
-          onSalvo={() => { setModalStatus(null); carregar() }} />
+          onSalvo={() => { setModalStatus(null); carregar() }}
+          onAtualizado={carregar} />
       )}
 
       {editando && (
