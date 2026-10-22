@@ -337,8 +337,10 @@ export default function ModalStatus({ lic, onFechar, onSalvo, onAtualizado }) {
           <div>
             <div className="modal-hdr-sub">ANDAMENTO DA LICITAÇÃO</div>
             <div className="modal-hdr-title">{lic.numeroEdital || 'Licitação'}</div>
-            <div style={{ color: 'rgba(255,255,255,.55)', fontSize: 12, marginTop: 2 }}>
-              {String(lic.objeto || '').slice(0, 90)}
+            {/* Órgão e UASG no lugar do objeto: o objeto cortado em 90 caracteres
+                não identificava a licitação; órgão + UASG é o que se confere no portal */}
+            <div style={{ color: 'rgba(255,255,255,.75)', fontSize: 12.5, marginTop: 2 }}>
+              {[lic.orgao, lic.uasg ? 'UASG ' + lic.uasg : ''].filter(Boolean).join(' · ') || 'Órgão não informado'}
             </div>
           </div>
           <button className="modal-x" onClick={onFechar}>×</button>
