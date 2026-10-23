@@ -184,7 +184,9 @@ export default function ModalStatus({ lic, onFechar, onSalvo, onAtualizado }) {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             id: lic.id, empresa_id: lic.empresa_id, objeto: lic.objeto,
-            ...(info.statusLic ? { status: info.statusLic } : {}),
+            // Suspensão registrada como evento é "sessão suspensa": a licitação segue
+            // na aba em que está (não vai para Suspensas)
+            ...(info.statusLic ? { status: info.statusLic, origemSuspensao: 'sessao' } : {}),
             ...(remarcar ? { dataSessao: sessaoBR } : {}),
           }),
         })

@@ -11,7 +11,7 @@ import { COLS_COTACAO, etapaCotacao } from '@/lib/cotacao'
 // no caminho explícito de troca de empresa, mais abaixo no POST.
 const CAMPOS = ['numeroPNCP','numeroEdital','objeto','orgao','uasg','uf','valor','dataAbertura',
   'dataLimite','dataSessao','modalidade','status','link','portal','srp','numeroProposta','anexoDriveId','anexoDriveUrl','anexosJson',
-  'itensJson','checklistJson','resumoEmailsJson','participar', 'fase', ...COLS_RESULTADO]
+  'itensJson','checklistJson','resumoEmailsJson','participar', 'fase', 'origemSuspensao', ...COLS_RESULTADO]
 
 // itensJson vem em várias colunas (itensJson, itensJson_2, ...) porque licitações
 // com muitos itens passam do limite de 50000 caracteres de uma única célula do Sheets
@@ -19,7 +19,7 @@ const COLS_LIC = ['id','empresaId','empresaNome','numeroPNCP','numeroEdital','ob
   'valor','dataPublicacao','dataAbertura','modalidade','status','link','origem','salvoEm',
   'dataLimite','dataSessao','portal','srp','numeroProposta','anexoDriveId','anexoDriveUrl','anexosJson',
   ...nomesChunk('itensJson'), 'checklistJson', 'resumoEmailsJson',
-  'participar', 'fase', 'excluidaEm', ...COLS_RESULTADO]
+  'participar', 'fase', 'excluidaEm', 'origemSuspensao', ...COLS_RESULTADO]
 
 function parseItens(json) {
   try { const a = JSON.parse(json || '[]'); return Array.isArray(a) ? a : [] } catch { return [] }
@@ -82,9 +82,11 @@ export async function GET(req) {
         itens: parseItens(juntarChunk(l, 'itensJson')), checklistJson: l.checklistJson || '',
         resumoEmailsJson: l.resumoEmailsJson || '',
         participar: l.participar || 'Pendente',
+        origemSuspensao: l.origemSuspensao || '',
         fase: faseAutomatica({
           fase: faseInferida({ fase: l.fase, resultado: l.resultado, participar: l.participar, status: l.status }),
           dataSessao: l.dataSessao, dataLimite: l.dataLimite, dataAbertura: l.dataAbertura,
+          status: l.status, origemSuspensao: l.origemSuspensao,
         }),
         resultado: l.resultado || 'Aguardando',
         motivo: l.motivo || '',

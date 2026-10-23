@@ -9,7 +9,7 @@ import ModalStatus from '@/components/ModalStatus'
 import { nomeResultado, corResultado } from '@/lib/resultado'
 import { exportarExcel, numero } from '@/lib/exportarExcel'
 import ListaLicitacoes from '@/components/ListaLicitacoes'
-import { FASES, normalizarFase } from '@/lib/fases'
+import { FASES, FAIXA_DIA, FAIXA_SUSPENSAS, faixaDe, normalizarFase } from '@/lib/fases'
 import { STATUS_LIC, corStatus, nomeStatus } from '@/lib/statusLicitacao'
 
 const MODAL_NOMES = ['Pregão Eletrônico', 'Pregão Presencial', 'Concorrência Eletrônica',
@@ -110,7 +110,12 @@ function LicitacoesConteudo() {
 
   const lista = base.filter(l => {
     if (status && (l.status || 'Aberta') !== status) return false
-    if (filtroFase && normalizarFase(l.fase || 'Em analise') !== filtroFase) return false
+    if (filtroFase) {
+      // "Licitações do dia" e "Suspensas" são faixas derivadas; as demais opções são a fase da licitação
+      const faixaExtra = filtroFase === FAIXA_DIA.id || filtroFase === FAIXA_SUSPENSAS.id
+      if (faixaExtra) { if (faixaDe(l, { registros: registrosPorLic[l.id] || [] }) !== filtroFase) return false }
+      else if (normalizarFase(l.fase || 'Em analise') !== filtroFase) return false
+    }
     if (filtroOrgao && l.orgao !== filtroOrgao) return false
     if (filtroData && dataDaLicISO(l) !== filtroData) return false
     const q = busca.toLowerCase()
@@ -204,6 +209,8 @@ function LicitacoesConteudo() {
           <select className="filtro-select" value={filtroFase} onChange={e => setFiltroFase(e.target.value)}>
             <option value="">Todas as fases</option>
             {FASES.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+            <option value={FAIXA_DIA.id}>{FAIXA_DIA.nome}</option>
+            <option value={FAIXA_SUSPENSAS.id}>{FAIXA_SUSPENSAS.nome}</option>
           </select>
         )}
 
@@ -545,6 +552,10 @@ function ModalLic({ lic, empresaId, empresas = [], onFechar, onSalvo }) {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: lic.id || null, empresa_id: empresaEscolhida, ...f,
+          // Mudar o status para Suspensa em Editar = licitação suspensa (vai para a aba
+          // Suspensas, se ainda não houve disputa). Mudar de Suspensa para outro status
+          // limpa a marca; salvar sem mexer no status não toca nela (undefined é omitido).
+          origemSuspensao: f.status !== 'Suspensa' ? '' : (ed && lic.status === 'Suspensa' ? undefined : 'edicao'),
           dataAbertura: abertura, dataLimite: limite,
           dataSessao: dataSessaoFinal,
           itensJson: JSON.stringify(itens.filter(it => String(it.descricao || '').trim())),

@@ -30,6 +30,7 @@ export async function GET(req) {
         fase: faseAutomatica({
           fase: faseInferida({ fase: l.fase, resultado: l.resultado, participar: l.participar, status: l.status }),
           dataSessao: l.dataSessao, dataLimite: l.dataLimite, dataAbertura: l.dataAbertura,
+          status: l.status, origemSuspensao: l.origemSuspensao,
         }),
         status: l.status || 'Aberta',
         quando: l.dataSessao || l.dataLimite || l.dataAbertura || '',

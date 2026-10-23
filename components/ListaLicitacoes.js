@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { FASES, normalizarFase } from '@/lib/fases'
+import { FASES, ABAS_LISTA, faixaDe, hojeBR, normalizarFase } from '@/lib/fases'
 import { nomeResultado, corResultado } from '@/lib/resultado'
 import { corStatus, nomeStatus } from '@/lib/statusLicitacao'
 import { tipoEventoInfo } from '@/lib/tiposEvento'
@@ -81,13 +81,16 @@ export default function ListaLicitacoes({
     if (!abrirId) return
     setAberta(abrirId)
     const l = licitacoes.find(x => x.id === abrirId)
-    if (l) setFaseAtiva(normalizarFase(l.fase || 'Em analise'))
+    if (l) setFaseAtiva(faixaDe(l, { registros: registrosPorLic[l.id] || [] }))
   }, [abrirId]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Cada licitação cai em UMA aba: a fase dela, ou uma das faixas derivadas
+  // (Licitações do dia, Suspensas). A contagem de cada aba já reflete isso.
+  const hoje = hojeBR()
   const porFase = {}
-  FASES.forEach(f => { porFase[f.id] = [] })
+  ABAS_LISTA.forEach(f => { porFase[f.id] = [] })
   licitacoes.forEach(l => {
-    const f = normalizarFase(l.fase || 'Em analise')
+    const f = faixaDe(l, { registros: registrosPorLic[l.id] || [], hoje })
     if (porFase[f]) porFase[f].push(l)
   })
 
@@ -111,7 +114,7 @@ export default function ListaLicitacoes({
     <div>
       {!planas && (
         <div className="abas-fase">
-          {FASES.map(f => (
+          {ABAS_LISTA.map(f => (
             <button key={f.id}
               className={'aba-fase' + (faseAtiva === f.id ? ' on' : '')}
               style={faseAtiva === f.id ? { borderBottomColor: f.cor } : undefined}
