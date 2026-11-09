@@ -77,7 +77,8 @@ export async function GET(req) {
             empresaNome: c.empresaNome || (lic ? lic.empresaNome : ''),
             edital: c.numeroEdital || (lic ? lic.numeroEdital : '') || 'Sem nº',
             destinatario: c.destinatarioEmail || '',
-            enviadoEm: c.criadoEm || '',
+            enviadoEm: c.enviadoEm || c.criadoEm || '',
+            emailFalhou: String(c.emailStatus || '') === 'falhou',
             objeto: lic ? lic.objeto : '',
           }
         })

@@ -6,6 +6,10 @@ import { novoId } from '@/lib/uuid'
 import { COLS_COTACAO, parseItensCotacao, idDoDrive } from '@/lib/cotacao'
 import { chunkCampo, juntarChunk } from '@/lib/chunkCampo'
 
+// O pedido sai por esta caixa (precisa estar configurada como remetente "enviar como"
+// na conta do Apps Script — se não estiver, o e-mail sai pela conta padrão e a tela avisa)
+const REMETENTE_COTACAO = process.env.COTACAO_REMETENTE || 'licitacoes@athoslicita.com'
+
 const SITE = 'https://athos-licita.vercel.app'
 
 export async function GET(req) {
@@ -33,6 +37,7 @@ export async function GET(req) {
       itens: parseItensCotacao(juntarChunk(c, 'itensJson')), respostaItens: parseItensCotacao(juntarChunk(c, 'respostaItensJson')),
       numeroCotacaoFornecedor: c.numeroCotacaoFornecedor || '', anexoDriveUrl: c.anexoDriveUrl || '',
       respondidoEm: c.respondidoEm || '', criadoEm: c.criadoEm || '', token: c.token,
+      enviadoEm: c.enviadoEm || '', emailStatus: c.emailStatus || '',
     }))
     return NextResponse.json({ sucesso: true, cotacoes })
   } catch (e) {
@@ -85,6 +90,7 @@ export async function POST(req) {
 
     const link = `${SITE}/cotacao/${token}`
     let avisoEmail = null
+    let emailStatus = 'falhou', enviadoEm = ''
 
     // Os anexos ficam PRIVADOS no Drive: quem clicava no link do e-mail caía na
     // tela "solicitar acesso" do Google. Antes de enviar, libera para "qualquer
@@ -130,18 +136,27 @@ export async function POST(req) {
         action: 'enviarEmailGenerico', para: destinatarioEmail,
         assunto: `Pedido de cotação — ${numeroEdital || 'licitação'} (${empresa.nome})`,
         htmlBody: html,
+        remetente: REMETENTE_COTACAO,
         anexos: [{
           nome: nomePdf,
           html: montarResumoPdfHtml({ empresa: empresa.nome, numeroEdital, objeto, itens, srp, dataSessao, resumo: resumoPdf || {}, linkLicitacao }),
         }],
       }, 60)
       if (!env || env.sucesso === false || env.erro) avisoEmail = (env && env.erro) || 'Não foi possível enviar o e-mail.'
-      else if (env.avisoAnexo) avisoEmail = 'O e-mail foi enviado, mas SEM o PDF do resumo: ' + env.avisoAnexo
+      else {
+        emailStatus = 'enviado'; enviadoEm = new Date().toISOString()
+        if (env.avisoAnexo) avisoEmail = 'O e-mail foi enviado, mas SEM o PDF do resumo: ' + env.avisoAnexo
+        if (env.avisoRemetente) avisoEmail = (avisoEmail ? avisoEmail + ' ' : '') + env.avisoRemetente
+      }
     } catch (e) {
       avisoEmail = 'O pedido foi salvo, mas o e-mail não pôde ser enviado: ' + e.message
     }
 
-    return NextResponse.json({ sucesso: true, id, token, link, avisoEmail })
+    // Registra QUANDO o e-mail saiu (ou que não saiu): criadoEm é só a hora em que o
+    // pedido foi gravado, e um pedido "pendente" cujo e-mail falhou parecia enviado
+    try { await atualizarLinha('Cotacoes', 'id', id, { enviadoEm, emailStatus }) } catch {}
+
+    return NextResponse.json({ sucesso: true, id, token, link, avisoEmail, enviadoEm })
   } catch (e) {
     return NextResponse.json({ sucesso: false, erro: 'Erro ao criar pedido: ' + e.message }, { status: 500 })
   }

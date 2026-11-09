@@ -9,6 +9,7 @@ import CardEmpresaAtiva from '@/components/CardEmpresaAtiva'
 import ModalDetalheLicitacao from '@/components/ModalDetalheLicitacao'
 import { faseDe } from '@/lib/fases'
 import { rotuloTipo } from '@/lib/tiposCertidao'
+import { formatarDataHoraBR, haQuantosDias, diasEntre } from '@/lib/cotacao'
 
 const CORES = { ok: '#16A34A', warn: '#D97706', bad: '#DC2626', nd: '#CBD5E1' }
 
@@ -95,6 +96,14 @@ export default function DashboardPage() {
                     <div style={{ fontSize: 13, fontWeight: 700, color: '#2E2D2F' }}>{c.edital}</div>
                     <div style={{ fontSize: 11.5, color: '#64748B', marginTop: 2 }}>
                       {[c.destinatario, c.empresaNome].filter(Boolean).join(' · ')}
+                    </div>
+                    {/* Quando foi pedido e há quanto tempo sem resposta: era a informação
+                        que faltava para saber quem cobrar */}
+                    <div style={{ fontSize: 11.5, marginTop: 2, fontWeight: 600,
+                      color: c.emailFalhou ? '#B45309' : ((diasEntre(c.enviadoEm) ?? 0) >= 3 ? '#B45309' : '#64748B') }}>
+                      {c.emailFalhou
+                        ? '⚠️ o e-mail deste pedido NÃO foi enviado'
+                        : (c.enviadoEm ? `📤 Enviado em ${formatarDataHoraBR(c.enviadoEm)} · ${haQuantosDias(c.enviadoEm)} sem resposta` : '📤 data de envio não registrada')}
                     </div>
                     {c.objeto && <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 1 }}>{c.objeto}</div>}
                   </div>

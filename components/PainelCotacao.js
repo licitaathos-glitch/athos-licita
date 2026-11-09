@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { gerarResumoItens, gerarResumoTexto } from '@/lib/checklist'
+import { formatarDataHoraBR, haQuantosDias, diasEntre, tempoDeResposta } from '@/lib/cotacao'
 
 const moeda = n => (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -147,6 +148,26 @@ export default function PainelCotacao({ lic, itens, setItens, marcados }) {
                     <span className={'pill ' + (c.status === 'Respondida' ? 'pill-green' : 'pill-amber')}>{c.status}</span>
                     <button className="iBtn iBtn-del" title="Excluir este pedido" onClick={() => excluirPedido(c)}>🗑</button>
                   </span>
+                </div>
+                {/* Datas do pedido: quando saiu o e-mail e, se já respondeu, quando e em quanto tempo */}
+                <div style={{ fontSize: 11.5, color: '#64748B', marginTop: 5 }}>
+                  {c.emailStatus === 'falhou' ? (
+                    <span style={{ color: '#B45309', fontWeight: 700 }}>
+                      ⚠️ O e-mail NÃO foi enviado — pedido criado em {formatarDataHoraBR(c.criadoEm) || 'data não registrada'}. Exclua e envie de novo.
+                    </span>
+                  ) : (
+                    <>
+                      📤 Enviado em <strong>{formatarDataHoraBR(c.enviadoEm || c.criadoEm) || 'data não registrada'}</strong>
+                      {c.status !== 'Respondida' && (c.enviadoEm || c.criadoEm) && (
+                        <> · <strong style={{ color: (diasEntre(c.enviadoEm || c.criadoEm) ?? 0) >= 3 ? '#B45309' : '#64748B' }}>
+                          {haQuantosDias(c.enviadoEm || c.criadoEm)}, sem resposta</strong></>
+                      )}
+                      {c.status === 'Respondida' && (
+                        <> · ✅ Respondido em <strong>{formatarDataHoraBR(c.respondidoEm) || 'data não registrada'}</strong>
+                          {c.respondidoEm && (c.enviadoEm || c.criadoEm) && <> ({tempoDeResposta(c.enviadoEm || c.criadoEm, c.respondidoEm)})</>}</>
+                      )}
+                    </>
+                  )}
                 </div>
                 <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                   <input readOnly value={link} onClick={e => e.target.select()}
