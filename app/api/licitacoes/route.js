@@ -11,7 +11,11 @@ import { COLS_COTACAO, etapaCotacao } from '@/lib/cotacao'
 // no caminho explícito de troca de empresa, mais abaixo no POST.
 const CAMPOS = ['numeroPNCP','numeroEdital','objeto','orgao','uasg','uf','valor','dataAbertura',
   'dataLimite','dataSessao','modalidade','status','link','portal','srp','numeroProposta','anexoDriveId','anexoDriveUrl','anexosJson',
-  'itensJson','checklistJson','resumoEmailsJson','participar', 'fase', 'origemSuspensao', ...COLS_RESULTADO]
+  'itensJson','checklistJson','resumoEmailsJson','participar', 'fase', 'origemSuspensao', 'modelosDocsJson', ...COLS_RESULTADO]
+
+// Modelos de proposta e declarações lidos do edital pela IA. Textos de
+// declaração somados podem passar de uma célula, então vão em até 4 colunas.
+const CHUNKS_MODELOS = 4
 
 // itensJson vem em várias colunas (itensJson, itensJson_2, ...) porque licitações
 // com muitos itens passam do limite de 50000 caracteres de uma única célula do Sheets
@@ -19,7 +23,8 @@ const COLS_LIC = ['id','empresaId','empresaNome','numeroPNCP','numeroEdital','ob
   'valor','dataPublicacao','dataAbertura','modalidade','status','link','origem','salvoEm',
   'dataLimite','dataSessao','portal','srp','numeroProposta','anexoDriveId','anexoDriveUrl','anexosJson',
   ...nomesChunk('itensJson'), 'checklistJson', 'resumoEmailsJson',
-  'participar', 'fase', 'excluidaEm', 'origemSuspensao', ...COLS_RESULTADO]
+  'participar', 'fase', 'excluidaEm', 'origemSuspensao', ...COLS_RESULTADO,
+  ...nomesChunk('modelosDocsJson', CHUNKS_MODELOS)]
 
 function parseItens(json) {
   try { const a = JSON.parse(json || '[]'); return Array.isArray(a) ? a : [] } catch { return [] }
@@ -81,6 +86,7 @@ export async function GET(req) {
         anexos: parseItens(l.anexosJson),
         itens: parseItens(juntarChunk(l, 'itensJson')), checklistJson: l.checklistJson || '',
         resumoEmailsJson: l.resumoEmailsJson || '',
+        modelosDocsJson: juntarChunk(l, 'modelosDocsJson', CHUNKS_MODELOS),
         participar: l.participar || 'Pendente',
         origemSuspensao: l.origemSuspensao || '',
         fase: faseAutomatica({
@@ -138,6 +144,10 @@ export async function POST(req) {
     if (!String(campos.dataSessao ?? '').trim()) {
       const derivada = String(campos.dataLimite ?? '').trim() || String(campos.dataAbertura ?? '').trim()
       if (derivada) campos.dataSessao = derivada
+    }
+    if (campos.modelosDocsJson !== undefined) {
+      try { Object.assign(campos, chunkCampo('modelosDocsJson', campos.modelosDocsJson, CHUNKS_MODELOS)) }
+      catch (e) { return NextResponse.json({ sucesso: false, erro: 'Modelos de documentos grandes demais para salvar.' }) }
     }
     if (campos.itensJson !== undefined) {
       try { Object.assign(campos, chunkCampo('itensJson', campos.itensJson)) }

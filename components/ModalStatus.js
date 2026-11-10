@@ -5,6 +5,7 @@ import { RESULTADOS, MOTIVOS_NAO_PARTICIPACAO, MOTIVOS_PERDA } from '@/lib/resul
 import { gerarResumoItens } from '@/lib/checklist'
 import { TIPOS_EVENTO, tipoEventoInfo } from '@/lib/tiposEvento'
 import PainelCotacao from '@/components/PainelCotacao'
+import PainelDocumentos from '@/components/PainelDocumentos'
 import Toggle from '@/components/Toggle'
 import { enviarAoGAS } from '@/lib/gasClient'
 
@@ -920,6 +921,12 @@ export default function ModalStatus({ lic, onFechar, onSalvo, onAtualizado }) {
                   <input type="number" step="0.01" value={f.valorVencedor} onChange={e => set('valorVencedor', e.target.value)} /></div>
               </div>
             )
+          )}
+
+          {/* ── Proposta dos itens vencidos e declarações do edital, em Word ── */}
+          {['Disputa', 'Finalizada'].includes(fase) && (
+            <PainelDocumentos lic={lic} itens={itens} setItem={setItem}
+              resultadoGeral={f.resultado} onAtualizado={onAtualizado} />
           )}
 
           {/* ── Finalizada / Descartado: resultado e motivo ── */}
