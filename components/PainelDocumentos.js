@@ -15,6 +15,7 @@ const ROTULO_EXTRA = { marca: 'Marca', modelo: 'Modelo', fabricante: 'Fabricante
 export default function PainelDocumentos({ lic, itens, setItem, resultadoGeral, onAtualizado }) {
   const [modelos, setModelos] = useState(() => parse(lic.modelosDocsJson))
   const [lendo, setLendo] = useState(false)
+  const [progresso, setProgresso] = useState('')
   const [aviso, setAviso] = useState('')
   const [gerando, setGerando] = useState('')
   const [empresa, setEmpresa] = useState(null)
@@ -54,28 +55,60 @@ export default function PainelDocumentos({ lic, itens, setItem, resultadoGeral, 
   const faltam = (lib && modelos && empresa)
     ? lib.camposFaltando(modelos, lib.montarValores({ empresa, lic }), escolhidas) : []
 
+  // Uma chamada por parte: tudo junto estourava o tempo/memória do Apps
+  // Script em editais grandes. A segunda reaproveita os PDFs já enviados.
+  async function lerParte(parte) {
+    try {
+      return await enviarAoGAS({ action: 'extrairModelosDocumentos', licitacaoId: lic.id, empresaId: lic.empresa_id, parte })
+    } catch (e) {
+      // "NetworkError"/"Failed to fetch": o Google devolveu página de erro em
+      // vez de resposta — quase sempre o Apps Script passou do tempo
+      const rede = /network|failed to fetch|load failed/i.test(e.message || '')
+      return { sucesso: false, erro: rede
+        ? 'o Apps Script parou antes de responder (edital muito grande ou demorado). Tente de novo — a segunda tentativa costuma ser mais rápida.'
+        : e.message }
+    }
+  }
+
   async function lerEdital() {
     setLendo(true); setAviso('')
-    try {
-      const r = await enviarAoGAS({ action: 'extrairModelosDocumentos', licitacaoId: lic.id, empresaId: lic.empresa_id })
-      if (!r || !r.sucesso) { setAviso('❌ ' + ((r && r.erro) || 'Não foi possível ler o edital agora.')); setLendo(false); return }
-      const m = { proposta: r.proposta || {}, declaracoes: r.declaracoes || [], lidoEm: new Date().toISOString(), arquivos: r.arquivoLido || '' }
-      setModelos(m)
-      setEscolhidas(m.declaracoes.map((_, i) => i))
-      const lidos = r.aviso ? r.aviso + ' ' : ''
-      // Salva na hora, como o resumo da IA: não depende de "Salvar status"
-      const rs = await fetch('/api/licitacoes', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: lic.id, empresa_id: lic.empresa_id, objeto: lic.objeto, modelosDocsJson: JSON.stringify(m) }),
-      }).then(x => x.json()).catch(() => null)
-      if (rs && rs.sucesso && !rs.aviso) {
-        setAviso(lidos + `✅ Modelos lidos e salvos: ${m.proposta?.encontrado === false ? 'sem modelo próprio de proposta (uso o padrão)' : 'modelo de proposta'} e ${m.declaracoes.length} declaração(ões).`)
-        if (onAtualizado) onAtualizado()
-      } else {
-        setAviso(lidos + '⚠️ Modelos lidos, mas não foram salvos na licitação: ' + ((rs && (rs.aviso || rs.erro)) || 'falha de conexão') + '. Dá para gerar agora mesmo assim.')
-      }
-    } catch (e) {
-      setAviso('❌ Erro: ' + e.message)
+    const anterior = modelos || {}
+    setProgresso('1/2 · lendo o modelo de proposta...')
+    const rp = await lerParte('proposta')
+    setProgresso('2/2 · lendo as declarações...')
+    const rd = await lerParte('declaracoes')
+    setProgresso('')
+
+    if (!rp?.sucesso && !rd?.sucesso) {
+      setAviso('❌ Não consegui ler o edital: ' + (rd?.erro || rp?.erro || 'sem resposta'))
+      setLendo(false); return
+    }
+    // Parte que falhou mantém o que já havia sido lido antes (se havia)
+    const m = {
+      proposta: rp?.sucesso ? (rp.proposta || {}) : (anterior.proposta || { encontrado: false }),
+      declaracoes: rd?.sucesso ? (rd.declaracoes || []) : (anterior.declaracoes || []),
+      lidoEm: new Date().toISOString(),
+      arquivos: rp?.arquivoLido || rd?.arquivoLido || anterior.arquivos || '',
+    }
+    setModelos(m)
+    setEscolhidas(m.declaracoes.map((_, i) => i))
+
+    const falhas = []
+    if (!rp?.sucesso) falhas.push('modelo de proposta: ' + (rp?.erro || 'sem resposta'))
+    if (!rd?.sucesso) falhas.push('declarações: ' + (rd?.erro || 'sem resposta'))
+    const extra = [rp?.aviso || rd?.aviso, falhas.length ? '⚠️ Não li o ' + falhas.join(' · ') + ' — use "Ler o edital de novo".' : '']
+      .filter(Boolean).join(' ')
+
+    // Salva na hora, como o resumo da IA: não depende de "Salvar status"
+    const rs = await fetch('/api/licitacoes', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: lic.id, empresa_id: lic.empresa_id, objeto: lic.objeto, modelosDocsJson: JSON.stringify(m) }),
+    }).then(x => x.json()).catch(() => null)
+    if (rs && rs.sucesso && !rs.aviso) {
+      setAviso(`✅ Salvo: ${m.proposta?.encontrado === false ? 'proposta no formato padrão' : 'modelo de proposta'} e ${m.declaracoes.length} declaração(ões). ${extra}`)
+      if (onAtualizado) onAtualizado()
+    } else {
+      setAviso('⚠️ Lido, mas não foi salvo na licitação: ' + ((rs && (rs.aviso || rs.erro)) || 'falha de conexão') + '. Dá para gerar agora mesmo assim. ' + extra)
     }
     setLendo(false)
   }
@@ -110,7 +143,7 @@ export default function PainelDocumentos({ lic, itens, setItem, resultadoGeral, 
             os documentos saem preenchidos com os dados da empresa e os itens que vencemos.
           </p>
           <button className="btn-primary" style={{ marginTop: 0 }} disabled={lendo || !temAnexo} onClick={lerEdital}>
-            {lendo ? 'Lendo o edital... (pode levar 1 a 2 minutos)' : '🤖 Ler modelos do edital'}
+            {lendo ? (progresso || 'Lendo o edital...') : '🤖 Ler modelos do edital'}
           </button>
           {!temAnexo && <p className="dica-menus" style={{ marginTop: 6 }}>Anexe o PDF do edital em &quot;Editar&quot; antes.</p>}
         </>
@@ -192,12 +225,13 @@ export default function PainelDocumentos({ lic, itens, setItem, resultadoGeral, 
               {gerando === 'declaracoes' ? 'Gerando...' : `⬇ Declarações (.docx)`}
             </button>
             <button className="btn-ghost" disabled={lendo} onClick={lerEdital}>
-              {lendo ? 'Lendo...' : '↻ Ler o edital de novo'}
+              {lendo ? (progresso || 'Lendo...') : '↻ Ler o edital de novo'}
             </button>
           </div>
         </>
       )}
 
+      {lendo && <p className="dica-menus" style={{ marginTop: 6 }}>Cada parte leva de 30 s a 2 min, conforme o tamanho do edital. Pode continuar com a tela aberta.</p>}
       {aviso && <div style={{ fontSize: 12.5, marginTop: 8, color: '#374151' }}>{aviso}</div>}
     </div>
   )
