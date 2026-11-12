@@ -16,6 +16,9 @@ export default function PainelCotacao({ lic, itens, setItens, marcados }) {
   const [mensagem, setMensagem] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [linkGerado, setLinkGerado] = useState('')
+  // Ressalva sobre um e-mail que SAIU (ex.: saiu por outra conta). Não é erro: antes aparecia
+  // em vermelho dizendo para copiar o link e enviar à mão, como se o e-mail não tivesse ido.
+  const [avisoEnvio, setAvisoEnvio] = useState('')
   const [copiado, setCopiado] = useState(null)
 
   let chkDados = {}
@@ -84,7 +87,7 @@ export default function PainelCotacao({ lic, itens, setItens, marcados }) {
   async function enviarPedido() {
     if (!email.trim()) { setErro('Informe o e-mail do fornecedor.'); return }
     if (!marcados.length) { setErro('Marque ao menos um item para participar antes de pedir cotação.'); return }
-    setErro(''); setEnviando(true); setLinkGerado('')
+    setErro(''); setAvisoEnvio(''); setEnviando(true); setLinkGerado('')
     try {
       const r = await fetch('/api/licitacoes/cotacao', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -103,7 +106,11 @@ export default function PainelCotacao({ lic, itens, setItens, marcados }) {
       }).then(x => x.json())
       if (r.sucesso) {
         setLinkGerado(r.link)
-        if (r.avisoEmail) setErro('Pedido salvo, mas: ' + r.avisoEmail + ' — copie o link acima e envie manualmente.')
+        if (r.avisoEmail) {
+          // enviadoEm só vem preenchido quando o Apps Script confirmou o envio
+          if (r.enviadoEm) setAvisoEnvio('E-mail enviado. ' + r.avisoEmail)
+          else setErro('Pedido salvo, mas: ' + r.avisoEmail + ' — copie o link acima e envie manualmente.')
+        }
         setEmail(''); setMensagem('')
         carregar()
       } else setErro(r.erro || 'Erro ao criar pedido.')
@@ -261,6 +268,11 @@ export default function PainelCotacao({ lic, itens, setItens, marcados }) {
           {linkGerado && (
             <div className="l-ok" style={{ marginBottom: 10, wordBreak: 'break-all' }}>
               Link gerado: {linkGerado}
+            </div>
+          )}
+          {avisoEnvio && (
+            <div style={{ marginBottom: 10, background: '#FEF3C7', border: '1px solid #F59E0B', color: '#92400E', borderRadius: 8, padding: '9px 12px', fontSize: 12.5 }}>
+              {avisoEnvio}
             </div>
           )}
           {erro && <div className="l-err" style={{ marginBottom: 10 }}>{erro}</div>}
