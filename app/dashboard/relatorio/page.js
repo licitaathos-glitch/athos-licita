@@ -178,7 +178,7 @@ export default function RelatorioPage() {
                 <thead>
                   <tr>
                     <th>Data</th><th>Portal</th><th>Edital / Objeto</th><th>UF</th>
-                    <th>Fase</th><th>Status</th><th>Nº proposta</th><th>Nº cotação</th>
+                    <th>Fase</th><th>Status</th>{rel.temProposta && <th>Nº proposta</th>}{rel.temCotacao && <th>Nº cotação</th>}
                     <th style={{ textAlign: 'right' }}>Valor estimado</th><th style={{ textAlign: 'right' }}>Nosso valor</th>
                     <th>Observações</th><th>Link</th>
                   </tr>
@@ -194,7 +194,7 @@ export default function RelatorioPage() {
                     <Fragment key={l.id}>
                       {fx.id !== faseAnterior && (
                         <tr className="rel-fase-sep" key={'fase-' + fx.id}>
-                          <td colSpan={12} style={{ background: fx.cor + '1A', color: fx.cor, fontWeight: 700, fontSize: 11.5 }}>
+                          <td colSpan={10 + (rel.temProposta ? 1 : 0) + (rel.temCotacao ? 1 : 0)} style={{ background: fx.cor + '1A', color: fx.cor, fontWeight: 700, fontSize: 11.5 }}>
                             {fx.nome.toUpperCase()}
                           </td>
                         </tr>
@@ -210,8 +210,8 @@ export default function RelatorioPage() {
                         <td>{l.uf || '—'}</td>
                         <td>{fx.nome}</td>
                         <td style={{ fontWeight: 700, color: corResultado(l.resultado) }}>{statusRelatorio(l)}</td>
-                        <td>{l.numeroProposta || '—'}</td>
-                        <td>{cotNums.length ? cotNums.join(', ') : '—'}</td>
+                        {rel.temProposta && <td>{l.numeroProposta || '—'}</td>}
+                        {rel.temCotacao && <td>{cotNums.length ? cotNums.join(', ') : '—'}</td>}
                         <td style={{ textAlign: 'right' }}>{estimado ? brl(estimado) : '—'}</td>
                         <td style={{ textAlign: 'right' }}>{nosso ? brl(nosso) : '—'}</td>
                         <td style={{ maxWidth: 260 }}>
