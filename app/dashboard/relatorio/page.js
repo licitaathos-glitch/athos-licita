@@ -6,7 +6,7 @@ import { faseDe } from '@/lib/fases'
 import { fmtBRL, saldoDoItem } from '@/lib/comercial'
 import {
   MESES, brl, dataRef, statusRelatorio, valorVencidoItem, valorNossoTotal,
-  valorEstimadoTotal, calcularRelatorio,
+  valorEstimadoTotal, calcularRelatorio, resultadoItem, valor1oColocadoItem,
 } from '@/lib/relatorio'
 import EnviarRelatorioEmail from '@/components/EnviarRelatorioEmail'
 
@@ -255,19 +255,18 @@ export default function RelatorioPage() {
                       <tbody>
                         {itensParticipando.map((it, i) => {
                           const colocacao = Number(it.colocacao) || null
-                          const venceuItem = colocacao === 1 || (!colocacao && l.resultado === 'Ganhamos')
+                          const r = resultadoItem(it, l)
+                          const venceuItem = r === 'ganho'
                           const nossoValor = valorVencidoItem(it)
-                          // Preço do 1º colocado: se já ganhamos (colocação 1), é o nosso
-                          // próprio valor; senão é o preço do concorrente registrado no item.
-                          const valor1oColocado = venceuItem ? nossoValor : (Number(it.vencedorPreco) || null)
+                          const valor1oColocado = valor1oColocadoItem(it, l)
                           return (
                             <tr key={i} style={venceuItem ? { background: '#DCFCE7' } : undefined}>
                               <td style={{ maxWidth: 280 }}>{it.descricao}</td>
                               <td>{colocacao ? colocacao + 'º' : '—'}</td>
-                              <td style={{ fontWeight: 700, color: venceuItem ? '#16A34A' : '#DC2626' }}>
-                                {venceuItem ? 'Vencido' : 'Perdido'}
+                              <td style={{ fontWeight: 700, color: venceuItem ? '#16A34A' : r === 'perdido' ? '#DC2626' : '#94A3B8' }}>
+                                {venceuItem ? 'Vencido' : r === 'perdido' ? 'Perdido' : 'Em andamento'}
                               </td>
-                              <td style={{ textAlign: 'right' }}>{it.valorUnitarioRef ? brl(it.valorUnitarioRef) : 'Não informado'}</td>
+                              <td style={{ textAlign: 'right' }}>{it.valorUnitarioRef ? brl(it.valorUnitarioRef) : 'Sigiloso'}</td>
                               <td style={{ textAlign: 'right' }}>{brl(nossoValor)}</td>
                               <td style={{ textAlign: 'right' }}>{valor1oColocado ? brl(valor1oColocado) : '—'}{it.vencedorNome && !venceuItem ? <div style={{ fontWeight: 400, color: '#64748B' }}>{it.vencedorNome}</div> : null}</td>
                             </tr>
@@ -284,6 +283,11 @@ export default function RelatorioPage() {
                       {!l.valor && !l.nossoLance && !l.valorVencedor && !l.colocacao && (
                         <span style={{ color: '#94A3B8' }}>Sem itens marcados como participando nem valores de lance registrados nesta licitação — confira a fase "Inscrição de proposta" no Andamento.</span>
                       )}
+                    </div>
+                  )}
+                  {itensParticipando.length > 0 && (l.valorVencedor || l.empresaVencedora) && (
+                    <div className="rel-lic-disputa">
+                      Preço do vencedor: <strong>{l.valorVencedor ? brl(l.valorVencedor) : '—'}</strong>{l.empresaVencedora ? ' (' + l.empresaVencedora + ')' : ''}
                     </div>
                   )}
                   {l.observacaoDisputa && <div className="rel-lic-obs">{l.observacaoDisputa}</div>}
