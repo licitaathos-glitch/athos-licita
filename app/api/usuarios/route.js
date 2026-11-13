@@ -4,6 +4,12 @@ import { getUsuarioFromReq, ehAdmin } from '@/lib/auth'
 import { novoId } from '@/lib/uuid'
 import { chamarGAS } from '@/lib/gas'
 
+// Lista única de colunas da aba Usuarios. Tem que ser a mesma em todas as chamadas
+// de garantirAba, porque o cache de abas conferidas não olha a lista de colunas.
+const COLS_USUARIOS = ['id','nome','email','pin','perfil','ativo','criadoEm',
+  'reset_token','reset_expira','empresa_id','empresas_permitidas','menus','menus_por_empresa',
+  'receber_alertas']
+
 export async function GET(req) {
   const usuario = await getUsuarioFromReq(req)
   if (!usuario) return NextResponse.json({ sucesso: false, erro: 'Não autenticado.' }, { status: 401 })
@@ -14,6 +20,8 @@ export async function GET(req) {
     id: u.id, nome: u.nome, email: u.email, perfil: u.perfil,
     empresa_id: u.empresa_id || '', empresas_permitidas: u.empresas_permitidas || '',
     menus: u.menus || '', menus_por_empresa: u.menus_por_empresa || '', ativo: u.ativo,
+    // vazio = recebe (usuários antigos, criados antes da coluna existir)
+    receber_alertas: String(u.receber_alertas ?? '').trim().toUpperCase() !== 'FALSE',
   }))
   return NextResponse.json({ sucesso: true, usuarios: lista })
 }
@@ -24,7 +32,7 @@ export async function POST(req) {
   if (!ehAdmin(usuario)) return NextResponse.json({ sucesso: false, erro: 'Apenas administradores podem criar usuários.' }, { status: 403 })
 
   try {
-    const { nome, email, perfil, empresa_id, empresas_permitidas, menus, menus_por_empresa } = await req.json()
+    const { nome, email, perfil, empresa_id, empresas_permitidas, menus, menus_por_empresa, receber_alertas } = await req.json()
     if (!nome || !email || !perfil) {
       return NextResponse.json({ sucesso: false, erro: 'Preencha nome, e-mail e perfil.' })
     }
@@ -33,8 +41,7 @@ export async function POST(req) {
     }
 
     // Garante que a coluna "menus" existe na aba antes de gravar
-    await garantirAba('Usuarios', ['id','nome','email','pin','perfil','ativo','criadoEm',
-      'reset_token','reset_expira','empresa_id','empresas_permitidas','menus','menus_por_empresa'])
+    await garantirAba('Usuarios', COLS_USUARIOS)
 
     const usuarios = await lerAba('Usuarios')
     const emailBusca = String(email).trim().toLowerCase()
@@ -48,6 +55,7 @@ export async function POST(req) {
     const r = await adicionarLinha('Usuarios', {
       id, nome, email, pin, perfil,
       ativo: 'TRUE',
+      receber_alertas: receber_alertas === false ? 'FALSE' : 'TRUE',
       criadoEm: new Date().toISOString(),
       empresa_id: perfil === 'empresa' ? (empresa_id || '') : '',
       empresas_permitidas: perfil === 'analista' ? (empresas_permitidas || '') : '',
@@ -81,7 +89,7 @@ export async function PUT(req) {
   if (!ehAdmin(usuario)) return NextResponse.json({ sucesso: false, erro: 'Apenas administradores podem editar usuários.' }, { status: 403 })
 
   try {
-    const { id, nome, perfil, empresa_id, empresas_permitidas, menus, menus_por_empresa, ativo, redefinirPin } = await req.json()
+    const { id, nome, perfil, empresa_id, empresas_permitidas, menus, menus_por_empresa, ativo, receber_alertas, redefinirPin } = await req.json()
     if (!id) return NextResponse.json({ sucesso: false, erro: 'ID obrigatório.' })
 
     const usuarios = await lerAba('Usuarios')
@@ -110,6 +118,10 @@ export async function PUT(req) {
       if (empresas_permitidas !== undefined) campos.empresas_permitidas = empresas_permitidas
     }
     if (ativo !== undefined) campos.ativo = ativo ? 'TRUE' : 'FALSE'
+    if (receber_alertas !== undefined) {
+      await garantirAba('Usuarios', COLS_USUARIOS)
+      campos.receber_alertas = receber_alertas ? 'TRUE' : 'FALSE'
+    }
 
     let novoPin = null
     if (redefinirPin) {
@@ -120,8 +132,7 @@ export async function PUT(req) {
     }
 
     if (menus !== undefined) {
-      await garantirAba('Usuarios', ['id','nome','email','pin','perfil','ativo','criadoEm',
-        'reset_token','reset_expira','empresa_id','empresas_permitidas','menus','menus_por_empresa'])
+      await garantirAba('Usuarios', COLS_USUARIOS)
       campos.menus = Array.isArray(menus) ? menus.join(',') : (menus || '')
     }
     if (menus_por_empresa !== undefined) {

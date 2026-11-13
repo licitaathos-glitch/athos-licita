@@ -24,6 +24,8 @@ function usuariosDaEmpresa(empresaId, usuarios) {
   return usuarios.filter(u => {
     if (!u.email) return false
     if (String(u.ativo ?? 'TRUE').trim().toUpperCase() === 'FALSE') return false
+    // Desmarcado na tela de Usuários ("Receber alertas diários"). Vazio = recebe.
+    if (String(u.receber_alertas ?? '').trim().toUpperCase() === 'FALSE') return false
     const perfil = String(u.perfil || '').trim().toLowerCase()
     if (['admin', 'adm', 'administrador', 'administradora'].includes(perfil)) return true
     if (perfil === 'empresa') return String(u.empresa_id || '').trim() === empresaId

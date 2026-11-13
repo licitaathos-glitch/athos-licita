@@ -88,7 +88,7 @@ export default function UsuariosPage() {
       <div className="form-card" style={{ marginBottom: 16 }}>
         <div className="form-card-title">📬 Alertas automáticos diários</div>
         <p className="dica-menus" style={{ marginTop: 0, marginBottom: 10 }}>
-          Roda sozinho todo dia às 08h e manda para licitacoes@athoslicita.com (mais os e-mails cadastrados em cada empresa): certidões vencendo, atas vencendo,
+          Roda sozinho todo dia às 08h e manda para licitacoes@athoslicita.com (mais os usuários de cada empresa que estão com “Receber alertas diários” marcado): certidões vencendo, atas vencendo,
           sessões de disputa amanhã e novas oportunidades do PNCP (para empresas com perfil de busca configurado em Oportunidades).
         </p>
         <button className="iBtn iBtn-up" onClick={testarAlertas} disabled={testandoAlerta}>
@@ -200,6 +200,7 @@ function CardUsuario({ u, empresas, eu, onMudou }) {
     } catch { return {} }
   })
   const [ativo, setAtivo] = useState(String(u.ativo).toUpperCase() !== 'FALSE')
+  const [recebeAlertas, setRecebeAlertas] = useState(u.receber_alertas !== false)
   const [msg, setMsg] = useState('')
   const [erro, setErro] = useState('')
   const [salvando, setSalvando] = useState(false)
@@ -236,6 +237,7 @@ function CardUsuario({ u, empresas, eu, onMudou }) {
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           {inativo && <span className="pill pill-red">desativado</span>}
+          {!inativo && u.receber_alertas === false && <span className="pill pill-gray">sem alertas</span>}
           <span className="pill pill-gray">{ROTULOS[String(u.perfil).toLowerCase()] || u.perfil}</span>
         </div>
       </div>
@@ -291,6 +293,11 @@ function CardUsuario({ u, empresas, eu, onMudou }) {
                 onChange={e => setAtivo(e.target.checked)} />
               Conta ativa {souEu && '(não é possível desativar a própria conta)'}
             </label>
+            <label className="chip" style={{ display: 'inline-flex', marginLeft: 8 }}>
+              <input type="checkbox" checked={recebeAlertas}
+                onChange={e => setRecebeAlertas(e.target.checked)} />
+              Receber alertas diários por e-mail
+            </label>
           </div>
 
           {msg && <div className="l-ok" style={{ marginTop: 10 }}>{msg}</div>}
@@ -299,7 +306,7 @@ function CardUsuario({ u, empresas, eu, onMudou }) {
           <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
             <button className="btn-primary" style={{ marginTop: 0 }} disabled={salvando}
               onClick={() => chamar({
-                nome, perfil, ativo,
+                nome, perfil, ativo, receber_alertas: recebeAlertas,
                 empresa_id: perfil === 'empresa' ? empresaId : '',
                 empresas_permitidas: perfil === 'analista' ? permitidas.join(',') : '',
                 menus: perfil === 'admin' ? '' : menus.join(','),
