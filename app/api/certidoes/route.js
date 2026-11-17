@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { lerAba, adicionarLinha, atualizarLinha, excluirLinha, garantirAba } from '@/lib/google'
 import { getUsuarioFromReq, podeEditar, empresasVisiveis, podeAcessarMenu, empresasComMenu } from '@/lib/auth'
 import { diasRestantes, statusPorDias, formatarData } from '@/lib/datas'
-import { rotuloTipo, temValidade } from '@/lib/tiposCertidao'
+import { rotuloTipo, temValidade, unificarDocumentos } from '@/lib/tiposCertidao'
 import { novoId } from '@/lib/uuid'
 import { analisarLinkDrive } from '@/lib/drive'
 
@@ -34,7 +34,7 @@ export async function GET(req) {
       idsPermitidos(usuario), lerAba('Documentos'),
     ])
 
-    const certidoes = documentos
+    const certidoes = unificarDocumentos(documentos.filter(d => d.id))
       .filter(d => d.id && ids.has(String(d.empresa_id || '').trim()))
       .map(d => {
         const slug = String(d.tipo_slug || '').trim()

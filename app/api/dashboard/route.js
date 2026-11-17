@@ -2,13 +2,7 @@ import { NextResponse } from 'next/server'
 import { lerAba } from '@/lib/google'
 import { lerToken } from '@/lib/session'
 import { empresasVisiveis } from '@/lib/auth'
-
-// Slugs de documentos que possuem validade (mesma regra do sistema atual)
-const SLUGS_COM_VALIDADE = new Set([
-  'rfb_pgfn','fgts','tst','reg_est','reg_mun','pge',
-  'alvara_san','anvisa','eng','crea_pj','crea_pf',
-  'bal_ult','bal_pen','falencia','atst',
-])
+import { temValidade, unificarDocumentos } from '@/lib/tiposCertidao'
 
 function diffDias(valStr) {
   if (!valStr) return null
@@ -28,13 +22,14 @@ export async function GET(req) {
     const usuario = token ? await lerToken(token) : null
     if (!usuario) return NextResponse.json({ sucesso: false, erro: 'Não autenticado.' }, { status: 401 })
 
-    const [todasEmpresas, documentos] = await Promise.all([lerAba('Empresas'), lerAba('Documentos')])
+    const [todasEmpresas, documentosBrutos] = await Promise.all([lerAba('Empresas'), lerAba('Documentos')])
+    const documentos = unificarDocumentos(documentosBrutos)
     const empresas = empresasVisiveis(usuario, todasEmpresas.filter(e => e.id))
 
     const resumo = empresas.map(e => {
       const docs = documentos.filter(d =>
         String(d.empresa_id || '').trim() === String(e.id).trim() &&
-        SLUGS_COM_VALIDADE.has(String(d.tipo_slug || '').trim())
+        temValidade(d.tipo_slug)
       )
       let vencidas = 0, alerta = 0, regulares = 0
       docs.forEach(d => {
