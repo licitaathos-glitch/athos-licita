@@ -706,7 +706,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo, onAtualizado }) {
                   </div>
                 </div>
               )}
-              <PainelCotacao lic={lic} itens={itens} setItens={setItens} marcados={marcados} />
+              <PainelCotacao lic={lic} itens={itens} setItens={setItens} marcados={marcados} chkDados={chkDados} resumoRiscos={resumoRiscos} />
             </div>
           )}
 

@@ -8,7 +8,7 @@ const moeda = n => (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency',
 // Pedido de cotação por e-mail: gera um link público (sem login) para o
 // fornecedor preencher o preço dele. O que ele responde fica como "cotação
 // recebida" — só entra no Valor mínimo quando você clica em "usar".
-export default function PainelCotacao({ lic, itens, setItens, marcados }) {
+export default function PainelCotacao({ lic, itens, setItens, marcados, chkDados: chkAtual, resumoRiscos }) {
   const [lista, setLista] = useState(null)
   const [erro, setErro] = useState('')
   const [aberto, setAberto] = useState(false)
@@ -21,8 +21,12 @@ export default function PainelCotacao({ lic, itens, setItens, marcados }) {
   const [avisoEnvio, setAvisoEnvio] = useState('')
   const [copiado, setCopiado] = useState(null)
 
+  // O resumo da IA vem do modal (estado em tela). Ler só de lic.checklistJson
+  // fazia este painel dizer "sem leitura do edital" — e mandar o e-mail sem o
+  // resumo — logo depois de gerá-lo, até a lista ser recarregada.
   let chkDados = {}
-  try { chkDados = JSON.parse(lic.checklistJson || '{}') } catch {}
+  if (chkAtual && Object.keys(chkAtual).length) chkDados = chkAtual
+  else { try { chkDados = JSON.parse(lic.checklistJson || '{}') } catch {} }
   const resumoTexto = gerarResumoTexto(chkDados)
 
   // Mesmo conteúdo do "Resumo (PDF)" da licitação, para ir no corpo do e-mail
@@ -32,7 +36,7 @@ export default function PainelCotacao({ lic, itens, setItens, marcados }) {
     numeroPNCP: lic.numeroPNCP || '', srp: lic.srp || '',
     valorEstimado: lic.valor || '',
     dataAbertura: lic.dataAbertura || '', dataLimite: lic.dataLimite || '',
-    analiseGeral: chkDados._riscos || '',
+    analiseGeral: resumoRiscos || chkDados._riscos || '',
     itensResumo: gerarResumoItens(chkDados),
     observacoes: lic.observacaoDisputa || '',
     anexos: (lic.anexos?.length ? lic.anexos : (lic.anexoDriveUrl ? [{ nome: 'Edital', url: lic.anexoDriveUrl }] : [])),
@@ -231,7 +235,7 @@ export default function PainelCotacao({ lic, itens, setItens, marcados }) {
             O e-mail leva o resumo da licitação <strong>também em PDF anexo</strong> e um link público (sem senha)
             para preencher o preço dos {marcados.length} item(ns) marcados acima.
           </p>
-          {!resumoTexto && (
+          {!resumoTexto && !resumoRiscos && (
             <p style={{ fontSize: 12, color: '#92400E', background: '#FEF3C7', border: '1px solid #F59E0B', borderRadius: 8, padding: '8px 10px', margin: '0 0 8px' }}>
               ⚠️ Esta licitação ainda não tem a leitura do edital pela IA. O PDF vai só com as informações básicas,
               o objeto, os anexos e a lista de itens — sem qualificação, prazos e condições. Rode
