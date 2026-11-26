@@ -1,16 +1,16 @@
 'use client'
 import { useEffect, useState } from 'react'
 
-const OUTRO = '__outro__'
+const RE_EMAIL = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/
 
-// Painel "Enviar por e-mail" da tela de relatório. Envia com os mesmos filtros (período e fases) da tela. O destinatário vem
-// pré-preenchido com o e-mail de contato cadastrado na empresa, mas dá pra
-// trocar por um usuário do sistema vinculado a ela ou digitar um e-mail avulso.
+// Painel "Enviar por e-mail" da tela de relatório. Envia com os mesmos filtros (período e fases) da tela.
+// Lista o e-mail de contato da empresa e os usuários vinculados a ela com caixas de marcação: dá pra enviar
+// só para quem você marcar (um, vários ou todos) e ainda acrescentar e-mails avulsos digitados.
 export default function EnviarRelatorioEmail({ empresaId, empresa, filtros }) {
   const [aberto, setAberto] = useState(false)
   const [opcoes, setOpcoes] = useState([])
-  const [destino, setDestino] = useState('')
-  const [custom, setCustom] = useState('')
+  const [marcados, setMarcados] = useState([])
+  const [extras, setExtras] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [msg, setMsg] = useState(null)
 
@@ -18,50 +18,49 @@ export default function EnviarRelatorioEmail({ empresaId, empresa, filtros }) {
     let cancelado = false
     setMsg(null)
     const lista = []
-    if (empresa?.email) lista.push({ valor: empresa.email, rotulo: `Contato da empresa — ${empresa.email}` })
-
-    fetch('/api/usuarios').then(r => r.json()).then(r => {
+    if (empresa?.email) lista.push({ valor: empresa.email, rotulo: 'Contato da empresa', email: empresa.email })
+    const finalizar = () => {
       if (cancelado) return
+      setOpcoes(lista)
+      setMarcados(lista[0] ? [lista[0].valor] : [])
+    }
+    fetch('/api/usuarios').then(r => r.json()).then(r => {
       if (r.sucesso) {
         r.usuarios
           .filter(u => u.email && String(u.perfil).toLowerCase() === 'empresa' && (
             String(u.empresa_id) === String(empresaId) ||
-            String(u.empresas_permitidas || '').split(',').map(s => s.trim()).includes(String(empresaId))
+            String(u.empresas_permitidas || '').split(',').map(x => x.trim()).includes(String(empresaId))
           ))
           .forEach(u => {
-            if (!lista.some(o => o.valor === u.email)) lista.push({ valor: u.email, rotulo: `${u.nome} — ${u.email}` })
+            if (!lista.some(o => o.valor === u.email)) lista.push({ valor: u.email, rotulo: u.nome, email: u.email })
           })
       }
-      lista.push({ valor: OUTRO, rotulo: 'Digitar outro e-mail...' })
-      setOpcoes(lista)
-      setDestino(lista[0]?.valor || OUTRO)
-    }).catch(() => {
-      lista.push({ valor: OUTRO, rotulo: 'Digitar outro e-mail...' })
-      if (!cancelado) { setOpcoes(lista); setDestino(lista[0]?.valor || OUTRO) }
-    })
-
+      finalizar()
+    }).catch(finalizar)
     return () => { cancelado = true }
   }, [empresaId, empresa])
 
+  const alternar = (v) => { setMarcados(m => m.includes(v) ? m.filter(x => x !== v) : [...m, v]); setMsg(null) }
+
   const enviar = () => {
-    const destinatarioEmail = destino === OUTRO ? custom.trim() : destino
-    if (!destinatarioEmail || !destinatarioEmail.includes('@')) {
-      setMsg({ tipo: 'erro', texto: 'Informe um e-mail válido.' })
-      return
-    }
+    const avulsos = extras.split(/[\s,;]+/).map(x => x.trim()).filter(Boolean)
+    const destinatarios = [...new Set([...marcados, ...avulsos])]
+    if (!destinatarios.length) { setMsg({ tipo: 'erro', texto: 'Marque ao menos um destinatário ou digite um e-mail.' }); return }
+    const invalido = destinatarios.find(e => !RE_EMAIL.test(e))
+    if (invalido) { setMsg({ tipo: 'erro', texto: `E-mail inválido: ${invalido}` }); return }
     setEnviando(true)
     setMsg(null)
     fetch('/api/licitacoes/relatorio-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        empresaId, destinatarioEmail,
+        empresaId, destinatarios,
         de: filtros.de, ate: filtros.ate, fases: filtros.fases,
         incluirAnteriores: filtros.incluirAnteriores, incluirFinanceiro: filtros.mostrarFinanceiro,
       }),
     }).then(r => r.json()).then(r => {
       setEnviando(false)
-      if (r.sucesso) setMsg({ tipo: 'ok', texto: `Relatório enviado para ${destinatarioEmail}.` })
+      if (r.sucesso) setMsg({ tipo: 'ok', texto: `Relatório enviado para ${destinatarios.join(', ')}.` })
       else setMsg({ tipo: 'erro', texto: r.erro || 'Não foi possível enviar o e-mail.' })
     }).catch(() => {
       setEnviando(false)
@@ -82,16 +81,20 @@ export default function EnviarRelatorioEmail({ empresaId, empresa, filtros }) {
   return (
     <div className="form-card" style={{ marginTop: 12 }}>
       <label className="mini-lbl">ENVIAR RELATÓRIO POR E-MAIL</label>
-      <select style={{ ...campoEstilo, marginTop: 6 }} value={destino} onChange={e => { setDestino(e.target.value); setMsg(null) }}>
-        {opcoes.map(o => <option key={o.valor} value={o.valor}>{o.rotulo}</option>)}
-      </select>
-      {destino === OUTRO && (
-        <input
-          type="email" placeholder="email@exemplo.com" value={custom}
-          style={{ ...campoEstilo, marginTop: 8 }}
-          onChange={e => { setCustom(e.target.value); setMsg(null) }}
-        />
-      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+        {opcoes.length === 0 && <span style={{ fontSize: 12.5, color: '#94A3B8' }}>Nenhum e-mail cadastrado para esta empresa — digite abaixo.</span>}
+        {opcoes.map(o => (
+          <label key={o.valor} className="rel-chk">
+            <input type="checkbox" checked={marcados.includes(o.valor)} onChange={() => alternar(o.valor)} />
+            <span><strong>{o.rotulo}</strong> — {o.email}</span>
+          </label>
+        ))}
+      </div>
+      <input
+        type="text" placeholder="Outros e-mails (separe por vírgula)" value={extras}
+        style={{ ...campoEstilo, marginTop: 10 }}
+        onChange={e => { setExtras(e.target.value); setMsg(null) }}
+      />
       <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
         <button type="button" className="btn-primary" style={{ marginTop: 0 }} onClick={enviar} disabled={enviando}>
           {enviando ? 'Enviando...' : 'Enviar'}

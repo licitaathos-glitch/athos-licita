@@ -33,14 +33,18 @@ export async function POST(req) {
   if (!podeAcessarMenu(usuario, 'relatorio')) return NextResponse.json({ sucesso: false, erro: 'Seu usuário não tem acesso a este módulo.' }, { status: 403 })
 
   const corpo = await req.json()
-  const { empresaId, destinatarioEmail } = corpo
+  const { empresaId } = corpo
+  // aceita vários destinatários (destinatarios[]) ou um só (destinatarioEmail, legado)
+  const bruto = Array.isArray(corpo.destinatarios) ? corpo.destinatarios : [corpo.destinatarioEmail]
+  const lista = [...new Set(bruto.map(e => String(e || '').trim()).filter(Boolean))]
+  const destinatarioEmail = lista.join(',')
   // "mes" (aaaa-mm) continua aceito; o normal agora é de/ate (aaaa-mm-dd)
   const periodo = ('de' in corpo || 'ate' in corpo) ? { de: corpo.de || '', ate: corpo.ate || '' } : corpo.mes ? mesPeriodo(corpo.mes) : null
   if (!empresaId || !periodo || !destinatarioEmail) return NextResponse.json({ sucesso: false, erro: 'Faltam dados.' })
   const idsFaixa = FAIXAS.map(f => f.id)
   const fases = Array.isArray(corpo.fases) ? corpo.fases.filter(f => idsFaixa.includes(f)) : FAIXAS_PADRAO
   const incluirAnteriores = corpo.incluirAnteriores !== false
-  if (!destinatarioEmail.includes('@')) return NextResponse.json({ sucesso: false, erro: 'E-mail do destinatário inválido.' })
+  if (lista.some(e => !/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(e))) return NextResponse.json({ sucesso: false, erro: 'E-mail de destinatário inválido.' })
 
   try {
     const todas = await lerAba('Empresas')

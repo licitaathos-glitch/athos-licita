@@ -6,11 +6,14 @@ import { brl } from '@/lib/relatorio'
 const COR_SIT = { ganho: '#16A34A', perdido: '#DC2626', pendente: '#94A3B8' }
 const ROTULO_SIT = { ganho: 'Vencido', perdido: 'Perdido', pendente: 'Em andamento' }
 
-export default function FichaRelatorio({ f, cor }) {
+export default function FichaRelatorio({ f, cor, faseNome }) {
   return (
     <div className="rel-ficha" style={{ borderLeftColor: cor }}>
       <div className="rel-ficha-topo">
-        <div className="rel-ficha-tit">{f.titulo}</div>
+        <div className="rel-ficha-linha">
+          <div className="rel-ficha-tit">{f.titulo}</div>
+          {faseNome && <span className="rel-fase-selo" style={{ background: cor }}>{faseNome}</span>}
+        </div>
         <div className="rel-ficha-grid">
           {f.campos.map(([rotulo, valor]) => (
             <div className="rel-campo" key={rotulo}><span className="l">{rotulo}</span><span className="v">{valor}</span></div>

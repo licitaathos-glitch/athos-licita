@@ -192,7 +192,7 @@ export default function RelatorioPage() {
               </div>
               {g.licitacoes.map(l => (
                 <FichaRelatorio
-                  key={l.id} cor={g.faixa.cor}
+                  key={l.id} cor={g.faixa.cor} faseNome={g.faixa.nome}
                   f={fichaDados(l, { cotNums: rel.cotacoesPorLic.get(l.id) || [], faixaId: g.faixa.id })}
                 />
               ))}
