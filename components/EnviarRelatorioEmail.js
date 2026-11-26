@@ -18,11 +18,14 @@ export default function EnviarRelatorioEmail({ empresaId, empresa, filtros }) {
     let cancelado = false
     setMsg(null)
     const lista = []
-    if (empresa?.email) lista.push({ valor: empresa.email, rotulo: 'Contato da empresa', email: empresa.email })
+    // o cadastro da empresa pode ter vários e-mails separados por vírgula: cada um vira uma opção própria
+    String(empresa?.email || '').split(/[\s,;]+/).map(x => x.trim()).filter(Boolean).forEach(em => {
+      if (!lista.some(o => o.valor === em)) lista.push({ valor: em, rotulo: 'Contato da empresa', email: em })
+    })
     const finalizar = () => {
       if (cancelado) return
       setOpcoes(lista)
-      setMarcados(lista[0] ? [lista[0].valor] : [])
+      setMarcados(lista.filter(o => o.rotulo === 'Contato da empresa').map(o => o.valor))
     }
     fetch('/api/usuarios').then(r => r.json()).then(r => {
       if (r.sucesso) {
