@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { enviarAoGAS } from '@/lib/gasClient'
+import { precoLance } from '@/lib/preco'
 
 // Proposta (só dos itens vencidos) e declarações exigidas no edital, prontas
 // em Word para revisar e assinar. Dois passos, para a parte lenta da IA não
@@ -43,8 +44,8 @@ export default function PainelDocumentos({ lic, itens, setItem, resultadoGeral, 
     return []
   }, [lib, itens, resultadoGeral, lic.objeto, lic.nossoLance, lic.colocacao])
 
-  const total = vencidos.reduce((s, it) => s + (Number(it.lanceFinal || it.meuValor) || 0) * (Number(it.quantidade) || 0), 0)
-  const semPreco = vencidos.filter(it => !(Number(it.lanceFinal || it.meuValor) > 0)).length
+  const total = vencidos.reduce((s, it) => s + precoLance(it) * (Number(it.quantidade) || 0), 0)
+  const semPreco = vencidos.filter(it => !(precoLance(it) > 0)).length
 
   // Colunas que pedem dado nosso que o sistema não tem (marca, modelo...)
   const colunasExtras = (modelos?.proposta?.colunas || [])

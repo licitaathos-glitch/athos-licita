@@ -8,6 +8,7 @@ import PainelCotacao from '@/components/PainelCotacao'
 import PainelDocumentos from '@/components/PainelDocumentos'
 import Toggle from '@/components/Toggle'
 import { enviarAoGAS } from '@/lib/gasClient'
+import { precoProposta, precoLance } from '@/lib/preco'
 
 const moeda = n => (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 const isoParaBR = v => { const p = String(v || '').split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : v }
@@ -274,12 +275,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo, onAtualizado }) {
   // Quando a forma é "% de desconto", o valor mínimo é um percentual sobre o
   // estimado, não um preço em R$ — aqui convertemos para o preço unitário
   // efetivo, para os totais funcionarem do mesmo jeito em qualquer forma.
-  const precoEfetivo = it => {
-    const estimado = Number(it.valorUnitarioRef) || 0
-    const v = Number(it.meuValor) || 0
-    if (it.formaValor === 'desconto') return estimado * (1 - v / 100)
-    return v
-  }
+  const precoEfetivo = precoProposta
 
   const marcados = itens.filter(it => it.participar)
   const [buscaItem, setBuscaItem] = useState('')
@@ -870,10 +866,10 @@ export default function ModalStatus({ lic, onFechar, onSalvo, onAtualizado }) {
                           <td style={{ color: '#64748B', fontWeight: 600, textAlign: 'center' }}>{it.numero ?? ''}</td>
                           <td style={{ maxWidth: 260 }}>{it.descricao || '—'}</td>
                           <td>{it.quantidade || '—'}</td>
-                          <td><input type="number" step="0.01" value={it.lanceFinal || ''} placeholder={it.meuValor || '0,00'}
+                          <td><input type="number" step="0.01" value={it.lanceFinal || ''} placeholder={precoProposta(it) ? precoProposta(it).toFixed(2) : '0,00'}
                             onChange={ev => setItem(i, 'lanceFinal', ev.target.value)} /></td>
                           <td style={{ fontWeight: 700, color: '#1B2E4B', whiteSpace: 'nowrap' }}>
-                            {moeda((Number(it.lanceFinal || it.meuValor) || 0) * (Number(it.quantidade) || 0))}
+                            {moeda(precoLance(it) * (Number(it.quantidade) || 0))}
                           </td>
                           <td><input type="number" min="1" value={it.colocacao || ''} placeholder="1"
                             onChange={ev => setItem(i, 'colocacao', ev.target.value)} /></td>
@@ -895,7 +891,7 @@ export default function ModalStatus({ lic, onFechar, onSalvo, onAtualizado }) {
                     <span className="lic-campo-lbl">VALOR TOTAL DA CONTRATAÇÃO (NOSSOS LANCES)</span>
                     <span className="lic-campo-val" style={{ color: '#16A34A', fontSize: 16 }}>
                       {moeda(marcados.reduce((s, it) =>
-                        s + (Number(it.lanceFinal || it.meuValor) || 0) * (Number(it.quantidade) || 0), 0))}
+                        s + precoLance(it) * (Number(it.quantidade) || 0), 0))}
                     </span>
                   </div>
                   {marcados.length > 0 && (

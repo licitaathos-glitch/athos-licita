@@ -7,6 +7,7 @@ import { FASES, opcoesFase } from '@/lib/fases'
 import { nomeResultado, corResultado } from '@/lib/resultado'
 import { nomeStatus } from '@/lib/statusLicitacao'
 import Toggle from '@/components/Toggle'
+import { precoLance } from '@/lib/preco'
 
 // Janela com os detalhes completos de uma licitação — antes isso expandia
 // dentro da própria lista; agora abre à parte, sem empurrar as outras linhas.
@@ -293,7 +294,7 @@ export default function ModalDetalheLicitacao({
                     {itensBase.some(it => it.lanceFinal) && (
                       <div style={{ textAlign: 'right', fontSize: 12.5, fontWeight: 700, color: '#16A34A', marginTop: 6 }}>
                         Total dos nossos lances: {itensBase.filter(it => !temGrupos || (it.grupo || 'Sem grupo') === g)
-                          .reduce((s, it) => s + (Number(it.lanceFinal || it.meuValor) || 0) * (Number(it.quantidade) || 0), 0)
+                          .reduce((s, it) => s + precoLance(it) * (Number(it.quantidade) || 0), 0)
                           .toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                       </div>
                     )}

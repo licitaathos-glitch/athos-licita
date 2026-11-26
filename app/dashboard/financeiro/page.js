@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useApp } from '@/lib/AppContext'
 import { fmtBRL, STATUS_EMPENHO, num } from '@/lib/comercial'
 import ModalEmpenho from '@/components/ModalEmpenho'
+import { precoProposta, precoLance } from '@/lib/preco'
 
 const MESES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']
 const CORES_STATUS = { Empenhado: '#3B82F6', Faturado: '#D97706', Entregue: '#8B5CF6', Pago: '#16A34A', Cancelado: '#94A3B8' }
@@ -113,22 +114,22 @@ export default function FinanceiroPage() {
     const linhas = ganhas.map(l => {
       const cfg = configs[l.empresa_id] || { modelo: 'revenda' }
       const itens = (l.itens || []).filter(it => it.participar !== false)
-      const temValorPorItem = itens.some(it => num(it.lanceFinal) || num(it.meuValor))
+      const temValorPorItem = itens.some(it => precoLance(it))
 
       let faturamento = 0, custo = 0, semReferencia = false
       if (temValorPorItem) {
         itens.forEach(it => {
           const qtd = num(it.quantidade)
-          const precoVenda = num(it.lanceFinal) || num(it.meuValor)
+          const precoVenda = precoLance(it)
           // Custo estimado = Valor mínimo cadastrado na Inscrição de proposta —
           // mesma fonte usada em ModalEmpenho quando ainda não há cotação de
           // fornecedor. Sem essa referência, custo fica igual ao preço de venda
           // (margem zero) em vez de inventar lucro que não existe.
-          const custoUnit = num(it.meuValor) || precoVenda
+          const custoUnit = precoProposta(it) || precoVenda
           faturamento += qtd * precoVenda
           custo += qtd * custoUnit
         })
-        semReferencia = itens.some(it => !num(it.meuValor) && !num(it.lanceFinal))
+        semReferencia = itens.some(it => !precoLance(it))
       } else {
         // Sem detalhamento por item (comum em representação/comissão, onde só
         // se registra o lance total da licitação) — usa o valor agregado,

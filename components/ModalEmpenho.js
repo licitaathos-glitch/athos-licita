@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { STATUS_EMPENHO, fmtBRL } from '@/lib/comercial'
 import { enviarAoGAS, lerBase64 } from '@/lib/gasClient'
+import { precoProposta } from '@/lib/preco'
 
 const isoParaBR = v => { const p = String(v || '').split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : '' }
 const brParaISO = v => { const m = String(v || '').match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? `${m[3]}-${m[2]}-${m[1]}` : '' }
@@ -67,7 +68,7 @@ export default function ModalEmpenho({ empenho = {}, ata, empresaId, modelo, per
         const r = await fetch('/api/licitacoes').then(x => x.json())
         const lic = (r.licitacoes || []).find(l => String(l.id) === String(licId))
         for (const it of lic?.itens || []) {
-          const v = n(it.meuValor)
+          const v = precoProposta(it)
           const k = chaveItem(it.descricao)
           if (!v || !k) continue
           if (mapa[k] === undefined || v < mapa[k]) mapa[k] = v
