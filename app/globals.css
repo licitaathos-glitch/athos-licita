@@ -519,3 +519,24 @@ body{font-family:'Manrope',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-seri
 /* Relatório mensal — seção de atas */
 .rel-ata-contato{font-size:12px;color:#334155;margin-top:6px}
 @media print{.rel-ata{break-inside:avoid;page-break-inside:avoid}}
+
+/* ══ RELATÓRIO — FICHAS POR FASE ══ */
+.rel-filtro-fases{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:8px}
+.rel-chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#2E2D2F;cursor:pointer}
+.rel-chk input{width:auto;margin:0}
+.rel-chk-dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.rel-fases-incluidas{font-size:11.5px;color:#94A3B8;margin:-6px 0 14px}
+.rel-grupo{display:flex;justify-content:space-between;align-items:center;margin:26px 0 10px;padding:8px 14px;border-radius:8px;font-weight:800;font-size:13px;letter-spacing:.02em;break-after:avoid;page-break-after:avoid}
+.rel-grupo span{font-size:11.5px;font-weight:700;opacity:.85}
+.rel-ficha{border:1px solid #E2E8F0;border-left:4px solid #CBD5E1;border-radius:0 10px 10px 0;padding:14px 16px;margin-bottom:12px;background:#fff}
+.rel-ficha-topo{break-inside:avoid;page-break-inside:avoid}
+.rel-ficha-tit{font-size:14px;font-weight:800;color:#145653}
+.rel-ficha-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:7px 20px;margin-top:9px}
+.rel-campo .l{display:block;font-size:10px;font-weight:700;color:#94A3B8;letter-spacing:.04em;text-transform:uppercase}
+.rel-campo .v{display:block;font-size:12.5px;color:#2E2D2F;word-break:break-word}
+.rel-ficha-obj{font-size:12.5px;color:#334155;margin-top:10px;line-height:1.55}
+.rel-ficha-res{border-left:3px solid #CBD5E1;background:#F8FAFC;border-radius:0 8px 8px 0;padding:9px 12px;margin-top:10px;font-size:12.5px;color:#334155;line-height:1.6;break-inside:avoid;page-break-inside:avoid}
+.rel-ficha-sit{font-weight:800;font-size:13px;letter-spacing:.03em}
+.rel-ficha-observ{background:#FFFBEB;border-left:3px solid #B9A06B;border-radius:0 8px 8px 0;padding:8px 12px;margin-top:10px;font-size:12.5px;color:#2E2D2F;white-space:pre-wrap}
+.rel-ficha-observ .l{display:block;font-size:10px;font-weight:700;color:#94A3B8;letter-spacing:.04em;margin-bottom:2px}
+.rel-ficha .rel-tabela tr{break-inside:avoid;page-break-inside:avoid}

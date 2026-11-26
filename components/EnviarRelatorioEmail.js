@@ -3,10 +3,10 @@ import { useEffect, useState } from 'react'
 
 const OUTRO = '__outro__'
 
-// Painel "Enviar por e-mail" da tela de relatório mensal. O destinatário vem
+// Painel "Enviar por e-mail" da tela de relatório. Envia com os mesmos filtros (período e fases) da tela. O destinatário vem
 // pré-preenchido com o e-mail de contato cadastrado na empresa, mas dá pra
 // trocar por um usuário do sistema vinculado a ela ou digitar um e-mail avulso.
-export default function EnviarRelatorioEmail({ empresaId, empresa, mes }) {
+export default function EnviarRelatorioEmail({ empresaId, empresa, filtros }) {
   const [aberto, setAberto] = useState(false)
   const [opcoes, setOpcoes] = useState([])
   const [destino, setDestino] = useState('')
@@ -54,7 +54,11 @@ export default function EnviarRelatorioEmail({ empresaId, empresa, mes }) {
     fetch('/api/licitacoes/relatorio-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ empresaId, mes, destinatarioEmail }),
+      body: JSON.stringify({
+        empresaId, destinatarioEmail,
+        de: filtros.de, ate: filtros.ate, fases: filtros.fases,
+        incluirAnteriores: filtros.incluirAnteriores, incluirFinanceiro: filtros.mostrarFinanceiro,
+      }),
     }).then(r => r.json()).then(r => {
       setEnviando(false)
       if (r.sucesso) setMsg({ tipo: 'ok', texto: `Relatório enviado para ${destinatarioEmail}.` })

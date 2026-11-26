@@ -1,19 +1,24 @@
 'use client'
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useApp } from '@/lib/AppContext'
-import { nomeResultado, corResultado } from '@/lib/resultado'
-import { faseDe } from '@/lib/fases'
 import { fmtBRL, saldoDoItem } from '@/lib/comercial'
 import {
-  MESES, brl, dataRef, statusRelatorio, valorVencidoItem, valorNossoTotal,
-  valorEstimadoTotal, calcularRelatorio, resultadoItem, valor1oColocadoItem,
+  MESES, brl, calcularRelatorio, fichaDados, resumoPartes, rotuloPeriodo,
+  mesPeriodo, FAIXAS, FAIXAS_PADRAO,
 } from '@/lib/relatorio'
 import EnviarRelatorioEmail from '@/components/EnviarRelatorioEmail'
+import FiltrosRelatorio from '@/components/FiltrosRelatorio'
+import FichaRelatorio from '@/components/FichaRelatorio'
 
 export default function RelatorioPage() {
   const { empresaAtual, empresas } = useApp()
   const hoje = new Date()
-  const [mes, setMes] = useState(`${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`)
+  const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`
+  const [filtros, setFiltros] = useState(() => ({
+    mesSel: mesAtual, ...mesPeriodo(mesAtual),
+    fases: FAIXAS_PADRAO, incluirAnteriores: true, mostrarFinanceiro: true, mostrarAtas: true,
+  }))
+  const setF = patch => setFiltros(f => ({ ...f, ...patch }))
   const [dados, setDados] = useState(null)
   const [erro, setErro] = useState('')
 
@@ -41,8 +46,11 @@ export default function RelatorioPage() {
 
   const rel = useMemo(() => {
     if (!dados || !empresaSel) return null
-    return calcularRelatorio({ lics: dados.lics, empenhos: dados.empenhos, cotacoes: dados.cotacoes, empresaSel, mes })
-  }, [dados, empresaSel, mes])
+    return calcularRelatorio({
+      lics: dados.lics, empenhos: dados.empenhos, cotacoes: dados.cotacoes, empresaSel,
+      de: filtros.de, ate: filtros.ate, fases: filtros.fases, incluirAnteriores: filtros.incluirAnteriores,
+    })
+  }, [dados, empresaSel, filtros.de, filtros.ate, filtros.fases, filtros.incluirAnteriores])
 
   // Atas da empresa: vigentes primeiro (as que vencem antes no topo), depois
   // as vencidas (a mais recente primeiro) e por fim as sem data de vencimento
@@ -73,8 +81,10 @@ export default function RelatorioPage() {
   if (erro) return <div style={{ padding: 40, textAlign: 'center', color: '#DC2626' }}>{erro}</div>
   if (!dados) return <div style={{ padding: 40, textAlign: 'center', color: '#64748B' }}>Carregando...</div>
 
-  const [ano, mm] = mes.split('-')
-  const rotuloMes = `${MESES[Number(mm) - 1]} de ${ano}`
+  const rotulo = rotuloPeriodo(filtros.de, filtros.ate)
+  const fasesRotulo = filtros.fases.length === FAIXAS.length
+    ? 'todas as fases'
+    : FAIXAS.filter(f => filtros.fases.includes(f.id)).map(f => f.nome).join(', ') || 'nenhuma fase'
 
   const opcoesMes = []
   for (let i = 0; i < 12; i++) {
@@ -85,26 +95,28 @@ export default function RelatorioPage() {
     })
   }
 
+  // Numeração das seções conforme o que está ligado
+  const temFin = filtros.mostrarFinanceiro && rel && (rel.faturamento > 0 || rel.receita > 0)
+  const temAtas = filtros.mostrarAtas && atasEmpresa.length > 0
+  let _n = 1
+  const nFin = temFin ? ++_n : 0
+  const nLic = ++_n
+  const nAtas = temAtas ? ++_n : 0
+
   return (
     <div>
       <div className="nao-imprimir">
-        <h2 className="sec-title">Relatório mensal</h2>
-        <p className="sec-sub">Monitoramento e resultados para apresentar ao cliente</p>
+        <h2 className="sec-title">Relatório de licitações</h2>
+        <p className="sec-sub">Escolha o período e as fases; o relatório abaixo é o que vai para o PDF e para o e-mail</p>
 
-        <div className="form-card">
-          <div className="filtro-linha">
-            <div>
-              <label className="mini-lbl">MÊS DE REFERÊNCIA</label>
-              <select value={mes} onChange={e => setMes(e.target.value)}>
-                {opcoesMes.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
-              </select>
-            </div>
-            <button className="btn-primary" style={{ marginTop: 0 }} onClick={() => window.print()} disabled={!rel}>
-              🖨️ Imprimir / Salvar em PDF
-            </button>
-          </div>
+        <FiltrosRelatorio filtros={filtros} setF={setF} opcoesMes={opcoesMes} />
+
+        <div className="form-card" style={{ marginTop: 12 }}>
+          <button className="btn-primary" style={{ marginTop: 0 }} onClick={() => window.print()} disabled={!rel}>
+            🖨️ Imprimir / Salvar em PDF
+          </button>
           {rel && empresaSel && (
-            <EnviarRelatorioEmail empresaId={empresaSel} empresa={empresa} mes={mes} />
+            <EnviarRelatorioEmail empresaId={empresaSel} empresa={empresa} filtros={filtros} />
           )}
           <p style={{ fontSize: 11.5, color: '#94A3B8', marginTop: 10 }}>
             Na janela de impressão, escolha <strong>Destino: Salvar como PDF</strong> para gerar o arquivo que vai ao cliente.
@@ -122,7 +134,7 @@ export default function RelatorioPage() {
             <div>
               <div className="rel-marca">⚡ ATHOS LICITA</div>
               <h1>Relatório de Monitoramento de Licitações</h1>
-              <p>{empresa?.nome} · {rotuloMes}</p>
+              <p>{empresa?.nome} · {rotulo}</p>
             </div>
             <div className="rel-contato">
               Adriano Ribeiro Bragança<br />
@@ -132,23 +144,20 @@ export default function RelatorioPage() {
           </div>
 
           <h2 className="rel-h2">1. Resumo do período</h2>
+          <p className="rel-fases-incluidas">Fases incluídas: {fasesRotulo}</p>
           <p className="rel-texto">
-            Em {rotuloMes}, participamos de <strong>{rel.disputadas.length}</strong> licitaç{rel.disputadas.length === 1 ? 'ão' : 'ões'} com
-            resultado definido: vencemos <strong>{rel.ganhas.length}</strong> e perdemos <strong>{rel.perdidas.length}</strong>
-            {rel.disputadas.length > 0 && <> (taxa de sucesso de <strong>{rel.taxa.toFixed(0)}%</strong>)</>}.
-            {rel.naoParticipamos.length > 0 && <> Decidimos não participar de <strong>{rel.naoParticipamos.length}</strong> oportunidade{rel.naoParticipamos.length === 1 ? '' : 's'} analisada{rel.naoParticipamos.length === 1 ? '' : 's'}.</>}
-            {' '}Além disso, <strong>{rel.aguardando.length}</strong> licitaç{rel.aguardando.length === 1 ? 'ão segue' : 'ões seguem'} em andamento.
+            {resumoPartes(rel).map((p, i) => p.negrito ? <strong key={i}>{p.texto}</strong> : <span key={i}>{p.texto}</span>)}
           </p>
           <div className="rel-kpis">
             <div><strong>{rel.disputadas.length}</strong><span>participadas</span></div>
             <div><strong>{rel.ganhas.length}</strong><span>vencidas</span></div>
             <div><strong>{rel.perdidas.length}</strong><span>perdidas</span></div>
-            <div><strong>{rel.aguardando.length}</strong><span>em andamento</span></div>
+            <div><strong>{rel.emAndamento.length}</strong><span>em andamento</span></div>
           </div>
 
-          {(rel.faturamento > 0 || rel.receita > 0) && (
+          {temFin && (
             <>
-              <h2 className="rel-h2">2. Resultado financeiro do período</h2>
+              <h2 className="rel-h2">{nFin}. Resultado financeiro do período</h2>
               <div className="rel-kpis">
                 <div><strong>{fmtBRL(rel.faturamento)}</strong><span>faturamento empenhado</span></div>
                 <div><strong>{rel.empenhos.length}</strong><span>notas de empenho</span></div>
@@ -171,134 +180,28 @@ export default function RelatorioPage() {
             </>
           )}
 
-          {rel.todasNoRelatorio.length > 0 && (
-            <>
-              <h2 className="rel-h2">3. Licitações do período</h2>
-              <table className="rel-tabela rel-tabela-larga">
-                <thead>
-                  <tr>
-                    <th>Data</th><th>Portal</th><th>Edital / Objeto</th><th>UF</th>
-                    <th>Fase</th><th>Status</th>{rel.temProposta && <th>Nº proposta</th>}{rel.temCotacao && <th>Nº cotação</th>}
-                    <th style={{ textAlign: 'right' }}>Valor estimado</th><th style={{ textAlign: 'right' }}>Nosso valor</th>
-                    <th>Observações</th><th>Link</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rel.todasNoRelatorio.map((l, i, arr) => {
-                    const nosso = valorNossoTotal(l)
-                    const estimado = valorEstimadoTotal(l)
-                    const fx = faseDe(l.fase || 'Em analise')
-                    const faseAnterior = i > 0 ? faseDe(arr[i - 1].fase || 'Em analise').id : null
-                    const cotNums = rel.cotacoesPorLic.get(l.id) || []
-                    return (
-                    <Fragment key={l.id}>
-                      {fx.id !== faseAnterior && (
-                        <tr className="rel-fase-sep" key={'fase-' + fx.id}>
-                          <td colSpan={10 + (rel.temProposta ? 1 : 0) + (rel.temCotacao ? 1 : 0)} style={{ background: fx.cor + '1A', color: fx.cor, fontWeight: 700, fontSize: 11.5 }}>
-                            {fx.nome.toUpperCase()}
-                          </td>
-                        </tr>
-                      )}
-                      <tr style={l.resultado === 'Ganhamos' ? { background: '#DCFCE7' } : undefined}>
-                        <td style={{ whiteSpace: 'nowrap' }}>{(dataRef(l) || '').split(' ')[0] || '—'}</td>
-                        <td>{l.portal || '—'}</td>
-                        <td style={{ maxWidth: 320 }}>
-                          <strong>{l.numeroEdital || 'Sem nº'}</strong>{l.orgao ? ' - ' + l.orgao : ''}
-                          {l.uasg ? ' (UASG ' + l.uasg + ')' : ''}
-                          {l.objeto && <div style={{ color: '#64748B', fontWeight: 400 }}>{l.objeto}</div>}
-                        </td>
-                        <td>{l.uf || '—'}</td>
-                        <td>{fx.nome}</td>
-                        <td style={{ fontWeight: 700, color: corResultado(l.resultado) }}>{statusRelatorio(l)}</td>
-                        {rel.temProposta && <td>{l.numeroProposta || '—'}</td>}
-                        {rel.temCotacao && <td>{cotNums.length ? cotNums.join(', ') : '—'}</td>}
-                        <td style={{ textAlign: 'right' }}>{estimado ? brl(estimado) : '—'}</td>
-                        <td style={{ textAlign: 'right' }}>{nosso ? brl(nosso) : '—'}</td>
-                        <td style={{ maxWidth: 260 }}>
-                          {l.motivo && <div>{l.motivo}</div>}
-                          {l.observacaoDisputa && <div>{l.observacaoDisputa}</div>}
-                          {!l.motivo && !l.observacaoDisputa && '—'}
-                        </td>
-                        <td>{l.link ? <a href={l.link} target="_blank" rel="noreferrer">abrir</a> : '—'}</td>
-                      </tr>
-                    </Fragment>
-                  )})}
-                </tbody>
-              </table>
-            </>
+          <h2 className="rel-h2">{nLic}. Licitações por fase</h2>
+          {rel.grupos.length === 0 && (
+            <p className="rel-texto">Nenhuma licitação de {empresa?.nome} nas fases e no período selecionados.</p>
           )}
+          {rel.grupos.map(g => (
+            <div key={g.faixa.id}>
+              <div className="rel-grupo" style={{ background: g.faixa.cor + '1A', color: g.faixa.cor }}>
+                {g.faixa.nome.toUpperCase()}
+                <span>{g.licitacoes.length} {g.licitacoes.length === 1 ? 'licitação' : 'licitações'}</span>
+              </div>
+              {g.licitacoes.map(l => (
+                <FichaRelatorio
+                  key={l.id} cor={g.faixa.cor}
+                  f={fichaDados(l, { cotNums: rel.cotacoesPorLic.get(l.id) || [], faixaId: g.faixa.id })}
+                />
+              ))}
+            </div>
+          ))}
 
-          {rel.comDetalheItens.length > 0 && (
+          {temAtas && (
             <>
-              <h2 className="rel-h2">4. Detalhamento por item — vitórias e derrotas</h2>
-              {rel.comDetalheItens.map(l => {
-                const itensParticipando = (l.itens || []).filter(it => it.participar)
-                return (
-                <div className="rel-lic" key={l.id} style={{ borderLeftColor: corResultado(l.resultado) }}>
-                  <div className="rel-lic-tit">
-                    {l.numeroEdital || 'Sem nº'} — {l.orgao}{l.uf ? '/' + l.uf : ''}
-                    <span style={{ color: corResultado(l.resultado) }}>{nomeResultado(l.resultado)}</span>
-                  </div>
-                  <div className="rel-lic-meta">
-                    {l.modalidade}{l.portal ? ' · ' + l.portal : ''}{dataRef(l) ? ' · sessão em ' + dataRef(l).split(' ')[0] : ''}
-                  </div>
-                  {itensParticipando.length > 0 ? (
-                    <table className="rel-tabela" style={{ marginTop: 6 }}>
-                      <thead>
-                        <tr>
-                          <th>Item</th><th>Colocação</th><th>Situação</th>
-                          <th style={{ textAlign: 'right' }}>Vl. estimado</th>
-                          <th style={{ textAlign: 'right' }}>Nosso valor mínimo</th>
-                          <th style={{ textAlign: 'right' }}>Valor do 1º colocado</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {itensParticipando.map((it, i) => {
-                          const colocacao = Number(it.colocacao) || null
-                          const r = resultadoItem(it, l)
-                          const venceuItem = r === 'ganho'
-                          const nossoValor = valorVencidoItem(it)
-                          const valor1oColocado = valor1oColocadoItem(it, l)
-                          return (
-                            <tr key={i} style={venceuItem ? { background: '#DCFCE7' } : undefined}>
-                              <td style={{ maxWidth: 280 }}>{it.descricao}</td>
-                              <td>{colocacao ? colocacao + 'º' : '—'}</td>
-                              <td style={{ fontWeight: 700, color: venceuItem ? '#16A34A' : r === 'perdido' ? '#DC2626' : '#94A3B8' }}>
-                                {venceuItem ? 'Vencido' : r === 'perdido' ? 'Perdido' : 'Em andamento'}
-                              </td>
-                              <td style={{ textAlign: 'right' }}>{it.valorUnitarioRef ? brl(it.valorUnitarioRef) : 'Sigiloso'}</td>
-                              <td style={{ textAlign: 'right' }}>{brl(nossoValor)}</td>
-                              <td style={{ textAlign: 'right' }}>{valor1oColocado ? brl(valor1oColocado) : '—'}{it.vencedorNome && !venceuItem ? <div style={{ fontWeight: 400, color: '#64748B' }}>{it.vencedorNome}</div> : null}</td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  ) : (
-                    <div className="rel-lic-disputa">
-                      {l.valor && <>Valor estimado: <strong>{l.valor}</strong></>}
-                      {l.nossoLance && <> · Nosso valor mínimo: <strong>{brl(l.nossoLance)}</strong></>}
-                      {l.valorVencedor && <> · Valor do 1º colocado: <strong>{brl(l.valorVencedor)}</strong>{l.empresaVencedora ? ' (' + l.empresaVencedora + ')' : ''}</>}
-                      {l.colocacao && <> · Nossa colocação: {l.colocacao}º</>}
-                      {!l.valor && !l.nossoLance && !l.valorVencedor && !l.colocacao && (
-                        <span style={{ color: '#94A3B8' }}>Sem itens marcados como participando nem valores de lance registrados nesta licitação — confira a fase "Inscrição de proposta" no Andamento.</span>
-                      )}
-                    </div>
-                  )}
-                  {itensParticipando.length > 0 && (l.valorVencedor || l.empresaVencedora) && (
-                    <div className="rel-lic-disputa">
-                      Preço do vencedor: <strong>{l.valorVencedor ? brl(l.valorVencedor) : '—'}</strong>{l.empresaVencedora ? ' (' + l.empresaVencedora + ')' : ''}
-                    </div>
-                  )}
-                  {l.observacaoDisputa && <div className="rel-lic-obs">{l.observacaoDisputa}</div>}
-                </div>
-              )})}
-            </>
-          )}
-
-          {atasEmpresa.length > 0 && (
-            <>
-              <h2 className="rel-h2">5. Atas de registro de preços e contratos</h2>
+              <h2 className="rel-h2">{nAtas}. Atas de registro de preços e contratos</h2>
               <div className="rel-kpis">
                 <div><strong>{atasEmpresa.length}</strong><span>atas/contratos</span></div>
                 <div><strong>{atasEmpresa.filter(a => a.dias !== null && a.dias >= 0).length}</strong><span>vigentes</span></div>
@@ -365,10 +268,6 @@ export default function RelatorioPage() {
                 )
               })}
             </>
-          )}
-
-          {rel.todasNoRelatorio.length === 0 && rel.empenhos.length === 0 && atasEmpresa.length === 0 && (
-            <p className="rel-texto">Não há registros para {empresa?.nome} em {rotuloMes}.</p>
           )}
 
           <div className="rel-rodape">
